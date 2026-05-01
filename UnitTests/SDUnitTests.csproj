@@ -25,39 +25,31 @@
     <LangVersion>latest</LangVersion>
     <RuntimeIdentifiers>win-x86;win-x64</RuntimeIdentifiers>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
     <DebugSymbols>true</DebugSymbols>
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <DebugType>pdbonly</DebugType>
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Microsoft.Xna.Framework, Version=3.1.0.0, Culture=neutral, PublicKeyToken=6d5c3888ef60e27d, processorArchitecture=x86">
-      <HintPath>..\game\Microsoft.Xna.Framework.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Numerics" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="XNAnimation, Version=0.7.0.0, Culture=neutral, PublicKeyToken=0c21691816f8c6d0, processorArchitecture=x86">
-      <HintPath>..\game\XNAnimation.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AITests\Empire\BudgetTests.cs" />
@@ -167,10 +159,6 @@
     <None Include="app.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Microsoft.Xna.Framework.Game\Microsoft.Xna.Framework.Game.csproj">
-      <Project>{dd32a813-1393-421a-baf8-455f02167be3}</Project>
-      <Name>Microsoft.Xna.Framework.Game</Name>
-    </ProjectReference>
     <ProjectReference Include="..\SDGraphics\SDGraphics.csproj">
       <Project>{46c4d1db-3168-470f-aba8-4ccaef60f107}</Project>
       <Name>SDGraphics</Name>
@@ -183,10 +171,6 @@
       <Project>{8071e07a-300e-485d-b139-066e15e82178}</Project>
       <Name>StarDrive</Name>
     </ProjectReference>
-    <ProjectReference Include="..\SynapseGaming-SunBurn-Pro\SDSunBurn.csproj">
-      <Project>{bb003976-4764-4f4e-9a98-ddfb8449eccd}</Project>
-      <Name>SDSunBurn</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\game\libfbxsdk.dll">
@@ -195,23 +179,17 @@
     <Content Include="..\game\SDNative.dll">
       <Link>SDNative.dll</Link>
     </Content>
-    <Content Include="XnaNative.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Microsoft.Xna.Framework.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="d3d9.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="d3dx9_31.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="X3DAudio1_6.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.WindowsDX">
+      <Version>3.8.0.1641</Version>
+    </PackageReference>
+    <PackageReference Include="MonoGame.Content.Builder.Task">
+      <Version>3.8.0.1641</Version>
+    </PackageReference>
     <PackageReference Include="LargeAddressAware">
       <Version>1.0.6</Version>
     </PackageReference>

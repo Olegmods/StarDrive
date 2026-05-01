@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using Microsoft.Xna.Framework.Graphics;
+using Color = Microsoft.Xna.Framework.Color;
 using SDUtils;
 using Ship_Game.Audio;
 using Ship_Game.GameScreens;
@@ -439,7 +440,7 @@ namespace Ship_Game
         public void FadeBackBufferToBlack(int alpha)
         {
             SpriteBatch.SafeBegin();
-            SpriteBatch.Draw(ResourceManager.Blank, new Rectangle(0, 0, GameBase.ScreenWidth, GameBase.ScreenHeight), new Color(0, 0, 0, (byte)alpha));
+            SpriteBatch.Draw(ResourceManager.Blank, new Rectangle(0, 0, GameBase.ScreenWidth, GameBase.ScreenHeight), new Color((byte)0, (byte)0, (byte)0, (byte)alpha));
             SpriteBatch.SafeEnd();
         }
 
@@ -471,7 +472,11 @@ namespace Ship_Game
             Log.Write("ScreenManager.LoadContent");
             UpdateGraphicsDevice();
 
-            Environment = ResourceManager.RootContent.Load<SceneEnvironment>("example/scene_environment");
+            // TODO Phase 2: example/scene_environment.xnb embeds a SunBurn ContentTypeReader
+            // (SynapseGaming.LightingSystem.Processors.SceneEnvironmentReader_Pro). Once the
+            // SunBurn lighting pipeline is replaced (or the asset is rebaked), restore the
+            // Load call. For Phase 1, skip the load and use a default-constructed stub.
+            Environment = new SceneEnvironment();
 
             if (deviceWasReset) // recover
             {
