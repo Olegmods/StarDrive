@@ -3,11 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework.Graphics;
 using SDUtils;
+using SynapseGaming.LightingSystem.Effects.Forward;
 using SynapseGaming.LightingSystem.Rendering;
 
 namespace Ship_Game.Data.Mesh;
 
 using BoundingBox = Microsoft.Xna.Framework.BoundingBox;
+using XnaMatrix = Microsoft.Xna.Framework.Matrix;
 using XnaVector3 = Microsoft.Xna.Framework.Vector3;
 
 // TODO Phase 2: rebuild against MonoGame's ModelMesh layout (IndexBuffer/VertexBuffer
@@ -138,11 +140,79 @@ public sealed class StaticMesh : IDisposable
         }
     }
 
-    // TODO Phase 2: Draw paths used XNA 3.1 patterns (effect.Begin/End, pass.Begin/End,
-    // gd.Vertices[0].SetSource, the 6-arg DrawIndexedPrimitives) that no longer exist in MonoGame.
-    // Stubbed to no-ops so the rest of the game can compile and tick.
-    public void Draw(Effect effect = null) { }
-    public void Draw(BasicEffect effect, Texture2D texture) { }
+    // Phase 2.8 sub-phase A2/B4: forward-renderer Draw. Iterates ModelMesh.MeshParts
+    // and RawMeshes (MeshData), binds buffers, loops technique passes and issues
+    // DrawIndexedPrimitives. The Draw(Effect) overload is the single source of truth;
+    // the device-aware overload below sets W/V/P on the LightingEffect, and the
+    // BasicEffect+Texture overload binds the texture, then both delegate here.
+    // Empty-mesh guard early-returns if both backing collections are empty (the
+    // common case while Phase 2 model XNB loads return stub meshes).
+    public void Draw(Effect effect = null)
+    {
+        if (effect == null) return;
+        GraphicsDevice device = effect.GraphicsDevice;
+        EffectTechnique technique = effect.CurrentTechnique;
+        if (device == null || technique == null) return;
+
+        bool hasModelMeshes = ModelMeshes != null && ModelMeshes.Count > 0;
+        bool hasRawMeshes = !RawMeshes.IsEmpty;
+        if (!hasModelMeshes && !hasRawMeshes) return;
+
+        if (hasModelMeshes)
+        {
+            foreach (ModelMesh mesh in ModelMeshes)
+            {
+                foreach (ModelMeshPart part in mesh.MeshParts)
+                {
+                    if (part.PrimitiveCount == 0) continue;
+                    device.SetVertexBuffer(part.VertexBuffer);
+                    device.Indices = part.IndexBuffer;
+                    foreach (EffectPass pass in technique.Passes)
+                    {
+                        pass.Apply();
+                        device.DrawIndexedPrimitives(PrimitiveType.TriangleList,
+                            part.VertexOffset, part.StartIndex, part.PrimitiveCount);
+                    }
+                }
+            }
+        }
+
+        if (hasRawMeshes)
+        {
+            foreach (MeshData md in RawMeshes)
+            {
+                if (md.PrimitiveCount == 0 || md.VertexBuffer == null || md.IndexBuffer == null) continue;
+                device.SetVertexBuffer(md.VertexBuffer);
+                device.Indices = md.IndexBuffer;
+                foreach (EffectPass pass in technique.Passes)
+                {
+                    pass.Apply();
+                    device.DrawIndexedPrimitives(PrimitiveType.TriangleList,
+                        baseVertex: 0, startIndex: 0, primitiveCount: md.PrimitiveCount);
+                }
+            }
+        }
+    }
+
+    public void Draw(GraphicsDevice device, XnaMatrix world, XnaMatrix view, XnaMatrix projection, LightingEffect effect)
+    {
+        if (effect == null || device == null) return;
+        effect.View = view;
+        effect.Projection = projection;
+        effect.World = world;
+        Draw((Effect)effect);
+    }
+
+    public void Draw(BasicEffect effect, Texture2D texture)
+    {
+        if (effect == null) return;
+        effect.Texture = texture;
+        effect.TextureEnabled = texture != null;
+        Draw((Effect)effect);
+    }
+
+    // TODO Phase 2: static Draw(Model,...) overloads have no current callers; preserved as
+    // no-ops in case mod / test code relies on the legacy signatures. Remove if confirmed unused.
     public static void Draw(Model model, Effect effect) { }
     public static void Draw(Model model, BasicEffect effect, Texture2D texture) { }
 

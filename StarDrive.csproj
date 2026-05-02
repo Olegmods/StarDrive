@@ -33,6 +33,12 @@
     <DefineConstants>DEBUG;TRACE;STEAM</DefineConstants>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <!-- Phase 2.6.A switched the default OutputType to WinExe (Windows subsystem),
+         which means Windows no longer allocates a console at startup. Log.Initialize
+         then sees Console.IsOutputRedirected==true and skips ShowConsoleWindow,
+         so the dev console disappears. Restore the pre-net8 console subsystem
+         for Debug builds only — Release/AutoFast/Deploy keep WinExe. -->
+    <OutputType>Exe</OutputType>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -415,6 +421,7 @@
     <Compile Include="Ship_Game\Data\Yaml\YamlNode.cs" />
     <Compile Include="Ship_Game\Data\YamlSerializer\YamlSerializer.cs" />
     <Compile Include="Ship_Game\Data\Mesh\StaticMesh.cs" />
+    <Compile Include="Ship_Game\Data\Mesh\LightingEffectBinder.cs" />
     <Compile Include="Ship_Game\Data\Yaml\YamlParser.cs" />
     <Compile Include="Ship_Game\Data\StringView.cs" />
     <Compile Include="Ship_Game\Debug\DebugInfoScreen_DrawPrimitives.cs" />
