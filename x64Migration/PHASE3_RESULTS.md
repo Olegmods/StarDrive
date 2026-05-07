@@ -176,4 +176,6 @@ User signed off after the walkthrough.
 - Renderer feature parity reached for the original 2013 art surface (bloom, distortion, fog-of-war post-process, normal/specular/emissive material maps, basic shadow maps).
 - Eight Phase 4 carryovers documented in `migration-plan-phase4.md` with concrete resolution paths and dedicated memory entries where applicable.
 
-**Tag (planned at PR merge)**: `phase3-end`
+**Tag**: [`phase3-end`](https://github.com/TeamStarDrive/StarDrive/releases/tag/phase3-end) at `272caf97a`.
+
+**PR**: [#243](https://github.com/TeamStarDrive/StarDrive/pull/243) (merged 2026-05-07 into `migration/monogame_migration` as `73412603d`).

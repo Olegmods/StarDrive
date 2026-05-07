@@ -81,7 +81,7 @@ The user runs `game/StarDrive.exe`. The process:
 | 3.9 | FBX TransparencyFactor write fix + legacy mesh re-export (Combined Arms ships) | Medium |
 | 3.10 | XNB Model decode — skinned/animated meshes + animation runtime | **Very High** |
 | ~~3.11~~ | ~~Small finishes: visual polish~~ **Moved to Phase 4 (2026-05-07)** — see `migration-plan-phase4.md` | — |
-| 3.12 | Phase 3 close: PHASE3_RESULTS.md, runtime smoke, final memory cleanup | Low |
+| 3.12 | Phase 3 close: PHASE3_RESULTS.md, runtime smoke, final memory cleanup — **DONE 2026-05-07** (commit `272caf97a`, tag `phase3-end`, PR [#243](https://github.com/TeamStarDrive/StarDrive/pull/243)) | Low |
 
 Each sub-phase ends with a commit and is rollback-able via `git revert <sha>` or `git reset --hard <tag>`.
 
