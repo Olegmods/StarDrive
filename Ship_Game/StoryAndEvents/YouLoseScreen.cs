@@ -45,7 +45,7 @@ namespace Ship_Game
         {
             ScreenManager.ClearScreen(Color.Black);
             batch.SafeBegin(SpriteBlendMode.None, sortImmediate:true);
-            if (desaturateEffect != null) // TODO Phase 2.2: desaturate shader not yet rewritten
+            if (desaturateEffect != null)
             {
                 desaturateEffect.CurrentTechnique.Passes[0].Apply();
                 batch.Draw(LoseTexture, ScreenCenter, null, new Color((byte)255, (byte)255, (byte)255, (byte)Saturation), 0f, Origin, scale, SpriteEffects.None, 1f);
@@ -124,7 +124,11 @@ namespace Ship_Game
         public override void Update(float fixedDeltaTime)
         {
             scale = 1f + 2f * TransitionPosition;
-            Saturation = 100f * (1f - TransitionPosition);
+            // Animation: starts grayscaled (TP=1 at fade-in start, Saturation=100,
+            // shader gives full luma) and slowly colorizes to fully colored at held
+            // state (TP=0, Saturation=0, shader passes orig through). Matches the
+            // pre-migration visual; the inverse `100*(1-TP)` form here was wrong.
+            Saturation = 100f * TransitionPosition;
             width = width.LerpTo((int)(960f + 960f * (1f - TransitionPosition)), 0.3f);
             height = height.LerpTo((int)(540f + 540f * (1f - TransitionPosition)), 0.3f);
             GameAudio.MuteGenericMusic();

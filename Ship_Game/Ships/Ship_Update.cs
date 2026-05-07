@@ -165,6 +165,7 @@ namespace Ship_Game.Ships
                                  * Matrix.CreateRotationY(YRotation)
                                  * Matrix.CreateRotationZ(Rotation)
                                  * Matrix.CreateTranslation(new Vector3(Position, 0f));
+
                     ShipSO.UpdateAnimation(timeStep.FixedTime);
 
                     UpdateThrusters(timeStep);

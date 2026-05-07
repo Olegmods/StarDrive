@@ -70,11 +70,43 @@ namespace Ship_Game
         public bool returnToShip;
         public EmpireUIOverlay EmpireUI;
         public BloomComponent bloomComponent;
+        public DistortionComponent distortionComponent;
+        // §3.8.B: shadow-map depth pre-pass. Sits next to the post-process
+        // components since it has the same lifetime contract (LoadContent
+        // here, dispose on UnloadGraphics). Unlike Bloom/Distortion this
+        // is a PRE-pass — SceneInterface.RenderScene drives it before the
+        // lit pass, so the wiring here is just construction + handing the
+        // component off to ScreenManager's SceneInterface.
+        public Ship_Game.Graphics.ShadowMapComponent shadowMapComponent;
+        // §3.7 step 2: reusable scratch list for the per-frame distortion-source
+        // build. ShieldManager.BuildDistortionSources appends; capacity matches
+        // DistortionComponent.MaxShields so the typical case allocates nothing.
+        readonly System.Collections.Generic.List<DistortionComponent.DistortionSource> DistortionSources
+            = new(DistortionComponent.MaxShields);
         public Texture2D FogMap;
-        RenderTarget2D FogMapTarget;
+        // Phase 3.7 step 3: ping-pong fog-of-war RTs. Pre-migration code did
+        // `FogMap = fogMapTarget.GetTexture()` which returned a SEPARATE
+        // snapshot texture (XNA 3.1 RenderTarget2D semantics). MonoGame removed
+        // that — RenderTarget2D *is* a Texture2D, so the migrated `FogMap = rt`
+        // made source and destination of UpdateFogMap the same memory. Reading
+        // a texture that's currently bound as the active RT is undefined under
+        // D3D11, breaking persistent exploration. Ping-pong restores the
+        // separate-source-and-destination invariant: render front→back, swap.
+        RenderTarget2D FogMapTargetA;
+        RenderTarget2D FogMapTargetB;
         public RenderTarget2D MainTarget;
         public RenderTarget2D BorderRT;
         RenderTarget2D LightsTarget;
+        // §3.7 step 1: bloom output RT. Allocated only when RenderBloom is on;
+        // bloomComponent processes MainTarget into this, and the fog-of-war
+        // composite then sources from here instead of MainTarget.
+        RenderTarget2D PostBloomTarget;
+        // §3.7 step 2: distortion output RT. Allocated when RenderShieldDistortion
+        // is on. We can't alias-safely write back to MainTarget/PostBloomTarget —
+        // the PS samples its source, so destination MUST be a separate RT. When
+        // no shield is actively hit, the pass is skipped and the composite reads
+        // from the prior stage instead.
+        RenderTarget2D PostDistortTarget;
 
         #pragma warning disable CA2213 // managed by Content Manager
         public Effect basicFogOfWarEffect;
@@ -206,6 +238,25 @@ namespace Ship_Game
             float globalLightZPos = (float)(MaxCamHeight * 10);
             AddLight("Global Fill Light", new Vector2(0, 0), 0.7f, globalLightRad, Color.White, -globalLightZPos, fillLight: false, shadowQuality: 0f);
             AddLight("Global Back Light", new Vector2(0, 0), 0.6f, globalLightRad, Color.White, +globalLightZPos, fillLight: false, shadowQuality: 0f);
+
+            // Phase B refactor: scene-wide AmbientLight feeds SharedFx via
+            // LightingEffectBinder so every SO (ships, planets, asteroids,
+            // launching ships, debris) gets a consistent shadow-floor without
+            // per-object PrimaryLight* setup. The "sun" itself comes from the
+            // existing per-system Key/LocalFill/OverSaturationKey PointLights:
+            // LightingEffectBinder picks the closest system's 3 lights and
+            // populates the 3 PointLight slots in MeshLighting.fx. The shader
+            // recomputes light direction per-pixel from world position, with
+            // smooth-quadratic radius falloff per light — automatic per-ship
+            // parallax + faithful SunBurn-style multi-light contributions.
+            // Ambient at 0.06× white matches the pre-refactor per-SO ambient
+            // floor (PrimaryLightColor * 0.06 in the old contrast pass).
+            AddLight(new AmbientLight
+            {
+                Name = "Universe Ambient",
+                DiffuseColor = Color.White.ToVector3(),
+                Intensity = 0.06f,
+            }, dynamic: false);
 
             foreach (SolarSystem system in UState.Systems)
                 ResetSolarSystemLights(system);
@@ -458,13 +509,28 @@ namespace Ship_Game
 
             if (GlobalStats.RenderBloom)
             {
-                bloomComponent = new BloomComponent(ScreenManager);
+                bloomComponent = new BloomComponent(device, TransientContent);
                 bloomComponent.LoadContent();
+            }
+            if (GlobalStats.RenderShieldDistortion)
+            {
+                distortionComponent = new DistortionComponent(device, TransientContent);
+                distortionComponent.LoadContent();
+            }
+            if (GlobalStats.RenderShadows)
+            {
+                shadowMapComponent = new Ship_Game.Graphics.ShadowMapComponent(device, TransientContent);
+                shadowMapComponent.LoadContent();
+                ScreenManager.AttachShadowMap(shadowMapComponent);
             }
 
             MainTarget   = RenderTargets.Create(device);
             LightsTarget = RenderTargets.Create(device);
             BorderRT     = RenderTargets.Create(device);
+            if (GlobalStats.RenderBloom)
+                PostBloomTarget = RenderTargets.Create(device);
+            if (GlobalStats.RenderShieldDistortion)
+                PostDistortTarget = RenderTargets.Create(device);
 
             NotificationManager.ReSize();
 
@@ -523,26 +589,36 @@ namespace Ship_Game
 
         void CreateFogMap(Data.GameContentManager content, GraphicsDevice device)
         {
+            EnsureFogMapRenderTargets(device);
+
+            // Clear both ping-pong RTs to fully transparent (no exploration yet).
+            device.SetRenderTarget(FogMapTargetA);
+            device.Clear(Color.Transparent);
+            device.SetRenderTarget(FogMapTargetB);
+            device.Clear(Color.Transparent);
+            device.SetRenderTarget(null);
+            FogMap = FogMapTargetA;
+
             if (UState.FogMapBytes != null)
             {
-                FogMap = content.RawContent.TexImport.FromAlphaOnly(UState.FogMapBytes);
-                UState.FogMapBytes = null; // free the mem of course, even if load failed
+                // Load saved alpha mask into the front RT so the next UpdateFogMap
+                // call samples it. FromAlphaOnly returns a stand-alone Texture2D
+                // (rgb=alpha for premul correctness); blit it onto FogMapTargetA.
+                Texture2D loaded = content.RawContent.TexImport.FromAlphaOnly(UState.FogMapBytes);
+                UState.FogMapBytes = null;
+                if (loaded != null)
+                {
+                    using var sb = new Microsoft.Xna.Framework.Graphics.SpriteBatch(device);
+                    device.SetRenderTarget(FogMapTargetA);
+                    device.Clear(Color.Transparent);
+                    sb.Begin(blendState: Microsoft.Xna.Framework.Graphics.BlendState.Opaque);
+                    sb.Draw(loaded, new Rectangle(0, 0, 512, 512), Color.White);
+                    sb.End();
+                    device.SetRenderTarget(null);
+                    loaded.Dispose();
+                }
             }
 
-            if (FogMap == null)
-            {
-                var fogMapTarget = GetCachedFogMapRenderTarget(device, ref FogMapTarget);
-                device.SetRenderTarget(fogMapTarget);
-                device.Clear(new Color((byte)255, (byte)255, (byte)255, (byte)0));
-                Color defaultFogColor = new(0, 0, 0, 150);
-                ScreenManager.SpriteRenderer.Begin(OrthographicProjection);
-                ScreenManager.SpriteRenderer.FillRect(new(0, 0, ScreenArea), defaultFogColor);
-                ScreenManager.SpriteRenderer.End();
-                device.SetRenderTarget(null);
-                FogMap = (fogMapTarget as Microsoft.Xna.Framework.Graphics.Texture2D);
-            }
-
-            //FogMap ??= ResourceManager.Texture2D("UniverseFeather.dds");
             basicFogOfWarEffect = content.Load<Effect>("Effects/BasicFogOfWar");
         }
 
@@ -609,8 +685,10 @@ namespace Ship_Game
 
         public void OnPlayerDefeated()
         {
-            // TODO Phase 2: StarDriveGame.EndingGame() lived in the deleted XNA wrapper;
+            // TODO Phase 4: StarDriveGame.EndingGame() lived in the deleted XNA wrapper;
             // restore once we wire equivalent shutdown hooks on MonoGame's Game class.
+            // Low priority — current path still ends the game correctly via screen-stack
+            // unwind; the missing hook only affects the legacy graceful-shutdown contract.
             UState.GameOver = true;
             UState.Paused = true;
             UState.Objects.Clear();
@@ -632,12 +710,21 @@ namespace Ship_Game
             if (!GlobalStats.IsUnitTest)
                 Log.Write(ConsoleColor.Cyan, "Universe.UnloadGraphics");
             Mem.Dispose(ref bloomComponent);
+            Mem.Dispose(ref distortionComponent);
+            // Detach from ScreenManager BEFORE disposing so SceneInterface.
+            // RenderScene can't run a depth pass against a disposed RT
+            // during the teardown frame.
+            ScreenManager?.AttachShadowMap(null);
+            Mem.Dispose(ref shadowMapComponent);
             Mem.Dispose(ref bg);
-            Mem.Dispose(ref FogMap);
-            Mem.Dispose(ref FogMapTarget);
+            FogMap = null; // alias of FogMapTargetA/B; the RTs own the lifetime
+            Mem.Dispose(ref FogMapTargetA);
+            Mem.Dispose(ref FogMapTargetB);
             Mem.Dispose(ref MainTarget);
             Mem.Dispose(ref BorderRT);
             Mem.Dispose(ref LightsTarget);
+            Mem.Dispose(ref PostBloomTarget);
+            Mem.Dispose(ref PostDistortTarget);
             Mem.Dispose(ref Particles);
             Mem.Dispose(ref Shields);
             Mem.Dispose(ref aw);

@@ -146,7 +146,7 @@ namespace Ship_Game.Data.Mesh
         // MonoGame VertexElementUsage ordinals (Microsoft.Xna.Framework.Graphics):
         //   0:Position 1:Color 2:TextureCoordinate 3:Normal 4:Binormal 5:Tangent
         //   6:BlendIndices 7:BlendWeight 8:Depth 9:Fog 10:PointSize 11:Sample 12:TessellateFactor
-        protected static bool TranslateNativeUsage(byte native, out VertexElementUsage mg)
+        internal static bool TranslateNativeUsage(byte native, out VertexElementUsage mg)
         {
             switch (native)
             {
@@ -174,7 +174,7 @@ namespace Ship_Game.Data.Mesh
         //   0:Single 1:Vector2 2:Vector3 3:Vector4 4:Color 5:Byte4 6:Short2 7:Short4
         //   8:NormalizedShort2 9:NormalizedShort4 10:HalfVector2 11:HalfVector4
         // (no Rgba32 — MG removed it; map to Color which is also 4 bytes packed RGBA.)
-        protected static bool TranslateNativeFormat(byte native, out VertexElementFormat mg)
+        internal static bool TranslateNativeFormat(byte native, out VertexElementFormat mg)
         {
             switch (native)
             {
@@ -189,6 +189,99 @@ namespace Ship_Game.Data.Mesh
                 case 8: mg = VertexElementFormat.Color;   return true; // SDNative::Rgba32 → MG::Color
                 default: mg = VertexElementFormat.Single; return false;
             }
+        }
+
+        // Inverse of TranslateNativeUsage: MonoGame VertexElementUsage → SDNative XNA-3.1 byte
+        // ordinal. Used by the export path (CreateVertexElements). MG enums that have no XNA 3.1
+        // counterpart (none in practice — every MG usage maps cleanly back) fall through to 0.
+        protected static byte ToNativeUsage(VertexElementUsage mg)
+        {
+            switch (mg)
+            {
+                case VertexElementUsage.Position:          return 0;
+                case VertexElementUsage.BlendWeight:       return 1;
+                case VertexElementUsage.BlendIndices:      return 2;
+                case VertexElementUsage.Normal:            return 3;
+                case VertexElementUsage.PointSize:         return 4;
+                case VertexElementUsage.TextureCoordinate: return 5;
+                case VertexElementUsage.Tangent:           return 6;
+                case VertexElementUsage.Binormal:          return 7;
+                case VertexElementUsage.TessellateFactor:  return 8;
+                case VertexElementUsage.Color:             return 10;
+                case VertexElementUsage.Fog:               return 11;
+                case VertexElementUsage.Depth:             return 12;
+                case VertexElementUsage.Sample:            return 13;
+                default:                                   return 0;
+            }
+        }
+
+        // Inverse of TranslateNativeFormat: MonoGame VertexElementFormat → SDNative XNA-3.1 byte
+        // ordinal. NormalizedShort2/4 and HalfVector2/4 have no XNA 3.1 counterpart and round to
+        // the closest plain Short / Vector. The exporter doesn't expect to see them in baked
+        // ship XNBs (XNA 3.1 didn't emit them) but the fallback keeps the byte stream parseable
+        // by SDNative if mod content uses them.
+        protected static byte ToNativeFormat(VertexElementFormat mg)
+        {
+            switch (mg)
+            {
+                case VertexElementFormat.Single:           return 0;
+                case VertexElementFormat.Vector2:          return 1;
+                case VertexElementFormat.Vector3:          return 2;
+                case VertexElementFormat.Vector4:          return 3;
+                case VertexElementFormat.Color:            return 4;
+                case VertexElementFormat.Byte4:            return 5;
+                case VertexElementFormat.Short2:           return 6;
+                case VertexElementFormat.Short4:           return 7;
+                case VertexElementFormat.NormalizedShort2: return 6; // → Short2 (not exact)
+                case VertexElementFormat.NormalizedShort4: return 7; // → Short4 (not exact)
+                case VertexElementFormat.HalfVector2:      return 1; // → Vector2 (not exact)
+                case VertexElementFormat.HalfVector4:      return 3; // → Vector4 (not exact)
+                default:                                   return 0;
+            }
+        }
+
+        // Bytes occupied by one element of a MonoGame VertexElementFormat. Used by the export
+        // path to fill SdVertexElement.Size; consumers on the SDNative side compare this against
+        // the per-element format expected.
+        protected static int ElementSizeInBytes(VertexElementFormat format)
+        {
+            switch (format)
+            {
+                case VertexElementFormat.Single:           return 4;
+                case VertexElementFormat.Vector2:          return 8;
+                case VertexElementFormat.Vector3:          return 12;
+                case VertexElementFormat.Vector4:          return 16;
+                case VertexElementFormat.Color:            return 4;
+                case VertexElementFormat.Byte4:            return 4;
+                case VertexElementFormat.Short2:           return 4;
+                case VertexElementFormat.Short4:           return 8;
+                case VertexElementFormat.NormalizedShort2: return 4;
+                case VertexElementFormat.NormalizedShort4: return 8;
+                case VertexElementFormat.HalfVector2:      return 4;
+                case VertexElementFormat.HalfVector4:      return 8;
+                default:                                   return 0;
+            }
+        }
+
+        // Walks a MonoGame VertexDeclaration and emits SdVertexElement[] with SDNative's
+        // XNA-3.1-shaped byte ordinals. This is the export-side analog of
+        // SdVertexData.CreateDeclaration, which goes the other direction.
+        protected static SdVertexElement[] CreateVertexElements(VertexDeclaration vd)
+        {
+            VertexElement[] mgElements = vd.GetVertexElements();
+            var sd = new SdVertexElement[mgElements.Length];
+            for (int i = 0; i < mgElements.Length; ++i)
+            {
+                VertexElement e = mgElements[i];
+                sd[i] = new SdVertexElement
+                {
+                    Offset       = (byte)e.Offset,
+                    Size         = (byte)ElementSizeInBytes(e.VertexElementFormat),
+                    NativeFormat = ToNativeFormat(e.VertexElementFormat),
+                    NativeUsage  = ToNativeUsage(e.VertexElementUsage)
+                };
+            }
+            return sd;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -308,6 +401,14 @@ namespace Ship_Game.Data.Mesh
             );
 
         [DllImport("SDNative.dll")] protected static extern unsafe
+            void SDMeshAddBoneTRS(SdMesh* mesh,
+                [MarshalAs(UnmanagedType.LPWStr)] string name,
+                int boneIndex,
+                int parentBone,
+                in SdBonePose bindPose
+            );
+
+        [DllImport("SDNative.dll")] protected static extern unsafe
             void SDMeshAddSkinnedBone(SdMesh* mesh,
                 [MarshalAs(UnmanagedType.LPWStr)] string name,
                 int boneIndex,
@@ -333,9 +434,70 @@ namespace Ship_Game.Data.Mesh
         protected static extern unsafe
             void SDMeshAddAnimationKeyFrame(SdMesh* mesh,
                 SdAnimationClip clip,
-                SdBoneAnimation anim, 
+                SdBoneAnimation anim,
                 in SdAnimationKeyFrame keyFrame
             );
+
+        /////////////////////////////////////////////////////////////////////////////
+        // Phase 3.10.B.2: read-side surface for skinned bones + animation clips.
+        // The legacy `SdBonePose` struct above uses XnaQuaternion (40 bytes); the
+        // C++ Nano::BonePose is 36 bytes (Vector3 Euler degrees). The legacy
+        // struct survives because the writer ignores SkinnedBone.Pose data after
+        // the call (it derives bind-pose from the FbxNode hierarchy directly), so
+        // the ABI mismatch is dormant on the write side. The read side has no
+        // such cover — these new types match the C++ layout exactly.
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        protected struct SdBonePoseInfo
+        {
+            public Vector3 Translation;
+            public Vector3 Rotation; // Euler XYZ DEGREES (matches Nano::BonePose)
+            public Vector3 Scale;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        protected struct SdSkinnedBoneInfo
+        {
+            public CStrView Name;
+            public int BoneIndex;
+            public int ParentBone;
+            public SdBonePoseInfo BindPose;
+            public Matrix InverseBindPoseTransform;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        protected struct SdAnimationClipInfo
+        {
+            public CStrView Name;
+            public float Duration;
+            public int NumAnimations;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        protected struct SdBoneAnimationInfo
+        {
+            public int SkinnedBoneIndex;
+            public int NumFrames;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        protected struct SdAnimationKeyFrameInfo
+        {
+            public float Time;
+            public SdBonePoseInfo Pose;
+        }
+
+        [DllImport("SDNative.dll")] protected static extern unsafe
+            SdSkinnedBoneInfo SDMeshGetSkinnedBone(SdMesh* mesh, int index);
+
+        [DllImport("SDNative.dll")] protected static extern unsafe
+            SdAnimationClipInfo SDMeshGetAnimationClip(SdMesh* mesh, int clipIndex);
+
+        [DllImport("SDNative.dll")] protected static extern unsafe
+            SdBoneAnimationInfo SDMeshGetBoneAnimation(SdMesh* mesh, int clipIndex, int animIndex);
+
+        [DllImport("SDNative.dll")] protected static extern unsafe
+            SdAnimationKeyFrameInfo SDMeshGetAnimationKeyFrame(SdMesh* mesh, int clipIndex, int animIndex, int frameIndex);
 
         /////////////////////////////////////////////////////////////////////////////
 
@@ -396,11 +558,17 @@ namespace Ship_Game.Data.Mesh
             }
         }
 
-        // TODO: this is not very useful, consider removing
+        // Phase 3.10.B.6: optional `isSkinned` flag picks SkinnedLightingEffect
+        // (matrix-palette skinning VS) over the static LightingEffect. Both share
+        // the same property surface (DiffuseColor/SpecularPower/etc.) so the
+        // material assignment below stays unified.
         protected static unsafe LightingEffect CreateMaterialEffect(
-            SdMaterial* mat, GraphicsDevice device, GameContentManager content, string materialFile)
+            SdMaterial* mat, GraphicsDevice device, GameContentManager content, string materialFile,
+            bool isSkinned = false)
         {
-            var fx = new LightingEffect(device);
+            LightingEffect fx = isSkinned
+                ? new SkinnedLightingEffect(device)
+                : new LightingEffect(device);
             fx.MaterialName          = mat->Name.AsString;
             fx.MaterialFile          = materialFile;
             fx.ProjectFile           = "Ship_Game/Data/RawContentLoader.cs";
@@ -416,7 +584,7 @@ namespace Ship_Game.Data.Mesh
             fx.SpecularColorMapTexture = TryLoadTexture(content, fx.SpecularColorMapFile);
             //if (fx.DiffuseAmbientMapFile.NotEmpty()) fx.DiffuseAmbientMapTexture = content.Load<Texture2D>(fx.DiffuseAmbientMapFile);
             //if (fx.ParallaxMapFile.NotEmpty())       fx.ParallaxMapTexture       = CoreUtils.ConvertToLuminance8(device, content.Load<Texture2D>(fx.ParallaxMapFile));
-            fx.Skinned         = false;
+            fx.Skinned         = isSkinned;
             fx.DoubleSided     = false;
 
             Texture2D alphaMap = mat->AlphaPath.NotEmpty
@@ -424,7 +592,13 @@ namespace Ship_Game.Data.Mesh
                 : fx.DiffuseMapTexture;
 
             fx.SetTransparencyModeAndMap(TransparencyMode.None, mat->Alpha, alphaMap);
-            fx.SpecularPower                 = 14.0f * mat->Specular;
+            // Phase 3.7 step 4 (Phase C contrast pass): 14*Specular caps at 14
+            // even at max material gloss — well below BasicEffect's default of
+            // 16, which produced soft/wide highlights instead of the tight
+            // metallic specular that pre-migration ship hulls had. Establish a
+            // floor of 16 (BasicEffect default) and a ceiling of 64 (typical
+            // hard-metal value), interpolated by the material's gloss factor.
+            fx.SpecularPower                 = 16.0f + 48.0f * mat->Specular;
             fx.SpecularAmount                = 6.0f * mat->Specular;
             fx.FresnelReflectBias            = 0.0f;
             fx.FresnelReflectOffset          = 0.0f;

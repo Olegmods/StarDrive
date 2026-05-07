@@ -12,9 +12,10 @@ using BoundingBox = Microsoft.Xna.Framework.BoundingBox;
 using XnaMatrix = Microsoft.Xna.Framework.Matrix;
 using XnaVector3 = Microsoft.Xna.Framework.Vector3;
 
-// TODO Phase 2: rebuild against MonoGame's ModelMesh layout (IndexBuffer/VertexBuffer
-// moved to ModelMeshPart) and replace SunBurn SceneObject with native rendering.
-// XNAnimation/SgMotion removed in Phase 1.9, so SkinnedModel paths are stubbed.
+// Phase 2.8.C: native MonoGame rendering wired (SceneObject + RenderableMesh fed
+// from RawMeshes via MeshImporter; ModelMesh path operates on the new MeshPart
+// layout). SkinnedModel paths remain stubbed pending Phase 3.6 (SgMotion / XNAnimation
+// extraction + runtime BoneAnimationPlayer).
 public sealed class StaticMesh : IDisposable
 {
     public string Name { get; set; }
@@ -26,6 +27,13 @@ public sealed class StaticMesh : IDisposable
     public ModelMeshCollection ModelMeshes;
     public readonly BoundingBox Bounds;
     public readonly float Radius;
+
+    // Phase 3.10.B.3: optional skin + animation payload populated by
+    // MeshImporter when the loaded FBX has FbxSkin/FbxCluster + FbxAnimStack
+    // data. Both arrays are null on static meshes (the common case).
+    public SkinnedBoneData[] SkinnedBones;
+    public AnimationClipData[] AnimationClips;
+    public bool IsSkinned => SkinnedBones != null && SkinnedBones.Length > 0;
 
     public StaticMesh(string name, in BoundingBox bounds)
     {
@@ -50,9 +58,10 @@ public sealed class StaticMesh : IDisposable
         ModelMeshes = null;
     }
 
-    // TODO Phase 2: ModelMesh.IndexBuffer/VertexBuffer don't exist in MonoGame
-    // (moved to ModelMeshPart). Stubbed; rebuild against MonoGame's API.
-    public static void DisposeModelMeshes(ModelMeshCollection meshes) { }
+    // Note: ModelMesh.IndexBuffer/VertexBuffer don't exist in MonoGame (moved to
+    // ModelMeshPart); buffer disposal happens at ModelMeshPart granularity, which
+    // GameContentManager.UnloadAsset handles directly. This helper is a no-op
+    // preserved for legacy call sites; safe to remove if confirmed unused.
 
     public static bool IsModelDisposed(Model m) => m == null || m.Meshes.Count == 0;
     public static void DisposeModel(Model m) { }
@@ -130,6 +139,19 @@ public sealed class StaticMesh : IDisposable
                         0, mesh.VertexCount,
                         0, mesh.VertexStride));
                 }
+            }
+
+            // Phase 3.10.B.7: auto-attach a per-instance animation player and
+            // auto-play the first clip looping. Each SO gets its own player so
+            // separately-spawned instances animate at independent phases. No
+            // gameplay code wires this — UpdateAnimation is already called
+            // per-frame from Ship_Update etc.
+            if (IsSkinned)
+            {
+                var player = new BoneAnimationPlayer(SkinnedBones, AnimationClips);
+                if (player.HasClips)
+                    player.StartClip(0);
+                so.AnimationPlayer = player;
             }
             return so;
         }
@@ -211,7 +233,7 @@ public sealed class StaticMesh : IDisposable
         Draw((Effect)effect);
     }
 
-    // TODO Phase 2: static Draw(Model,...) overloads have no current callers; preserved as
+    // TODO Phase 4: static Draw(Model,...) overloads have no current callers; preserved as
     // no-ops in case mod / test code relies on the legacy signatures. Remove if confirmed unused.
     public static void Draw(Model model, Effect effect) { }
     public static void Draw(Model model, BasicEffect effect, Texture2D texture) { }

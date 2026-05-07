@@ -45,19 +45,23 @@ namespace Ship_Game
             }
         }
 
-        // this crucial part draws clear white spots in the fogmap
-        // giving us clear visibility
+        // this crucial part draws clear-ish spots in the fogmap
+        // giving us clear visibility under sensor coverage
         void DrawSensorNodesHighlights(SpriteBatch batch)
         {
             var uiNode = ResourceManager.Texture("UI/node");
             var sensorNodes = Player.SensorNodes;
+            // Phase 3.7 step 3: sensor halo at full white — sensor-covered area
+            // shows 100% scene brightness. Falloff to baseline happens naturally
+            // through the soft uiNode alpha mask.
+            var sensorTint = Color.White;
             for (int i = 0; i < sensorNodes.Length; ++i)
             {
                 ref Empire.InfluenceNode node = ref sensorNodes[i];
 
                 ProjectToScreenCoords(node.Position, node.Radius * 2f, out Vector2d nodePos, out double nodeRadius);
                 RectF worldRect = RectF.FromPointRadius(nodePos, nodeRadius);
-                batch.Draw(uiNode, worldRect, Color.White, 0f, Vector2.Zero, SpriteEffects.None, 1f);
+                batch.Draw(uiNode, worldRect, sensorTint, 0f, Vector2.Zero, SpriteEffects.None, 1f);
             }
         }
 
@@ -185,30 +189,51 @@ namespace Ship_Game
             }
         }
 
-        RenderTarget2D GetCachedFogMapRenderTarget(GraphicsDevice device, ref RenderTarget2D fogMapTarget)
+        void EnsureFogMapRenderTargets(GraphicsDevice device)
         {
-            if (fogMapTarget == null || (fogMapTarget.IsDisposed || fogMapTarget.IsContentLost))
+            if (FogMapTargetA == null || FogMapTargetA.IsDisposed || FogMapTargetA.IsContentLost)
             {
-                fogMapTarget?.Dispose();
-                fogMapTarget = RenderTargets.Create(device, 512, 512);
+                FogMapTargetA?.Dispose();
+                FogMapTargetA = RenderTargets.Create(device, 512, 512);
             }
-            return fogMapTarget;
+            if (FogMapTargetB == null || FogMapTargetB.IsDisposed || FogMapTargetB.IsContentLost)
+            {
+                FogMapTargetB?.Dispose();
+                FogMapTargetB = RenderTargets.Create(device, 512, 512);
+            }
         }
 
         void UpdateFogMap(SpriteBatch batch, GraphicsDevice device)
         {
-            var fogMapTarget = GetCachedFogMapRenderTarget(device, ref FogMapTarget);
-            device.SetRenderTarget(fogMapTarget);
+            EnsureFogMapRenderTargets(device);
 
-            device.Clear(new Color((byte)255, (byte)255, (byte)255, (byte)0));
+            // Ping-pong: read from front (current FogMap), render to back, swap.
+            // Reading and writing the same texture is undefined under D3D11, which
+            // is why pre-migration's `fogMapTarget.GetTexture()` snapshot semantics
+            // mattered (and silently broke when migrated to `(rt as Texture2D)`).
+            RenderTarget2D back = (FogMap == FogMapTargetA) ? FogMapTargetB : FogMapTargetA;
+            Texture2D       front = FogMap;
+
+            device.SetRenderTarget(back);
+            device.Clear(Color.Transparent);
+
+            // Step 1: blit front→back with Opaque so alpha values copy 1:1.
+            // Additive squashes alpha (`src*srcA + dst` ⇒ a²/255), which would
+            // make persistent exploration fade out frame by frame.
+            batch.SafeBegin(SpriteBlendMode.None);
+            batch.Draw(front, new Rectangle(0, 0, 512, 512), Color.White);
+            batch.SafeEnd();
+
+            // Step 2: stamp current sensor coverage additively on top.
             batch.SafeBegin(SpriteBlendMode.Additive);
-            batch.Draw(FogMap, new Rectangle(0, 0, 512, 512), Color.White);
             double universeWidth = UState.Size * 2.0;
             double worldSizeToMaskSize = (512.0 / universeWidth);
 
             var uiNode = ResourceManager.Texture("UI/node");
             var ships = Player.OwnedShips;
-            var shipSensorMask = new Color(255, 0, 0, 255);
+            // White stamp keeps rgb tracking alpha so the FogMap stays premul-
+            // correct for the AlphaBlend composite in UpdateFogOfWarInfluences.
+            var shipSensorMask = new Color(255, 255, 255, 255);
             foreach (Ship ship in ships)
             {
                 if (ship != null && ship.InFrustum)
@@ -222,7 +247,7 @@ namespace Ship_Game
             }
             batch.SafeEnd();
             device.SetRenderTarget(null);
-            FogMap = (fogMapTarget as Microsoft.Xna.Framework.Graphics.Texture2D);
+            FogMap = back;
         }
 
         void UpdateFogOfWarInfluences(SpriteBatch batch, GraphicsDevice device)
@@ -239,8 +264,14 @@ namespace Ship_Game
             {
                 // fill screen with transparent black and draw FogMap darker light on top of it
                 Rectangle fogRect = ProjectToScreenCoords(new Vector2(-UState.Size), UState.Size*2f);
+                // Phase 3.7 step 3: fillrect alpha 170 matches pre-migration —
+                // ~33% unexplored scene visibility (1 - 170/255).
                 batch.FillRectangle(new Rectangle(0, 0, ScreenWidth, ScreenHeight), new Color(0, 0, 0, 170));
-                batch.Draw(FogMap, fogRect, new Color(255, 255, 255, 55));
+                // Phase 3.7 step 3: persistent "I've been here" tint, premul-correct
+                // (rgb == alpha so FogMap composites correctly under premul AlphaBlend).
+                // Color(56,56,56,56) lifts fully-explored memory pixels to ~48%
+                // scene brightness, matching pre-migration.
+                batch.Draw(FogMap, fogRect, new Color(56, 56, 56, 56));
             }
 
             // draw all sensor nodes as clear white
@@ -276,12 +307,60 @@ namespace Ship_Game
                 if (viewState >= UnivScreenState.SectorView) // draw colored empire borders only if zoomed out
                     DrawColoredEmpireBorders(sr, graphics);
 
+                // §3.7 step 1: bloom processes MainTarget -> PostBloomTarget,
+                // which then becomes the input to the fog-of-war composite.
+                // Originally bloom ran on the post-fog back buffer (XNA's
+                // ResolveBackBuffer); MonoGame can't read the back buffer
+                // directly, so we run bloom on the pre-fog scene RT instead.
+                // Visually equivalent because fog-of-war is a darkening
+                // overlay that wouldn't generate extra bright pixels.
+                RenderTarget2D mainSource = MainTarget;
+                if (GlobalStats.RenderBloom && bloomComponent != null && PostBloomTarget != null)
+                {
+                    bloomComponent.Draw(batch, MainTarget, PostBloomTarget);
+                    mainSource = PostBloomTarget;
+                }
+
+                // §3.7 step 2: shield-hit distortion runs after bloom, before
+                // fog-of-war. The PS samples `mainSource` and writes a warped
+                // copy to PostDistortTarget. If no shield is currently being
+                // hit, BuildDistortionSources returns an empty list, the
+                // component skips the pass, and we keep using `mainSource`.
+                //
+                // Mirror DrawShields' zoom gate: only run when 3D ship meshes
+                // are actually rendered (viewState < SystemView). At higher
+                // zoom levels there's no ship mesh to be hit, so the ripple
+                // would distort backdrop / strategic-overlay pixels around
+                // an invisible point — visually wrong, and wasted GPU work.
+                // BuildDistortionSources also frustum-culls per shield, so
+                // off-screen hits are skipped even at close zoom.
+                if (GlobalStats.RenderShieldDistortion
+                    && distortionComponent != null
+                    && PostDistortTarget != null
+                    && Shields != null
+                    && viewState < UnivScreenState.SystemView)
+                {
+                    DistortionSources.Clear();
+                    Shields.BuildDistortionSources(PostDistortTarget.Width, PostDistortTarget.Height, DistortionSources);
+                    if (DistortionSources.Count > 0)
+                    {
+                        // Wall-clock seconds drive the ripple's animation
+                        // phase. DrawTimes.RealTime.Seconds is a per-frame
+                        // delta, not cumulative, so we read the host stopwatch
+                        // directly. Static accumulator avoids time-warp on
+                        // start (Environment.TickCount wraps every ~25 days
+                        // but the shader only consumes sin() of it).
+                        float time = (float)(System.Environment.TickCount * 0.001);
+                        distortionComponent.Draw(batch, mainSource, PostDistortTarget,
+                                                 DistortionSources, time);
+                        mainSource = PostDistortTarget;
+                    }
+                }
+
                 // this draws the MainTarget RT which has the entire background and 3D ships
-                DrawMainRTWithFogOfWarEffect(batch, graphics);
+                DrawMainRTWithFogOfWarEffect(batch, graphics, mainSource);
 
                 SetViewMatrix(cameraMatrix);
-                if (GlobalStats.RenderBloom)
-                    bloomComponent?.Draw(batch);
 
                 DrawColoredBordersRT(batch);
             }
@@ -361,22 +440,55 @@ namespace Ship_Game
             DrawUI.Stop();
         }
 
-        private void DrawMainRTWithFogOfWarEffect(SpriteBatch batch, GraphicsDevice graphics)
+        private void DrawMainRTWithFogOfWarEffect(SpriteBatch batch, GraphicsDevice graphics, RenderTarget2D source)
         {
             DrawFogOfWar.Start();
 
-            Texture2D texture1 = (MainTarget as Microsoft.Xna.Framework.Graphics.Texture2D);
-            Texture2D texture2 = (LightsTarget as Microsoft.Xna.Framework.Graphics.Texture2D);
+            Texture2D scene  = source as Microsoft.Xna.Framework.Graphics.Texture2D;
+            Texture2D lights = LightsTarget as Microsoft.Xna.Framework.Graphics.Texture2D;
             graphics.Clear(Color.Black);
 
-            batch.SafeBegin(SpriteBlendMode.AlphaBlend, sortImmediate:true, saveState:true);
-            if (basicFogOfWarEffect != null) // TODO Phase 2.2: BasicFogOfWar shader not yet rewritten
+            // §3.7 step 3: BasicFogOfWar restored. The PS sets alpha = lights.r;
+            // with AlphaBlend on, dark LightsTarget pixels alpha-blend the scene
+            // toward the black-cleared back buffer (= fog), bright pixels show
+            // full scene (= visible). Pass the effect to SpriteBatch.Begin's
+            // `effect:` argument — the manual Pass.Apply()-after-Begin pattern
+            // produces silent black output under MGFX 3.8.1.303 / DX11, which was
+            // the failure mode of the 2026-05-02 attempt. Set MatrixTransform
+            // ourselves (SpriteBatch only auto-populates it on SpriteEffect-typed
+            // effects; see BloomComponent.SetMatrixTransform).
+            if (basicFogOfWarEffect != null)
             {
-                basicFogOfWarEffect.Parameters["LightsTexture"].SetValue(texture2);
-                basicFogOfWarEffect.CurrentTechnique.Passes[0].Apply();
+                basicFogOfWarEffect.Parameters["LightsTexture"]?.SetValue(lights);
+                EffectParameter mt = basicFogOfWarEffect.Parameters["MatrixTransform"];
+                if (mt != null)
+                {
+                    Microsoft.Xna.Framework.Matrix.CreateOrthographicOffCenter(
+                        0, ScreenWidth, ScreenHeight, 0, 0, 1,
+                        out Microsoft.Xna.Framework.Matrix proj);
+                    mt.SetValue(proj);
+                }
+
+                // BlendState.NonPremultiplied (NOT AlphaBlend): the PS outputs
+                // (scene.rgb, lights.r) — straight non-premul alpha. AlphaBlend
+                // in MonoGame is premultiplied (`src + dst*(1-srcA)`), which on
+                // a black-cleared back buffer returns `(red, red, red, 0) + 0 =
+                // red` and the fog side never goes dark. NonPremultiplied does
+                // `src.rgb * srcA + dst*(1-srcA)`, giving black on fog and the
+                // full scene on visible — the original D3DX behavior.
+                batch.Begin(SpriteSortMode.Immediate, BlendState.NonPremultiplied,
+                            SamplerState.LinearClamp, DepthStencilState.None,
+                            RasterizerState.CullNone, basicFogOfWarEffect);
             }
-            batch.Draw(texture1, new Rectangle(0, 0, ScreenWidth, ScreenHeight), Color.White);
-            batch.SafeEnd();
+            else
+            {
+                // Fallback: effect failed to load. Draw the scene RT directly so
+                // the player still sees something, even if fog is flat.
+                batch.SafeBegin(SpriteBlendMode.AlphaBlend, sortImmediate:true, saveState:true);
+            }
+
+            batch.Draw(scene, new Rectangle(0, 0, ScreenWidth, ScreenHeight), Color.White);
+            batch.End();
 
             DrawFogOfWar.Stop();
         }

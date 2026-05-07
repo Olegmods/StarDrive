@@ -20,7 +20,7 @@
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
     <EnableDefaultContentItems>false</EnableDefaultContentItems>
-    <NoWarn>3270;CS8002</NoWarn>
+    <NoWarn>$(NoWarn);3270;CS8002</NoWarn>
     <!-- Phase 2.6.A: Phase 2.3 baked SpriteFonts manually via mgfxc; we don't
          need the MSBuild MGCB build pass (which in 3.8.1+ requires a dotnet
          tool manifest with dotnet-mgcb installed). Skipping is functionally
@@ -396,6 +396,7 @@
     <Compile Include="Ship_Game\Data\Mesh\MeshInterface.cs" />
     <Compile Include="Ship_Game\Data\Mesh\MeshImporter.cs" />
     <Compile Include="Ship_Game\Data\Mesh\SunBurnStubs.cs" />
+    <Compile Include="Ship_Game\Data\Mesh\SunBurnReaderStubs.cs" />
     <Compile Include="Ship_Game\Data\Serialization\Types\ArrayListSerializer.cs" />
     <Compile Include="Ship_Game\Data\Serialization\Types\ColorSerializer.cs" />
     <Compile Include="Ship_Game\Data\Serialization\Types\EnumSerializer.cs" />
@@ -408,6 +409,7 @@
     <Compile Include="Ship_Game\Data\Texture\DxtReader.cs" />
     <Compile Include="Ship_Game\Data\GameContentManager.cs" />
     <Compile Include="Ship_Game\Data\Xna31Texture2DReader.cs" />
+    <Compile Include="Ship_Game\Data\Xna31VertexDeclarationReader.cs" />
     <Compile Include="Ship_Game\Data\Texture\ImageUtils.cs" />
     <Compile Include="Ship_Game\Data\RawContentLoader.cs" />
     <Compile Include="Ship_Game\Data\Serialization\Types\RawArraySerializer.cs" />
@@ -421,6 +423,9 @@
     <Compile Include="Ship_Game\Data\Yaml\YamlNode.cs" />
     <Compile Include="Ship_Game\Data\YamlSerializer\YamlSerializer.cs" />
     <Compile Include="Ship_Game\Data\Mesh\StaticMesh.cs" />
+    <Compile Include="Ship_Game\Data\Mesh\SkinnedMeshData.cs" />
+    <Compile Include="Ship_Game\Data\Mesh\BoneAnimationPlayer.cs" />
+    <Compile Include="Ship_Game\Data\Mesh\SkinnedLightingEffect.cs" />
     <Compile Include="Ship_Game\Data\Mesh\LightingEffectBinder.cs" />
     <Compile Include="Ship_Game\Data\Yaml\YamlParser.cs" />
     <Compile Include="Ship_Game\Data\StringView.cs" />
@@ -707,6 +712,8 @@
     <Compile Include="Ship_Game\GameScreens\DiplomacyScreen\StatementSet.cs" />
     <Compile Include="Ship_Game\Gameplay\DiplomacyDialog.cs" />
     <Compile Include="Ship_Game\Graphics\BloomComponent.cs" />
+    <Compile Include="Ship_Game\Graphics\DistortionComponent.cs" />
+    <Compile Include="Ship_Game\Graphics\ShadowMapComponent.cs" />
     <Compile Include="Ship_Game\SelectedShipListItem.cs" />
     <Compile Include="Ship_Game\UI\UIElement.cs" />
     <Compile Include="Ship_Game\GameScreens\Universe\GamePlayMenuScreen.cs" />

@@ -13,8 +13,9 @@ using SDUtils;
 using Ship_Game.Data.Mesh;
 using Ship_Game.SpriteSystem;
 using SynapseGaming.LightingSystem.Processors;
-// TODO Phase 2: SynapseGaming.LightingSystem.Core/Processors usings removed in Phase 1.8.12
+// SynapseGaming.LightingSystem.Core/Processors usings were removed in Phase 1.8.12
 // (SunBurn type loader stubbed). IEffectCache restored via SunBurnStubs.cs in Phase 1.9.
+// Historical context only — no further action.
 // ReSharper disable UnusedMember.Local
 
 namespace Ship_Game.Data
@@ -35,16 +36,30 @@ namespace Ship_Game.Data
 
         readonly object LoadSync = new();
 
-        // TODO Phase 2.2: each name here must be rewritten as HLSL and MGFX-compiled,
-        // then removed from this set. See memory: project_phase2_effect_xnb_drift.md
+        // Phase 3.3: each XNA 3.1 D3DX-compiled Effect XNB still in this set is
+        // hand-rewritten as HLSL and shipped as a .mgfxo sibling — preferred via the
+        // .xnb -> .mgfxo fallback in LoadAsset before this stub fires. As entries are
+        // restored (mgfxo built + verified), remove them here. The set itself can go
+        // once it's empty. See memory: project_phase2_effect_xnb_drift.md
+        //
+        // 2026-05-02: Effects/desaturate.xnb restored via desaturate.mgfxo (probe).
+        // 2026-05-02: BasicFogOfWar attempted + reverted — 4-instruction PS rewrite did
+        //   not produce the right fog mask. Failure was the manual Pass.Apply()-
+        //   after-SpriteBatch-Begin pattern (silent black under MGFX 3.8.1.303 /
+        //   DX11), not the shader logic. Re-restored 2026-05-06 (§3.7 step 3) via
+        //   SpriteBatch.Begin(effect:) + parameter-driven LightsTexture sampler-
+        //   state, mirroring the BloomCombine pattern.
+        // 2026-05-03: Effects/PlanetHalo.xnb restored via PlanetHalo.mgfxo (vs_2_0+ps_2_0
+        //   atmospheric ring rewrite; no textures so no sampler-binding pitfalls).
+        // 2026-05-04: Effects/scale.xnb restored via scale.mgfxo (vs_1_1+ps_2_0 shield
+        //   gradient rewrite — UV-zoom VS, alpha-mask PS).
+        // 2026-05-04: Effects/Thrust.xnb restored via Thrust.mgfxo (vs_3_0+ps_3_0 thruster
+        //   cone rewrite — animated volume noise + cone falloff + silhouette term).
+        // 2026-05-05: Effects/BeamFX.xnb restored via BeamFX.mgfxo (vs_1_1+ps_2_0 beam
+        //   weapon rewrite — WVP + UV-scroll VS, single tex2D PS). Decode unblocked
+        //   by fixing the LZX framing byte-order bug in EffectXnbDump.
         static readonly HashSet<string> Phase2BrokenEffectXnbs = new(StringComparer.OrdinalIgnoreCase)
         {
-            "Effects/BeamFX.xnb",
-            "Effects/scale.xnb",
-            "Effects/Thrust.xnb",
-            "Effects/desaturate.xnb",
-            "Effects/BasicFogOfWar.xnb",
-            "Effects/PlanetHalo.xnb",
         };
         static readonly HashSet<string> Phase2WarnedEffects = new(StringComparer.OrdinalIgnoreCase);
         static void WarnPhase2BrokenEffectOnce(string assetName)
@@ -62,6 +77,7 @@ namespace Ship_Game.Data
         {
             FixSunBurnTypeLoader();
             Xna31Compat.Register();
+            Mesh.SunBurnReaderStubs.Register();
         }
 
         public GameContentManager(IServiceProvider services, string name, string rootDirectory = "Content") : base(services, rootDirectory)
@@ -217,7 +233,8 @@ namespace Ship_Game.Data
                 else if (asset is Model mod)
                 {
                     numBytes += mod.Bones.Count * 256;
-                    // TODO Phase 2: ModelMesh.IndexBuffer/VertexBuffer moved to ModelMeshPart in MonoGame.
+                    // Note: ModelMesh.IndexBuffer/VertexBuffer moved to ModelMeshPart in MonoGame
+                    // — already accounted for via the inner MeshParts loop below.
                     foreach (ModelMesh mesh in mod.Meshes)
                         foreach (ModelMeshPart part in mesh.MeshParts)
                             numBytes += (part.IndexBuffer?.IndexCount ?? 0) * 2
@@ -305,7 +322,9 @@ namespace Ship_Game.Data
                         StaticMesh.DisposeModel(model);
                     }
                     break;
-                // SkinnedModel case removed in Phase 1.9 — XNAnimation deleted, TODO Phase 2.
+                // Skinned meshes load as StaticMesh (with IsSkinned=true and a BoneAnimationPlayer)
+                // through the §3.10 FBX pipeline, so the historical XNA SkinnedModel switch arm
+                // is no longer needed.
                 case SpriteFont font:
                     var texture = GetSpriteFontTexture(font);
                     if (texture != null && !texture.IsDisposed)
@@ -337,7 +356,7 @@ namespace Ship_Game.Data
                 case TextureAtlas atlas: return atlas.IsDisposed;
                 case StaticMesh mesh: return mesh.IsDisposed;
                 case Model model: return StaticMesh.IsModelDisposed(model);
-                // SkinnedModel case removed in Phase 1.9 — XNAnimation deleted, TODO Phase 2.
+                // Skinned meshes share the StaticMesh case above; no separate SkinnedModel arm.
                 case Video _: return false; // nothing to dispose
                 case SpriteFont font: { var t = GetSpriteFontTexture(font); return t == null || t.IsDisposed; }
                 // Effect/Shader cases removed — both inherit GraphicsResource (handled above).
@@ -447,13 +466,33 @@ namespace Ship_Game.Data
             if (assetType == typeof(SubTexture))
                 return (T)(object)LoadSubTexture(asset.RelPathWithExt);
 
-            // TODO Phase 2.2: XNA 3.1-baked Effect XNBs are D3DX fx_2_0 bytecode,
-            // which MonoGame's MGFX-based Effect reader rejects. Return null until each
-            // effect is rewritten as HLSL and MGFX-compiled. Call sites null-guard.
-            if (assetType == typeof(Effect) && Phase2BrokenEffectXnbs.Contains(asset.RelPathWithExt))
+            // Phase 3.3: prefer a .mgfxo sibling over the (often broken) D3DX fx_2_0
+            // .xnb. The .mgfxo is a hand-rewritten HLSL effect compiled by mgfxc to
+            // MonoGame-compatible MGFX. Mod-friendly: GetContentPath resolves through
+            // Mods/Vanilla so a mod can ship its own .fx (compiled to .mgfxo) and have
+            // it win over the vendored one. Falls through to the legacy stub list when
+            // no sibling exists.
+            if (assetType == typeof(Effect) && asset.RelPathWithExt.EndsWith(".xnb", StringComparison.OrdinalIgnoreCase))
             {
-                WarnPhase2BrokenEffectOnce(asset.RelPathWithExt);
-                return default;
+                if (useCache && TryGetAsset(asset.RelPathWithExt, out T cachedFx))
+                    return cachedFx;
+
+                string mgfxoRel = asset.RelPathWithExt.Substring(0, asset.RelPathWithExt.Length - 4) + ".mgfxo";
+                string mgfxoPath = RawContentLoader.GetContentPath(mgfxoRel);
+                if (File.Exists(mgfxoPath))
+                {
+                    byte[] mgfxBytes = File.ReadAllBytes(mgfxoPath);
+                    var fx = (T)(object)new Effect(Device, mgfxBytes) { Name = asset.RelPathWithExt };
+                    if (useCache)
+                        lock (LoadSync) RecordCacheObject(asset.RelPathWithExt, ref fx);
+                    return fx;
+                }
+
+                if (Phase2BrokenEffectXnbs.Contains(asset.RelPathWithExt))
+                {
+                    WarnPhase2BrokenEffectOnce(asset.RelPathWithExt);
+                    return default;
+                }
             }
 
             if (useCache && TryGetAsset(asset.RelPathWithExt, out T existing))
@@ -718,28 +757,57 @@ namespace Ship_Game.Data
             AssetName asset = new(meshName);
             if (TryGetAsset(asset.RelPathWithExt, out StaticMesh mesh))
                 return mesh;
-            
-            if (DebugAssetLoading) Log.Write(ConsoleColor.Cyan, $"LoadStaticMesh {asset.RelPathWithExt}");
 
-            if (RawContentLoader.IsSupportedMesh(asset.RelPathWithExt))
+            // Phase 3.2: prefer .fbx/.obj sibling over stubbed .xnb. The XNB Model
+            // ContentTypeReader chain is still stubbed (§3.4 work); routing to the
+            // raw asset unblocks the visual restore for content shipping both
+            // source (.fbx/.obj) and baked (.xnb) forms — currently the 9 asteroids.
+            string loadPath = asset.RelPathWithExt;
+            if (loadPath.EndsWith(".xnb", StringComparison.OrdinalIgnoreCase))
             {
-                mesh = RawContent.LoadStaticMesh(asset.RelPathWithExt);
+                string baseName = loadPath.Substring(0, loadPath.Length - 4);
+                // Prefer .fbx over .obj — FBX preserves per-group transforms and
+                // material parameters (alpha, specular, normal/specular paths) that
+                // the OBJ MTL format can't carry. OBJ stays as a fallback for content
+                // that ships without an FBX sibling.
+                foreach (string ext in new[] { ".fbx", ".obj" })
+                {
+                    string candidate = baseName + ext;
+                    if (File.Exists(RawContentLoader.GetContentPath(candidate)))
+                    {
+                        loadPath = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (DebugAssetLoading) Log.Write(ConsoleColor.Cyan, $"LoadStaticMesh {loadPath}");
+
+            if (RawContentLoader.IsSupportedMesh(loadPath))
+            {
+                mesh = RawContent.LoadStaticMesh(loadPath);
             }
             else
             {
-                // TODO Phase 2: animated path used XNAnimation SkinnedModel; both branches
-                // now load a static Model until skeletal animation is reintroduced.
+                // No .fbx/.obj sidecar found. Skinned content normally arrives via the
+                // §3.10 FBX pipeline (offline export on legacy/mesh_exporter_xna31 →
+                // SkinnedMesh + BoneAnimationPlayer at load), so reaching this branch
+                // with `animated=true` means a mod shipped an XNB without a sibling
+                // .fbx/.obj — the static-Model fallback below loses the skin data.
                 if (animated)
-                    Log.Warning($"Phase 1: skinned model '{asset.RelPathWithExt}' loaded as static (XNAnimation removed)");
+                    Log.Warning($"Skinned model '{asset.RelPathWithExt}' has no .fbx sidecar; loading as static (skin data lost)");
 
-                // TODO Phase 2.2/3: XNA 3.1-baked Model XNBs use a VertexDeclaration
-                // binary layout that diverges from MonoGame 4.0+ (no stored vertexStride;
-                // VertexElement struct had Stream + ElementMethod fields that 4.0 dropped;
-                // exact per-element layout is undocumented and didn't fit any obvious
-                // shape in the empirical hex dump). MonoGame's ModelReader hits "Index
-                // was outside the bounds of the array" inside VertexDeclaration ctor.
-                // Tolerate by returning a stub StaticMesh — same pattern as MeshImporter.
-                // See memory: project_phase2_xnb_model_drift.md for the dump and plan.
+                // Defensive XNB Model fallback. Phase 3.4 pivoted from "decode 3.1 XNB
+                // Models at runtime" to an offline FBX/OBJ export pipeline (see
+                // legacy/mesh_exporter_xna31 branch + commit 9bd3b7128); Phase B then
+                // archived every Model XNB out of game/Content/Model/ (commits
+                // 6f68b9396 + a5da742b4). The .fbx-first preference above means this
+                // branch only runs if a mod ships an XNB Model that has neither an
+                // .fbx nor .obj sibling. The Phase 1 Xna31VertexDeclarationReader
+                // decodes part of the XNA-3.1 wire format but not enough on its own —
+                // the Model XNB itself has structural drift (TODO Phase 4: write
+                // Xna31ModelReader). Stub-StaticMesh fallback keeps the runtime alive.
+                // See memory: project_phase2_xnb_model_drift.md for the original hex.
                 try
                 {
                     Model model = LoadAsset<Model>(asset.RelPathWithExt, useCache:false);
@@ -762,8 +830,8 @@ namespace Ship_Game.Data
             return Load<Model>(modelName);
         }
 
-        // TODO Phase 2: SkinnedModel/XNAnimation removed in Phase 1.9.
-        // Restore once skeletal animation is rebuilt on MonoGame.
+        // Skinned-mesh playback now goes through StaticMesh + BoneAnimationPlayer
+        // (§3.10), so the XNA SkinnedModel surface stays retired.
 
         protected override Stream OpenStream(string assetNameWithExt)
         {
@@ -813,18 +881,20 @@ namespace Ship_Game.Data
             }
         }
 
-        // TODO Phase 2: restore SunBurn ContentTypeReader routing if SunBurn-derived
-        // types need to load via XNB. Phase 1.8.12 stubs this because:
+        // TODO Phase 4: restore SunBurn ContentTypeReader routing if SunBurn-derived
+        // types ever need to load via XNB. Phase 1.8.12 stubbed this because:
         //   1) SDSunBurn is excluded from the solution in Phase 1.9, so
         //      `typeof(SceneInterface)` is no longer resolvable.
         //   2) MonoGame's ContentTypeReaderManager has different private fields
         //      (`readerTypeToReader`/`nameToReader`) than XNA 3.1, so the
         //      MethodUtil.ReplaceMethod monkey-patch would silently no-op.
+        // No live callers depend on this rerouting today; the stubbed type readers
+        // (SunBurnReaderStubs.cs, Xna31* readers) cover the actual XNB load paths.
         static void FixSunBurnTypeLoader()
         {
         }
 
-        // TODO Phase 2: restore SunBurn type rerouting (see FixSunBurnTypeLoader)
+        // TODO Phase 4: restore SunBurn type rerouting (see FixSunBurnTypeLoader)
         static bool InstantiateTypeReader(string readerTypeName, ContentReader contentReader, out ContentTypeReader reader)
         {
             reader = null;
