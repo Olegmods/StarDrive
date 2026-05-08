@@ -26,7 +26,7 @@ Two sub-phases:
    - Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`, 1.60 lands at `StarDrivePlus64` (Option A clean break: no upgrade-detection from `HKLM\Software\StarDrive\InstallPath`); both versions launch independently, each sees only its own SaveGameVersion.
    - Manual upgrade-in-place — user explicitly browses to `C:\Games\StarDrivePlus`; 1.51 binaries replaced; saves preserved (1.51 v20 saves stay on disk but invisible to 1.60).
 5. **README + Sentry release record updated** to point at 1.60.
-6. **Cross-major upgrade discovery channel live**: Mars-line patch shipping the new `MajorUpgradeAvailablePopup` deployed to existing 1.51 users at least 1–2 weeks before the `jupiter-release-1.60` tag. Same code forward-ported to the migration branch so 1.60 inherits the behavior for any future major bump (§5.1.G).
+6. **Cross-major upgrade discovery channel live**: Mars-line patch shipping the new `MajorUpgradeAvailablePopup` published before the `jupiter-release-1.60` tag (no deliberate soak needed — the patch *is* the discovery channel whenever a user lands on it via the standard intra-major auto-update; the natural 1–2 day gap from release-pipeline timing is sufficient). Same code forward-ported to the migration branch so 1.60 inherits the behavior for any future major bump (§5.1.G).
 7. *(Optional, §5.2)* **PHASE4_RESULTS.md committed; ARCHITECTURE.md updated** to mark the migration roadmap §9 items DONE; memory entries marked RESOLVED with commit refs.
 
 **Anti-goals for Phase 5** (out of scope):
@@ -205,7 +205,7 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
      - Emit the signed artefacts as **workflow artefacts** (downloadable from the run's summary page) so the maintainer can grab them for the manual itch.io upload.
    - `publish-patch` (conditional — see §5.1.F).
 
-3. Tag `jupiter-release-1.60` on the merged Phase 4 branch and push it. The workflow's `build` job runs. **Prerequisite**: §5.1.G's Mars-line forward-compat patch must be shipped and live in users' hands before this tag pushes (allow a 1–2 week soak so existing 1.51 users auto-update onto the patched build); otherwise existing 1.51 users get no in-game discovery channel for Jupiter.
+3. Tag `jupiter-release-1.60` on the merged Phase 4 branch and push it. The workflow's `build` job runs. **Prerequisite**: §5.1.G's Mars-line forward-compat patch must be **published** before this tag pushes — no deliberate user-soak is needed (the patch itself is the discovery channel whenever a user lands on it via standard intra-major auto-update), but the natural 1–2 day gap from release-pipeline timing is fine and gives a small head-start. Without §5.1.G shipped, existing 1.51 users get no in-game discovery channel for Jupiter.
 
 4. **Verify the GitHub Action ran successfully**: open the Actions tab, confirm the `release.yml` run for tag `jupiter-release-1.60` reports `build` job green. Specifically check:
    - All build + sign + `SignedBinaryCheck.ps1` steps green.
@@ -298,7 +298,7 @@ Patches (1.60.x bumps) ship more often than majors, so the post-build steps that
 
 5. **Forward-port to `migration/monogame_migration`**. Cherry-pick the `MajorUpgradeAvailablePopup` class + AutoUpdateChecker wiring + `upgrade-url.txt` + manifest entry. Verify compile + smoke. The forward-port means Jupiter ships with the same major-mismatch popup from day one, and any 1.7+ release in the future automatically gives 1.60 users the same in-game discovery — the popup behavior is now permanent, not a Mars-line patch-only feature.
 
-6. **Sequencing**. §5.1.G's 1.51 patch must be **shipped and live in users' hands** before the `jupiter-release-1.60` tag pushes (§5.1.D step 3). Otherwise existing 1.51 users get no in-game discovery channel for Jupiter — they'd have to find out through external channels alone (itch.io listing, README link). Allow time for users to auto-update onto the patched 1.51 build before tagging Jupiter; suggest a 1–2 week soak.
+6. **Sequencing**. §5.1.G's 1.51 patch must be **published** before the `jupiter-release-1.60` tag pushes (§5.1.D step 3). **No deliberate soak is required**: the patch itself is the discovery channel — whenever a 1.51 user lands on the patched build via standard intra-major auto-update (immediately after publish, or weeks later when they next launch), they'll see the cross-major popup against whatever the live GitHub release is. The natural 1–2 day gap from release-pipeline timing (Mars patch goes through CI → Jupiter installer + GitHub Action build) is fine; it gives the patch a small head-start with no downside. Without §5.1.G shipped, 1.51 users have no in-game discovery for Jupiter — they'd have to find out through external channels alone (itch.io listing, README link).
 
 **Tests added**:
 - Smoke (manual): on 1.51.<patched>, point AutoUpdateChecker at a staging GitHub release tagged `jupiter-release-1.60.16000`, verify `MajorUpgradeAvailablePopup` fires top-left, click opens browser at `upgrade-url.txt` URL, game exits.
@@ -408,7 +408,7 @@ Steam-folder install is straightforward but the UAC elevation change introduces 
 
 | Sub-phase | Risk | Mitigation |
 |---|---|---|
-| 5.1 1.60 Release | Medium | Signing infra (Microsoft Trusted Signing identity verification has unpredictable lead time) is the largest unknown. Steam-folder install + UAC elevation are mechanical. §5.1.G adds a Mars-line forward-compat patch dependency: the 1.51 patch must be live before `jupiter-release-1.60` tags, plus a 1–2 week soak window so 1.51 users auto-update onto the patched build. Fallback: ship unsigned 1.60 to the existing 1.51 audience, follow up with a signed 1.60.<build+1> patch when signing infra is ready. |
+| 5.1 1.60 Release | Medium | Signing infra (Microsoft Trusted Signing identity verification has unpredictable lead time) is the largest unknown. Steam-folder install + UAC elevation are mechanical. §5.1.G adds a Mars-line forward-compat patch dependency: the 1.51 patch must be **published** before `jupiter-release-1.60` tags. No deliberate soak is required — the patch is the discovery channel whenever a 1.51 user lands on it via standard intra-major auto-update, regardless of timing relative to the Jupiter tag. Fallback: ship unsigned 1.60 to the existing 1.51 audience, follow up with a signed 1.60.<build+1> patch when signing infra is ready. |
 | 5.2 Migration close (optional) | Low | Documentation only. The release in §5.1 is what users see; this step is for future maintainers. |
 
 **Migration close**: §5.1 ships `jupiter-release-1.60`. After that, ARCHITECTURE.md §9's "Suggested Migration Order" gets a "Migration completed" marker (in §5.2 if done, or directly when convenient otherwise), and all migration-related memory entries are settled. Future work falls under "post-migration" — gameplay features, mod support extensions, engine upgrades — and is out of scope for this plan series.
