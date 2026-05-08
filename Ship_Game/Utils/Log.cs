@@ -822,7 +822,7 @@ namespace Ship_Game
             }
             else
             {
-                Process.Start(url);
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
             }
         }
 
