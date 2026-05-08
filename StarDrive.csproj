@@ -46,6 +46,9 @@
     <Optimize>true</Optimize>
     <DebugType>portable</DebugType>
     <DebugSymbols>true</DebugSymbols>
+    <!-- §4.3: warning gate. Release|x64 is the ship config; Debug / DebugAutoFast /
+         ReleaseAutoFast / Deploy stay warning-tolerant for active development. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
@@ -674,6 +677,7 @@
     <Compile Include="Ship_Game\Universe\UniverseScreen\UniverseScreen.UpdateGame.cs" />
     <Compile Include="Ship_Game\Utils\DependencySorter.cs" />
     <Compile Include="Ship_Game\Utils\Deque.cs" />
+    <Compile Include="Ship_Game\Utils\FrameTimeLogger.cs" />
     <Compile Include="Ship_Game\Utils\GameObjectList.cs" />
     <Compile Include="Ship_Game\Utils\EnumFlatMap.cs" />
     <Compile Include="Ship_Game\Utils\ObjectPool.cs" />

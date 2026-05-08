@@ -25,7 +25,7 @@ namespace Ship_Game.Data
         // If non-null, a parent resource manager is checked first for existing resources
         // to avoid double loading resources into memory
         readonly GameContentManager Parent;
-        Dictionary<string, object> LoadedAssets; // uses OrdinalIgnoreCase
+        new Dictionary<string, object> LoadedAssets; // uses OrdinalIgnoreCase
         public string Name { get; }
 
         // Enables verbose logging for all asset loads and disposes
@@ -162,12 +162,12 @@ namespace Ship_Game.Data
                     asset = assetObj;
                     return true;
                 }
-                Log.Error($"Asset '{assetNameWithExt}' already loaded as '{existing.GetType()}' while Load requested type '{typeof(T)}'");
+                Log.Warning($"Asset '{assetNameWithExt}' already loaded as '{existing.GetType()}' while Load requested type '{typeof(T)}'");
             }
             asset = default;
             return false;
         }
-        
+
         // SUNBURN COMPATIBILITY
         public bool TryGetEffect<T>(string assetName, out T asset) where T : Effect
         {

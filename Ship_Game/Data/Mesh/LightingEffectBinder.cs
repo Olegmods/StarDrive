@@ -84,13 +84,15 @@ public static class LightingEffectBinder
                             slot.Enabled = true;
                             slot.Direction = Vector3.Normalize(d.Direction);
                             slot.DiffuseColor = d.DiffuseColor * d.Intensity;
-                            // Phase 3.7: tight specular only. SunIntensity tends to be 2-4
-                            // in legacy SunBurn scenes, and BasicEffect's specular term
-                            // (per-light * SpecularPower-falloff * uniform-mtl-spec) gets
-                            // gain-stacked, blowing out highlights to white over the
-                            // already-saturated diffuse. Keep a small specular tint —
-                            // texture-derived material spec dominates the highlight color.
-                            slot.SpecularColor = d.DiffuseColor * 0.15f;
+                            // §4.6 #6: SunBurn pre-migration showed clear bright specular
+                            // streaks on hull edges; the prior 0.15× damping (Phase 3.7
+                            // anti-blow-out) suppressed them entirely, leaving hulls
+                            // matte and ambient-dominated (universe nebula green tint
+                            // bled through). 1.0 matches SunBurn's full specular path —
+                            // SpecularPower (16-64) keeps the highlight tight enough that
+                            // SunIntensity 2-4 doesn't actually blow out the hull face;
+                            // it only brightens the small N·H peak.
+                            slot.SpecularColor = d.DiffuseColor * 1.0f;
                         }
                         else if (!s_warnedExtraDirectional)
                         {
@@ -148,7 +150,13 @@ public static class LightingEffectBinder
                         Enabled = true,
                         Position = q.Position,
                         DiffuseColor = q.DiffuseColor * q.Intensity,
-                        SpecularColor = q.DiffuseColor * 0.15f,
+                        // §4.6.B follow-up: sun PointLight specular restored
+                        // (was zero on the GPU under §4.6 #2 packing). 1.0×
+                        // matches the directional path (LightingEffectBinder
+                        // pushes `d.DiffuseColor * 1.0` for DirLight specular)
+                        // and recovers the SunBurn-style highlight streaks on
+                        // hulls in universe view, where there's no DirLight.
+                        SpecularColor = q.DiffuseColor * 1.0f,
                         Radius = q.Radius,
                     };
                     if      (slotIndex == 0) slot0 = slot;
@@ -162,9 +170,101 @@ public static class LightingEffectBinder
         fx.PointLight1 = slot1;
         fx.PointLight2 = slot2;
 
+        // 8 dynamic transient point-light slots (projectile <Light> color,
+        // explosion flashes, shield impacts). Pre-migration SunBurn ran these
+        // as deferred light volumes — every dynamic light contributed
+        // unconditionally. The migrated forward path runs 8 dedicated shader
+        // slots filled from the small-radius bucket (Radius < 1000f) sorted
+        // by XY distance to the camera. Off-screen and far-from-camera
+        // lights drop out (they wouldn't be visible anyway). XY-only because
+        // Z varies hugely with universe zoom; the play plane is at z=0 and
+        // projectiles hover near z=-25, so XY distance maps cleanly to
+        // "what the player is looking at".
+        //
+        // §4.6.B follow-up: expanded from 2 slots → 8 (the FL10.0 register
+        // pool removed the §4.6 #2 cap), and projectile glow now contributes
+        // specular too. Insertion-sort over a fixed-size 8 slot buffer.
+        const int DynamicSlotCount = 8;
+        var dynSlots = new LightingEffect.PointLightSlot[DynamicSlotCount];
+        var dynDist2 = new float[DynamicSlotCount];
+        for (int s = 0; s < DynamicSlotCount; ++s) dynDist2[s] = float.MaxValue;
+        if (lights != null)
+        {
+            for (int i = 0; i < lights.Count; ++i)
+            {
+                if (lights[i] is SunBurnLights.PointLight q && q.Enabled
+                    && q.Radius > 0f && q.Radius < 1000f)
+                {
+                    float dx = q.Position.X - cameraPos.X;
+                    float dy = q.Position.Y - cameraPos.Y;
+                    float dist2 = dx*dx + dy*dy;
+
+                    // Where in the sorted buffer does this light belong? -1
+                    // means it's farther than every retained slot — drop it.
+                    int insertAt = -1;
+                    for (int s = 0; s < DynamicSlotCount; ++s)
+                    {
+                        if (dist2 < dynDist2[s]) { insertAt = s; break; }
+                    }
+                    if (insertAt < 0) continue;
+
+                    // Shift the tail down to make room. The slot at index 7
+                    // falls off the end (correctly — it's the worst remaining
+                    // candidate among the held set).
+                    for (int s = DynamicSlotCount - 1; s > insertAt; --s)
+                    {
+                        dynSlots[s] = dynSlots[s - 1];
+                        dynDist2[s] = dynDist2[s - 1];
+                    }
+                    dynSlots[insertAt] = new LightingEffect.PointLightSlot
+                    {
+                        Enabled = true,
+                        Position = q.Position,
+                        DiffuseColor = q.DiffuseColor * q.Intensity,
+                        // 0.6× — projectile bolts already carry a bright
+                        // sprite + bloom; the spec adds a tinted glint on
+                        // nearby hulls without dominating the highlight read.
+                        SpecularColor = q.DiffuseColor * 0.6f,
+                        Radius = q.Radius,
+                    };
+                    dynDist2[insertAt] = dist2;
+                }
+            }
+        }
+        fx.DynamicLight0 = dynSlots[0];
+        fx.DynamicLight1 = dynSlots[1];
+        fx.DynamicLight2 = dynSlots[2];
+        fx.DynamicLight3 = dynSlots[3];
+        fx.DynamicLight4 = dynSlots[4];
+        fx.DynamicLight5 = dynSlots[5];
+        fx.DynamicLight6 = dynSlots[6];
+        fx.DynamicLight7 = dynSlots[7];
+
+        // §4.6 #12 (post-shadow-disable): minimum ambient floor so hulls
+        // don't go fully black when no submitted light reaches them.
+        // Pre-migration SunBurn's deferred composite carried a baseline
+        // lift (default ambient + tone-curve) that kept unlit surfaces
+        // showing faint diffuse texture — the migrated forward path
+        // attenuates to zero, leaving only emissive/glow-map texels
+        // visible against pure black hull. Component-wise max preserves
+        // any stronger authored ambient (MainMenu's violet, etc.) and
+        // only lifts channels that fall below the floor. User-tuned to
+        // 0.20 against pre-migration footage; raise for more lift in
+        // shadow-side hull, lower if the floor visibly washes out the
+        // dark texture detail.
+        const float MinAmbient = 0.2f;
+        ambient = Vector3.Max(ambient, new Vector3(MinAmbient, MinAmbient, MinAmbient));
+
         // LightingEnabled gates the per-pixel lighting math entirely. Enable
-        // when at least one directional, point light, or non-trivial ambient is set.
-        fx.LightingEnabled = dirIndex > 0 || bestSun != null || ambient.LengthSquared() > 0.0001f;
+        // when at least one directional, point light, or non-trivial ambient
+        // is set. Any of the 8 dynamic slots being filled keeps lighting on.
+        // The MinAmbient floor above guarantees ambient is always non-trivial,
+        // so this check now mostly exists to skip the shader path on scenes
+        // that explicitly don't want lighting at all (none currently).
+        bool anyDyn = false;
+        for (int s = 0; s < DynamicSlotCount; ++s) anyDyn |= dynSlots[s].Enabled;
+        fx.LightingEnabled = dirIndex > 0 || bestSun != null
+                          || ambient.LengthSquared() > 0.0001f || anyDyn;
         fx.AmbientLightColor = ambient;
 
         // Fog

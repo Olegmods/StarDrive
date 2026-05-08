@@ -67,6 +67,10 @@ float3 DiffuseColor    = float3(1, 1, 1);
 float3 EmissiveColor   = float3(0, 0, 0);
 float3 SpecularColor   = float3(1, 1, 1);
 float  SpecularPower   = 16.0;
+// §4.6.B(b) follow-up — see MeshLighting.fx. Skinned effect mirrors the
+// per-material spec multiplier so animated hulls (Cordrazine, etc) honor
+// their FBX-declared gloss instead of reading flat.
+float  SpecularAmount  = 1.0;
 float  Alpha           = 1.0;
 float3 EyePosition     = float3(0, 0, 0);
 
@@ -91,27 +95,50 @@ float3 DirLight2Direction      = float3(0, -1, 0);
 float3 DirLight2DiffuseColor   = float3(0, 0, 0);
 float3 DirLight2SpecularColor  = float3(0, 0, 0);
 
-bool   PointLight0Enabled       = false;
-float3 PointLight0Position      = float3(0, 0, 0);
-float3 PointLight0DiffuseColor  = float3(0, 0, 0);
-float3 PointLight0SpecularColor = float3(0, 0, 0);
-float  PointLight0Radius        = 1.0;
+// PointLight layout — see MeshLighting.fx for the full rationale. Skinned
+// shaders share the same C# binder + parameter cache (SkinnedLightingEffect
+// inherits from LightingEffect), so uniform names must match in lockstep.
+// §4.6.B follow-up: 8 dynamic slots (was 2) + per-slot SpecularColor restored
+// after the FL10.0 bump removed the §4.6 #2 register-cap forcing function.
+float4 PointLight0PositionAndRadius = float4(0, 0, 0, 1);
+float4 PointLight0DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 PointLight0SpecularColor     = float3(0, 0, 0);
 
-bool   PointLight1Enabled       = false;
-float3 PointLight1Position      = float3(0, 0, 0);
-float3 PointLight1DiffuseColor  = float3(0, 0, 0);
-float3 PointLight1SpecularColor = float3(0, 0, 0);
-float  PointLight1Radius        = 1.0;
+float4 PointLight1PositionAndRadius = float4(0, 0, 0, 1);
+float4 PointLight1DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 PointLight1SpecularColor     = float3(0, 0, 0);
 
-bool   PointLight2Enabled       = false;
-float3 PointLight2Position      = float3(0, 0, 0);
-float3 PointLight2DiffuseColor  = float3(0, 0, 0);
-float3 PointLight2SpecularColor = float3(0, 0, 0);
-float  PointLight2Radius        = 1.0;
+float4 PointLight2PositionAndRadius = float4(0, 0, 0, 1);
+float4 PointLight2DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 PointLight2SpecularColor     = float3(0, 0, 0);
 
-float3 FogColor = float3(0, 0, 0);
-float  FogStart = 0.0;
-float  FogEnd   = 1.0;
+float4 DynamicLight0PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight0DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight0SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight1PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight1DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight1SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight2PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight2DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight2SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight3PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight3DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight3SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight4PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight4DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight4SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight5PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight5DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight5SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight6PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight6DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight6SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight7PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight7DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight7SpecularColor     = float3(0, 0, 0);
+
+float3 FogColor    = float3(0, 0, 0);
+float2 FogStartEnd = float2(0.0, 1.0);
 
 texture Texture;
 sampler2D TextureSampler = sampler_state
@@ -182,7 +209,7 @@ struct VSOutput
 
 float ComputeFogFactor(float dist)
 {
-    return saturate((dist - FogStart) / (FogEnd - FogStart));
+    return saturate((dist - FogStartEnd.x) / (FogStartEnd.y - FogStartEnd.x));
 }
 
 // 4-bone weighted blend producing a single 4×3 skinning matrix per vertex.
@@ -220,30 +247,33 @@ LightTerms ComputeDirectional(
     return terms;
 }
 
+// §4.6.B follow-up: returns LightTerms with specular restored — see
+// MeshLighting.fx for the full rationale. Identical math.
 LightTerms ComputePoint(
-    float3 normalWS, float3 viewDirWS, float3 positionWS,
-    bool enabled, float3 lightPos, float3 lightDiffuse, float3 lightSpecular, float lightRadius)
+    float3 normalWS, float3 positionWS, float3 viewDirWS,
+    float4 positionAndRadius, float4 diffuseAndEnabled, float3 specularColor)
 {
     LightTerms terms;
-    terms.Diffuse = float3(0, 0, 0);
+    terms.Diffuse  = float3(0, 0, 0);
     terms.Specular = float3(0, 0, 0);
-    if (!enabled) return terms;
 
-    float3 toLightVec = lightPos - positionWS;
+    if (diffuseAndEnabled.w < 0.5) return terms;
+
+    float3 toLightVec = positionAndRadius.xyz - positionWS;
     float dist = length(toLightVec);
     float3 toLight = toLightVec / max(dist, 0.0001);
 
-    float ratio = saturate(dist / max(lightRadius, 0.0001));
+    float ratio = saturate(dist / max(positionAndRadius.w, 0.0001));
     float atten = saturate(1.0 - ratio * ratio);
     if (atten <= 0.0) return terms;
 
     float ndl = saturate(dot(normalWS, toLight));
-    terms.Diffuse = lightDiffuse * ndl * atten;
+    terms.Diffuse = diffuseAndEnabled.xyz * ndl * atten;
 
     float3 halfWay = normalize(toLight + viewDirWS);
     float ndh = saturate(dot(normalWS, halfWay));
     float specMask = ndl > 0 ? 1.0 : 0.0;
-    terms.Specular = lightSpecular * pow(ndh, SpecularPower) * specMask * atten;
+    terms.Specular = specularColor * pow(ndh, SpecularPower) * specMask * atten;
 
     return terms;
 }
@@ -333,18 +363,38 @@ float4 PSDefault(VSOutput input) : SV_TARGET
         LightTerms l2 = ComputeDirectional(normalWS, viewDirWS,
             DirLight2Direction, DirLight2DiffuseColor, DirLight2SpecularColor);
 
-        LightTerms p0 = ComputePoint(normalWS, viewDirWS, input.PositionWS,
-            PointLight0Enabled, PointLight0Position,
-            PointLight0DiffuseColor, PointLight0SpecularColor, PointLight0Radius);
-        LightTerms p1 = ComputePoint(normalWS, viewDirWS, input.PositionWS,
-            PointLight1Enabled, PointLight1Position,
-            PointLight1DiffuseColor, PointLight1SpecularColor, PointLight1Radius);
-        LightTerms p2 = ComputePoint(normalWS, viewDirWS, input.PositionWS,
-            PointLight2Enabled, PointLight2Position,
-            PointLight2DiffuseColor, PointLight2SpecularColor, PointLight2Radius);
+        LightTerms p0 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            PointLight0PositionAndRadius, PointLight0DiffuseAndEnabled, PointLight0SpecularColor);
+        LightTerms p1 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            PointLight1PositionAndRadius, PointLight1DiffuseAndEnabled, PointLight1SpecularColor);
+        LightTerms p2 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            PointLight2PositionAndRadius, PointLight2DiffuseAndEnabled, PointLight2SpecularColor);
+        LightTerms d0 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight0PositionAndRadius, DynamicLight0DiffuseAndEnabled, DynamicLight0SpecularColor);
+        LightTerms d1 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight1PositionAndRadius, DynamicLight1DiffuseAndEnabled, DynamicLight1SpecularColor);
+        LightTerms d2 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight2PositionAndRadius, DynamicLight2DiffuseAndEnabled, DynamicLight2SpecularColor);
+        LightTerms d3 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight3PositionAndRadius, DynamicLight3DiffuseAndEnabled, DynamicLight3SpecularColor);
+        LightTerms d4 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight4PositionAndRadius, DynamicLight4DiffuseAndEnabled, DynamicLight4SpecularColor);
+        LightTerms d5 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight5PositionAndRadius, DynamicLight5DiffuseAndEnabled, DynamicLight5SpecularColor);
+        LightTerms d6 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight6PositionAndRadius, DynamicLight6DiffuseAndEnabled, DynamicLight6SpecularColor);
+        LightTerms d7 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight7PositionAndRadius, DynamicLight7DiffuseAndEnabled, DynamicLight7SpecularColor);
 
-        float3 diffuseAcc  = (l0.Diffuse  + l1.Diffuse  + l2.Diffuse  + p0.Diffuse  + p1.Diffuse  + p2.Diffuse)  * DiffuseColor;
-        float3 specularAcc = (l0.Specular + l1.Specular + l2.Specular + p0.Specular + p1.Specular + p2.Specular) * SpecularColor * specularMask;
+        float3 diffuseAcc  = (l0.Diffuse  + l1.Diffuse  + l2.Diffuse
+                            + p0.Diffuse  + p1.Diffuse  + p2.Diffuse
+                            + d0.Diffuse  + d1.Diffuse  + d2.Diffuse + d3.Diffuse
+                            + d4.Diffuse  + d5.Diffuse  + d6.Diffuse + d7.Diffuse) * DiffuseColor;
+        float3 specularAcc = (l0.Specular + l1.Specular + l2.Specular
+                            + p0.Specular + p1.Specular + p2.Specular
+                            + d0.Specular + d1.Specular + d2.Specular + d3.Specular
+                            + d4.Specular + d5.Specular + d6.Specular + d7.Specular)
+                            * SpecularColor * specularMask * SpecularAmount;
 
         float shadowFactor = SampleShadowFactor(input.PositionLS);
         diffuseAcc  *= shadowFactor;
@@ -367,7 +417,14 @@ technique Default
 {
     pass Pass1
     {
-        VertexShader = compile vs_4_0_level_9_3 VSSkinned();
-        PixelShader  = compile ps_4_0_level_9_3 PSDefault();
+        // §4.6.B: bumped FL9.3 → FL10.0 in lockstep with MeshLighting.fx.
+        // Same parameter surface (PointLightN / DynamicLightN packing,
+        // FogStartEnd) so the upstream LightingEffect parameter handles
+        // resolve identically; the bones[] palette + matrix-skinning VS
+        // path was already comfortably under FL9.3's vs cap so no skinned-
+        // specific limitation is being lifted, but the profile must match
+        // the static effect for a unified DX10 minimum-spec promise.
+        VertexShader = compile vs_4_0 VSSkinned();
+        PixelShader  = compile ps_4_0 PSDefault();
     }
 }

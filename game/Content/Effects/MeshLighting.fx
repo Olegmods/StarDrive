@@ -86,6 +86,15 @@ float3 DiffuseColor    = float3(1, 1, 1);
 float3 EmissiveColor   = float3(0, 0, 0);
 float3 SpecularColor   = float3(1, 1, 1);
 float  SpecularPower   = 16.0;
+// §4.6.B(b) follow-up: SpecularAmount restores the per-material gloss
+// multiplier that SunBurn-Pro's forward shader applied. The C# side reads
+// it from FBX via MeshInterface (`6.0 * mat->Specular`) and the migrated
+// shader was silently dropping the multiplier — Cordrazine and other
+// chrome-style materials (intentionally-dark diffuse, spec-dominated
+// hull) read flat-black post-migration because their 6× spec gain was
+// being multiplied by 0. Default 1.0 keeps existing materials unchanged
+// when Specular wasn't set in the source FBX.
+float  SpecularAmount  = 1.0;
 float  Alpha           = 1.0;
 float3 EyePosition     = float3(0, 0, 0);
 
@@ -110,36 +119,77 @@ float3 DirLight2Direction      = float3(0, -1, 0);
 float3 DirLight2DiffuseColor   = float3(0, 0, 0);
 float3 DirLight2SpecularColor  = float3(0, 0, 0);
 
-// Per-pixel point-light slots (3). Each shaded pixel computes its own
-// direction to each point and applies smooth-quadratic radius falloff
-// (`saturate(1 - (d/Radius)^2)`). That gives automatic per-ship parallax
-// AND faithful SunBurn-style multi-light scenes (a system's Key /
-// OverSaturationKey / LocalFill all affect the hull, with each light's
-// radius determining its reach — OverSaturationKey's small radius means
-// it only oversaturates ships near the sun, not the whole hull).
-// LightingEffectBinder populates these from the closest system's 3
-// PointLights; the slot is inert when not bound.
-bool   PointLight0Enabled       = false;
-float3 PointLight0Position      = float3(0, 0, 0);
-float3 PointLight0DiffuseColor  = float3(0, 0, 0);
-float3 PointLight0SpecularColor = float3(0, 0, 0);
-float  PointLight0Radius        = 1.0;
+// Per-pixel point-light slots (3 sun-anchor + 8 dynamic). Each shaded pixel
+// computes its own direction to each point and applies smooth-quadratic
+// radius falloff (`saturate(1 - (d/Radius)^2)`). That gives automatic
+// per-ship parallax AND faithful SunBurn-style multi-light scenes (a
+// system's Key / OverSaturationKey / LocalFill all affect the hull, with
+// each light's radius determining its reach — OverSaturationKey's small
+// radius means it only oversaturates ships near the sun, not the whole
+// hull). LightingEffectBinder populates the sun-anchor slots from the
+// closest system's 3 PointLights, the dynamic slots from the closest 8
+// small-radius lights (Radius < 1000f) — projectile glow, explosions,
+// shield impacts.
+//
+// Packed layout (3 float4s/slot now that §4.6.B FL10.0 lifted the FL9.3
+// 32-vec4 PS const cap and there's room to restore specular):
+//   PositionAndRadius:  .xyz = world Position, .w = Radius
+//   DiffuseAndEnabled:  .xyz = DiffuseColor (premul Intensity), .w = Enabled (0/1)
+//   SpecularColor:      .xyz = SpecularColor (BasicEffect-style highlight tint)
+//
+// History: §4.6 #2 dropped specular and capped dynamics at 2 to fit FL9.3's
+// 32-register PS pool. §4.6.B (and the §4.6.B(b) follow-up that introduced
+// this 8-slot/specular-restored layout) bumped to ps_4_0 / FL10.0 and
+// regained both the specular contribution AND 6 more dynamic slots.
+float4 PointLight0PositionAndRadius = float4(0, 0, 0, 1);
+float4 PointLight0DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 PointLight0SpecularColor     = float3(0, 0, 0);
 
-bool   PointLight1Enabled       = false;
-float3 PointLight1Position      = float3(0, 0, 0);
-float3 PointLight1DiffuseColor  = float3(0, 0, 0);
-float3 PointLight1SpecularColor = float3(0, 0, 0);
-float  PointLight1Radius        = 1.0;
+float4 PointLight1PositionAndRadius = float4(0, 0, 0, 1);
+float4 PointLight1DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 PointLight1SpecularColor     = float3(0, 0, 0);
 
-bool   PointLight2Enabled       = false;
-float3 PointLight2Position      = float3(0, 0, 0);
-float3 PointLight2DiffuseColor  = float3(0, 0, 0);
-float3 PointLight2SpecularColor = float3(0, 0, 0);
-float  PointLight2Radius        = 1.0;
+float4 PointLight2PositionAndRadius = float4(0, 0, 0, 1);
+float4 PointLight2DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 PointLight2SpecularColor     = float3(0, 0, 0);
 
-float3 FogColor = float3(0, 0, 0);
-float  FogStart = 0.0;
-float  FogEnd   = 1.0;
+// 8 dynamic-light slots — replaces the §4.6 #2 cap of 2. The binder still
+// picks the N closest to the camera by XY distance (off-screen / far-field
+// lights contribute nothing visible), so 8 covers any plausible busy-fleet
+// engagement near the active view. Per-pixel cost is roughly linear in
+// slot count (each ComputePoint call is one branch + a few muls + a
+// pow()); 8 slots is comfortable on integrated GPUs that meet the new
+// FL10.0 floor.
+float4 DynamicLight0PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight0DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight0SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight1PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight1DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight1SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight2PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight2DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight2SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight3PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight3DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight3SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight4PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight4DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight4SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight5PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight5DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight5SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight6PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight6DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight6SpecularColor     = float3(0, 0, 0);
+float4 DynamicLight7PositionAndRadius = float4(0, 0, 0, 1);
+float4 DynamicLight7DiffuseAndEnabled = float4(0, 0, 0, 0);
+float3 DynamicLight7SpecularColor     = float3(0, 0, 0);
+
+// FogStart+FogEnd packed into a single float2; kept from §4.6 #2 because
+// the packing is ergonomic regardless of register pressure (one SetValue
+// per frame, .x/.y access in the shader).
+float3 FogColor    = float3(0, 0, 0);
+float2 FogStartEnd = float2(0.0, 1.0);
 
 texture Texture;
 sampler2D TextureSampler = sampler_state
@@ -215,7 +265,7 @@ struct VSOutput
 
 float ComputeFogFactor(float dist)
 {
-    return saturate((dist - FogStart) / (FogEnd - FogStart));
+    return saturate((dist - FogStartEnd.x) / (FogStartEnd.y - FogStartEnd.x));
 }
 
 // Mirrors BasicEffect's per-light contribution. Returns (diffuse, specular).
@@ -249,33 +299,46 @@ LightTerms ComputeDirectional(
 // full at d=0 and zero at d=R — close enough to SunBurn's deferred falloff
 // that the OverSaturationKey (R=7.5k) only over-saturates hulls near the
 // sun while the Key (R=150k) lights the whole orbit.
+//
+// Returns LightTerms (diffuse + specular) — same shape as ComputeDirectional
+// so PSDefault can sum them uniformly. Specular uses BasicEffect's half-
+// vector model and the per-light SpecularColor; multiplied by the per-light
+// radius attenuation so distant lights don't streak hulls.
+//
+// §4.6.B follow-up: restored the specular term that §4.6 #2 dropped to fit
+// FL9.3's register cap. With FL10.0 there's headroom; sun PointLights now
+// contribute the SunBurn-style highlight that's visible in pre-migration
+// screenshots, and dynamic projectile glow can carry a tinted highlight on
+// nearby hulls.
 LightTerms ComputePoint(
-    float3 normalWS, float3 viewDirWS, float3 positionWS,
-    bool enabled, float3 lightPos, float3 lightDiffuse, float3 lightSpecular, float lightRadius)
+    float3 normalWS, float3 positionWS, float3 viewDirWS,
+    float4 positionAndRadius, float4 diffuseAndEnabled, float3 specularColor)
 {
     LightTerms terms;
-    terms.Diffuse = float3(0, 0, 0);
+    terms.Diffuse  = float3(0, 0, 0);
     terms.Specular = float3(0, 0, 0);
-    if (!enabled) return terms;
 
-    float3 toLightVec = lightPos - positionWS;
+    if (diffuseAndEnabled.w < 0.5) return terms;
+
+    float3 toLightVec = positionAndRadius.xyz - positionWS;
     float dist = length(toLightVec);
     float3 toLight = toLightVec / max(dist, 0.0001);
 
-    float ratio = saturate(dist / max(lightRadius, 0.0001));
+    float ratio = saturate(dist / max(positionAndRadius.w, 0.0001));
     float atten = saturate(1.0 - ratio * ratio);
     if (atten <= 0.0) return terms;
 
     float ndl = saturate(dot(normalWS, toLight));
-    terms.Diffuse = lightDiffuse * ndl * atten;
+    terms.Diffuse = diffuseAndEnabled.xyz * ndl * atten;
 
     float3 halfWay = normalize(toLight + viewDirWS);
     float ndh = saturate(dot(normalWS, halfWay));
     float specMask = ndl > 0 ? 1.0 : 0.0;
-    terms.Specular = lightSpecular * pow(ndh, SpecularPower) * specMask * atten;
+    terms.Specular = specularColor * pow(ndh, SpecularPower) * specMask * atten;
 
     return terms;
 }
+
 
 VSOutput VSDefault(VSInput input)
 {
@@ -391,20 +454,42 @@ float4 PSDefault(VSOutput input) : SV_TARGET
             DirLight2Direction, DirLight2DiffuseColor, DirLight2SpecularColor);
 
         // Per-pixel point lights — direction recomputed per pixel from
-        // world position, smooth-quadratic radius falloff. All 3 sum
-        // additively into the same diffuse/specular accumulators.
-        LightTerms p0 = ComputePoint(normalWS, viewDirWS, input.PositionWS,
-            PointLight0Enabled, PointLight0Position,
-            PointLight0DiffuseColor, PointLight0SpecularColor, PointLight0Radius);
-        LightTerms p1 = ComputePoint(normalWS, viewDirWS, input.PositionWS,
-            PointLight1Enabled, PointLight1Position,
-            PointLight1DiffuseColor, PointLight1SpecularColor, PointLight1Radius);
-        LightTerms p2 = ComputePoint(normalWS, viewDirWS, input.PositionWS,
-            PointLight2Enabled, PointLight2Position,
-            PointLight2DiffuseColor, PointLight2SpecularColor, PointLight2Radius);
+        // world position, smooth-quadratic radius falloff. All 11 (3 sun
+        // anchors + 8 dynamic) contribute to both diffuse and specular
+        // accumulators. §4.6.B follow-up: specular term restored on point
+        // lights, dynamic slot count expanded from 2 → 8.
+        LightTerms p0 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            PointLight0PositionAndRadius, PointLight0DiffuseAndEnabled, PointLight0SpecularColor);
+        LightTerms p1 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            PointLight1PositionAndRadius, PointLight1DiffuseAndEnabled, PointLight1SpecularColor);
+        LightTerms p2 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            PointLight2PositionAndRadius, PointLight2DiffuseAndEnabled, PointLight2SpecularColor);
+        LightTerms d0 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight0PositionAndRadius, DynamicLight0DiffuseAndEnabled, DynamicLight0SpecularColor);
+        LightTerms d1 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight1PositionAndRadius, DynamicLight1DiffuseAndEnabled, DynamicLight1SpecularColor);
+        LightTerms d2 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight2PositionAndRadius, DynamicLight2DiffuseAndEnabled, DynamicLight2SpecularColor);
+        LightTerms d3 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight3PositionAndRadius, DynamicLight3DiffuseAndEnabled, DynamicLight3SpecularColor);
+        LightTerms d4 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight4PositionAndRadius, DynamicLight4DiffuseAndEnabled, DynamicLight4SpecularColor);
+        LightTerms d5 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight5PositionAndRadius, DynamicLight5DiffuseAndEnabled, DynamicLight5SpecularColor);
+        LightTerms d6 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight6PositionAndRadius, DynamicLight6DiffuseAndEnabled, DynamicLight6SpecularColor);
+        LightTerms d7 = ComputePoint(normalWS, input.PositionWS, viewDirWS,
+            DynamicLight7PositionAndRadius, DynamicLight7DiffuseAndEnabled, DynamicLight7SpecularColor);
 
-        float3 diffuseAcc  = (l0.Diffuse  + l1.Diffuse  + l2.Diffuse  + p0.Diffuse  + p1.Diffuse  + p2.Diffuse)  * DiffuseColor;
-        float3 specularAcc = (l0.Specular + l1.Specular + l2.Specular + p0.Specular + p1.Specular + p2.Specular) * SpecularColor * specularMask;
+        float3 diffuseAcc  = (l0.Diffuse  + l1.Diffuse  + l2.Diffuse
+                            + p0.Diffuse  + p1.Diffuse  + p2.Diffuse
+                            + d0.Diffuse  + d1.Diffuse  + d2.Diffuse + d3.Diffuse
+                            + d4.Diffuse  + d5.Diffuse  + d6.Diffuse + d7.Diffuse) * DiffuseColor;
+        float3 specularAcc = (l0.Specular + l1.Specular + l2.Specular
+                            + p0.Specular + p1.Specular + p2.Specular
+                            + d0.Specular + d1.Specular + d2.Specular + d3.Specular
+                            + d4.Specular + d5.Specular + d6.Specular + d7.Specular)
+                            * SpecularColor * specularMask * SpecularAmount;
 
         // Phase 3.8.B: receiver-side shadow gate. Multiplies wholesale into
         // the direct-light accumulators; ambient + emissive remain to fill
@@ -437,11 +522,13 @@ technique Default
 {
     pass Pass1
     {
-        // ps_4_0_level_9_3 (SM3.0 hardware) — needed because Phase B's per-pixel
-        // emissive + specular map sampling pushes the shader past the 64-slot
-        // ps_2_0 / level_9_1 limit. Level 9.3 = SM3.0 era (~2005+ hardware),
-        // universally available on any modern desktop GPU and integrated.
-        VertexShader = compile vs_4_0_level_9_3 VSDefault();
-        PixelShader  = compile ps_4_0_level_9_3 PSDefault();
+        // §4.6.B: bumped from FL9.3 → FL10.0. The 32-vec4 PS const-register
+        // cap on FL9.3 was the binding constraint behind multiple §4.6
+        // limitations (dynamic light cap of 2, point-light specular dropped,
+        // packed FogStartEnd, packed PointLight slots). FL10.0's ~4096-register
+        // pool removes that cap entirely. Hardware floor moves from pre-2008
+        // to GeForce 8400+ / Radeon HD 2400+ / Intel HD 4000+ (DX10 / 2008+).
+        VertexShader = compile vs_4_0 VSDefault();
+        PixelShader  = compile ps_4_0 PSDefault();
     }
 }

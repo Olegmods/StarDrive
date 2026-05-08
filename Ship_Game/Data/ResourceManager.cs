@@ -225,6 +225,10 @@ namespace Ship_Game
             else
                 GlobalStats.ClearActiveMod();
 
+            // Must run after mod state is set (cache root depends on mod name)
+            // and before any atlas load reads from the cache folder.
+            TextureAtlas.PurgeCacheIfVersionChanged();
+
             Log.ConfigureStatsReporter();
             LoadContent();
 
@@ -896,6 +900,18 @@ namespace Ship_Game
         public static readonly HashSet<string> AtlasNoCompressFolders = new HashSet<string>(new []
         {
             "NewUI", "EmpireTopBar", "Popup", "ResearchMenu"
+        });
+
+        // Atlases whose nopack Color+alpha textures need lossless alpha (PNG cache).
+        // DXT5 alpha is 8-level-per-4x4-block — fine for noisy game art (planet
+        // surfaces, suns, nebulas) but produces visible banding on smooth UI alpha
+        // gradients. UI/node (FOW sensor-circle outer ring) was the original §4.6 #7
+        // trigger. Other atlases default to DXT5 (much faster encoding, matches
+        // pre-migration cache size). Add new folders here only if alpha banding
+        // shows up elsewhere.
+        public static readonly HashSet<string> AtlasLosslessAlphaFolders = new HashSet<string>(new []
+        {
+            "UI"
         });
 
         static TextureAtlas LoadAtlas(string folder)

@@ -227,7 +227,7 @@ namespace Ship_Game
 
             if (!UseRealLights)
             {
-                AssignLightRig(LightRigIdentity.UniverseScreen, "example/NewGamelight_rig");
+                AssignLightRig(LightRigIdentity.UniverseScreen);
                 return;
             }
 
@@ -268,7 +268,14 @@ namespace Ship_Game
             Color color     = system.Sun.LightColor;
             float intensity = system.Sun.LightIntensity;
             float radius    = system.Sun.Radius;
-            var light1 = AddLight("Key",               system, intensity,         radius,         color, -5500);
+            // §4.6.B(b) test: Key Z bumped from -5500 → -50000 to steepen the
+            // toLight vector at the play plane. With the sun close to ship z=0,
+            // the light direction was nearly grazing — half-vector specular
+            // peaks barely landed on top hull faces. Moving the sun far above
+            // gives a more uniform overhead-light direction across the active
+            // system. Sun radius is ~150k so the new distance still falls in
+            // the ~89% intensity band of the smooth-quadratic falloff.
+            var light1 = AddLight("Key",               system, intensity,         radius,         color, -50000);
             var light2 = AddLight("OverSaturationKey", system, intensity * 5.00f, radius * 0.05f, color, -1500);
             var light3 = AddLight("LocalFill",         system, intensity * 0.55f, radius,         Color.White, 0);
             //AddLight("Back", system, intensity * 0.5f , radius, color, 2500, fallOff: 0, fillLight: true);
@@ -517,14 +524,32 @@ namespace Ship_Game
                 distortionComponent = new DistortionComponent(device, TransientContent);
                 distortionComponent.LoadContent();
             }
-            if (GlobalStats.RenderShadows)
-            {
-                shadowMapComponent = new Ship_Game.Graphics.ShadowMapComponent(device, TransientContent);
-                shadowMapComponent.LoadContent();
-                ScreenManager.AttachShadowMap(shadowMapComponent);
-            }
+            // Shadow infrastructure (Phase 3.8.B — ShadowMapComponent +
+            // RunShadowPrePass + receiver shader path) is intentionally NOT
+            // attached on the universe screen. StarDrive's universe view is
+            // effectively coplanar — ships float at ~the same Z, the sun is far
+            // enough to act as a near-directional light from above, and there is
+            // no terrain receiver. The pre-pass produces no visible benefit but
+            // does produce real artifacts: ComputeCasterBounds includes the
+            // planet itself as a caster, so the ortho light frustum stretches
+            // huge, and the planet samples the shadow map at UVs that fall
+            // inside the frustum footprint — painting a hard rectangle of
+            // shadow on the planet surface where the cruiser geometry projects.
+            // The plumbing stays in place for any future scene (hangar floor,
+            // planet-surface combat, 3D fleet view) that genuinely benefits;
+            // attaching is a per-screen decision, not a global on/off.
+            // GlobalStats.RenderShadows is preserved as a setting for that
+            // future use.
 
-            MainTarget   = RenderTargets.Create(device);
+            // §4.6 #1.b regression fix: MainTarget MUST PreserveContents because the
+            // shadow pre-pass in SunBurnStubs.RenderScene swaps to ShadowMap and back
+            // mid-frame. With DiscardContents, the rebind wipes the already-drawn
+            // RenderBackdrop output (nebula + stars + clouds), leaving a black scene
+            // under the ship meshes when zoomed in close enough that ships have
+            // non-zero bounds. Other RTs (Border, Lights, FogMap, PostBloom,
+            // PostDistort) are explicitly cleared at the start of their write passes,
+            // so DiscardContents is fine for them.
+            MainTarget   = RenderTargets.Create(device, RenderTargetUsage.PreserveContents);
             LightsTarget = RenderTargets.Create(device);
             BorderRT     = RenderTargets.Create(device);
             if (GlobalStats.RenderBloom)
