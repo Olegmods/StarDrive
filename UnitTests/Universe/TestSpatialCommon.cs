@@ -247,8 +247,10 @@ namespace UnitTests.Universe
         }
         
         [TestMethod]
+        [TestCategory("Performance")]
         public void TreeSearchPerformance()
         {
+            TestEnvironment.SkipOnAppVeyor();
             ISpatial tree = CreateQuadTree(500_000, 1_000);
             const float defaultSensorRange = 30000f;
 
