@@ -17,13 +17,14 @@ Two sub-phases:
 
 ## Phase 5 Goals (Success Gate)
 
-1. **BlackBox 1.6.0 published** to itch.io (replacing the 1.51 listing) with signed installer, ZIP, and release notes. Tag `mars-release-1.6.0` pushed to git as the version marker that triggers the `release.yml` GitHub Action; the maintainer downloads the signed artefacts from the workflow run and manually uploads to itch.io.
+1. **BlackBox Jupiter 1.6.0 published** to itch.io (replacing the 1.51 Mars listing) with signed installer, ZIP, and release notes. Tag `jupiter-release-1.6.0` pushed to git as the version marker that triggers the `release.yml` GitHub Action; the maintainer downloads the signed artefacts from the workflow run and manually uploads to itch.io. **Codename**: BlackBox Jupiter (was Mars through 1.51).
 2. **No SmartScreen "Windows protected your PC" warning** when the installer is downloaded via a clean browser on a clean Windows install.
 3. **`signtool verify /pa /v` reports valid Authenticode signatures** on `StarDrive.exe`, `SDNative.dll`, and the installer EXE — including a valid timestamp so signatures survive cert expiry.
-4. **All three install scenarios pass**:
-   - Clean machine, standalone install (`C:\Games\StarDrivePlus`).
+4. **All four install scenarios pass** (see §5.1.E):
+   - Clean machine, standalone install at the new default `C:\Games\StarDrivePlus64`.
    - Clean machine, Steam-folder install (replaces original StarDrive 1 in Steam library; original backed up).
-   - Existing 1.51 install upgraded in-place; saves preserved.
+   - Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`, 1.6.0 lands at `StarDrivePlus64` (Option A clean break: no upgrade-detection from `HKLM\Software\StarDrive\InstallPath`); both versions launch independently, each sees only its own SaveGameVersion.
+   - Manual upgrade-in-place — user explicitly browses to `C:\Games\StarDrivePlus`; 1.51 binaries replaced; saves preserved (1.51 v20 saves stay on disk but invisible to 1.6.0).
 5. **README + Sentry release record updated** to point at 1.6.0.
 6. *(Optional, §5.2)* **PHASE4_RESULTS.md committed; ARCHITECTURE.md updated** to mark the migration roadmap §9 items DONE; memory entries marked RESOLVED with commit refs.
 
@@ -32,6 +33,7 @@ Two sub-phases:
 - Multi-platform builds. 1.6.0 is Windows-only (matches 1.51 distribution).
 - Localization beyond what's already shipped.
 - Marketing / store-page updates beyond the GitHub release notes.
+- **Save-game format migration from v20 (Mars) to v21 (Jupiter).** SaveGameVersion bumps for save partitioning, not conversion — 1.51 saves are not loadable in 1.6.0 (and vice versa). Documented in `RELEASE_NOTES_1.6.0.md`. A future save-importer is its own workstream if ever needed.
 
 ---
 
@@ -39,6 +41,9 @@ Two sub-phases:
 
 | Decision | Choice | Rationale |
 |---|---|---|
+| **Release codename** | **BlackBox Jupiter** (replaces Mars). 1.6.0 is the first Jupiter release; the Mars line ended at 1.51. | Jupiter (largest planet) fits the scale of this release — the x64 + MonoGame migration is the project's biggest single change set. Matches the project's planet-codenamed major-version pattern. |
+| **Default install path** | `C:\Games\StarDrivePlus64` (was `StarDrivePlus` for Mars). Option A clean break: 1.6.0 installer ignores `HKLM\Software\StarDrive\InstallPath` (the Mars-line registry key) and writes its own `Software\StarDrivePlus64\InstallPath`. | Allows 1.51 and 1.6.0 to coexist on disk with no surprise overwrite. Users who want upgrade-in-place can manually browse to `C:\Games\StarDrivePlus`; the radio-button default just doesn't pre-select that. The `64` suffix is also a visual signal that this is the bitness-changed line. |
+| **Save-game coexistence** | Bump `SavedGame.SaveGameVersion` from `20` (Mars) to `21` (Jupiter). Save folder stays single (`%APPDATA%\StarDrive\`) — no `Dir.StarDriveAppData` change. Each version's load-list filter at `LoadSaveScreen.cs:56` is exact-match on `SaveGameVersion`, so v20 and v21 saves are mutually invisible. | Cleaner than partitioning the appdata folder — no save-folder migration step, no orphaned saves if a user uninstalls one version. The trade is that 1.51 saves can't be loaded in 1.6.0; a future save-importer would be a separate workstream. |
 | **Code-signing approach** | Microsoft Trusted Signing (default). Fall back to OV cert if Trusted Signing identity validation stalls; ship unsigned-with-followup-patch as last resort. | ~$10/month, inherits Microsoft reputation immediately. EV cert ($300–$500/yr + hardware token shipping) is the next step up but heavyweight for a community project. |
 | **Steam-folder install** | Opt-in via radio-button page, NOT default. UAC elevation requested via `RequestExecutionLevel admin` in the NSIS script. | Surprise-replacing the user's Steam install of StarDrive 1 is hostile; the user must consciously pick that install target. UAC elevation is required for any write into `Program Files (x86)`. |
 | **Steam-folder backup** | Original `StarDrive.exe` + `Content/` backed up to `<INSTDIR>\Original_StarDrive_Backup\` before BlackBox 1.6.0 files land. | "Verify Integrity" in Steam may re-fetch original files; the backup gives the user a clean rollback path either way. |
@@ -68,21 +73,48 @@ Each sub-phase ends with a commit and is rollback-able. §5.1 ships the artefact
 **Context — what the 1.51 release looked like** (from `Deploy/`, `README.md`, GitHub releases page) and what changes for 1.6.0:
 - Version string lives in `Properties/AssemblyInfo.cs::AssemblyVersion`. Current value: `1.51.15100`. Pattern: `MAJOR.MINOR.BUILD` (mod version + monotonic build counter from AppVeyor's `APPVEYOR_BUILD_VERSION`).
 - Three installer artefacts produced by `Deploy/MakeInstaller.py`:
-  - **NSIS** (`BlackBox-Mars.nsi` full / `BlackBox-Mars-Patch.nsi` cumulative patch) → `Deploy/upload/BlackBox_Mars_<version>.exe`
-  - **ZIP** — for 1.6.0, the **full release ZIP is a single file** (itch.io has no 25 MB upload cap). The 25 MB chunking survives only on the **cumulative patch ZIP** (`BlackBox-Mars-Patch.nsi` flow), where the in-game patch updater benefits from chunked, resumable downloads on slow connections.
+  - **NSIS** (`BlackBox-Jupiter.nsi` full / `BlackBox-Jupiter-Patch.nsi` cumulative patch) → `Deploy/upload/BlackBox_Jupiter_<version>.exe`. The Mars-line `.nsi` filenames are renamed at §5.1.A (codename change for the post-migration release line — see [project_jupiter_codename.md](../../../Users/gkapu/.claude/projects/c--Development-stardrive-BlackBoxPlus/memory/project_jupiter_codename.md)).
+  - **ZIP** — for 1.6.0, the **full release ZIP is a single file** (itch.io has no 25 MB upload cap). The 25 MB chunking survives only on the **cumulative patch ZIP** (`BlackBox-Jupiter-Patch.nsi` flow), where the in-game patch updater benefits from chunked, resumable downloads on slow connections.
   - **MSI** (Wix, `Deploy/SDInstaller.wixproj` + `Deploy/Product.wxs`) — kept around but not the primary distribution channel
-- Default install path: `C:\Games\StarDrivePlus` (NSIS line 76 in `Deploy/BBInstaller.nsi`). Steam-detection code is commented out at lines 70–74 — the previous team had it in mind but disabled it, almost certainly because the installer doesn't request UAC elevation today.
-- Distribution: 1.51 lives on GitHub Releases at `https://github.com/TeamStarDrive/StarDrive/releases/tag/mars-release-1.51`. **For 1.6.0 we move primary distribution to itch.io**. The full-release upload is **manual** (Edit Game → Uploads page) — major releases happen rarely (~once per multi-year cycle), so the manual step is fine. `notify-sentry-of-release.bash` continues to post a Sentry release record. The git tag `mars-release-1.6.0` stays as the version marker.
+- Default install path: `C:\Games\StarDrivePlus` for the Mars line (NSIS line 76 in `Deploy/BBInstaller.nsi`). **For the Jupiter line, default changes to `C:\Games\StarDrivePlus64`** — the `64` suffix signals the bitness change so users with both versions on disk can tell them apart, and Mars-line registry-driven upgrade-in-place behavior at `BBInstaller.nsi:66-68` is removed (clean-break Option A; see §5.1.A and [project_jupiter_install_path.md](../../../Users/gkapu/.claude/projects/c--Development-stardrive-BlackBoxPlus/memory/project_jupiter_install_path.md)). Steam-detection code is commented out at lines 70–74 — the previous team had it in mind but disabled it, almost certainly because the installer doesn't request UAC elevation today.
+- Distribution: 1.51 lives on GitHub Releases at `https://github.com/TeamStarDrive/StarDrive/releases/tag/mars-release-1.51`. **For 1.6.0 we move primary distribution to itch.io**. The full-release upload is **manual** (Edit Game → Uploads page) — major releases happen rarely (~once per multi-year cycle), so the manual step is fine. `notify-sentry-of-release.bash` continues to post a Sentry release record. The git tag `jupiter-release-1.6.0` stays as the version marker.
 - Auto-update: in-game logic checks for newer patch versions on launch and prompts to install; works for cumulative patches on top of a major release. The patch ZIP feeding this flow is the chunked artefact.
 - CI (build): for 1.6.0 we move to **GitHub Actions** under `.github/workflows/release.yml`, replicating the legacy AppVeyor build steps. The legacy AppVeyor at `ci.appveyor.com/project/RedFox20/stardrive` is *alive* (`README.md` shows the badge; the project still runs builds and we can read its public log to see what it does) but **not modifiable** — owned by RedFox20, no maintainer write access. We can't add Trusted Signing keys, change targets, or wire post-build hooks there, so we replicate observable steps in our own workflow. The current repo has no `appveyor.yml` checked in to mirror, so the replication source is the AppVeyor build log itself.
-- CI (post-release patches): the same `release.yml` workflow has a conditional `publish-patch` job that runs *after* the build job when the tag matches `mars-release-*-patch`. The job chunks the patch ZIP into 25 MB parts, uploads to the in-game updater's distribution path, and posts Sentry. The full-release path stops at the build job (manual itch.io upload follows).
+- CI (post-release patches): the same `release.yml` workflow has a conditional `publish-patch` job that runs *after* the build job when the tag matches `jupiter-release-*-patch`. The job chunks the patch ZIP into 25 MB parts, uploads to the in-game updater's distribution path, and posts Sentry. The full-release path stops at the build job (manual itch.io upload follows).
 
 ### Sub-steps
 
-**§5.1.A — Version bump + release notes**
+**§5.1.A — Version bump + codename + install-path + save-version + release notes**
+
+The post-migration release line is **BlackBox Jupiter** (was Mars through 1.51) — Jupiter is the largest planet, fitting the scale of the x64 + MonoGame migration. The default install dir changes to `C:\Games\StarDrivePlus64`, and `SavedGame.SaveGameVersion` bumps so 1.51 and 1.6.0 saves coexist by mutual invisibility (no corruption — each version filters the other's saves out of the load list).
+
 1. Bump `Properties/AssemblyInfo.cs::AssemblyVersion` from `1.51.15100` to `1.6.0.<build>`. The build counter convention (`15100`-style) is set by AppVeyor; pick the first build number for the post-migration cycle (e.g., `1.6.0.16000` to leave a clear gap from the 1.51 line).
-2. Update README.md "Current Major Release Link" to point at the **itch.io page** for 1.6.0 (replacing the 1.51 GitHub Releases link). Replace the "BlackBox - Hyperion" future-goals list (the migration is now done) with a "BlackBox 1.6.0 — 64-bit + MonoGame" achievements list.
-3. Author `RELEASE_NOTES_1.6.0.md` summarizing user-visible changes since 1.51:
+
+2. **Codename rename Mars → Jupiter.** Rename and edit:
+   - [Deploy/BlackBox-Mars.nsi](../Deploy/BlackBox-Mars.nsi) → `Deploy/BlackBox-Jupiter.nsi` (full installer NSIS script)
+   - [Deploy/BlackBox-Mars-Patch.nsi](../Deploy/BlackBox-Mars-Patch.nsi) → `Deploy/BlackBox-Jupiter-Patch.nsi` (cumulative patch NSIS)
+   - [Deploy/MakeInstaller.py:41-42](../Deploy/MakeInstaller.py#L41-L42) — `BlackBox-Mars.nsi` / `BlackBox-Mars-Patch.nsi` paths
+   - [Deploy/MakeInstaller.py:54](../Deploy/MakeInstaller.py#L54) — `BlackBox_Mars_{BUILD_VERSION}.zip` archive filename → `BlackBox_Jupiter_{BUILD_VERSION}.zip`
+   - [Deploy/Product.wxs](../Deploy/Product.wxs) + [Deploy/SDInstaller.wixproj](../Deploy/SDInstaller.wixproj) — Wix MSI metadata: product/upgrade names, output filename
+   - `README.md` — release-name + badge label references
+
+3. **Default install path → `C:\Games\StarDrivePlus64`** (clean-break, Option A). Edit [Deploy/BBInstaller.nsi:64-78](../Deploy/BBInstaller.nsi#L64-L78) `.onInit`:
+   - Remove the `ReadRegStr $PREVDIR HKLM ${REGPATH} InstallPath` upgrade-detection path (Mars-line ergonomics; ignored for Jupiter).
+   - Set `$INSTDIR` directly to `C:\Games\StarDrivePlus64`.
+   - Update `${REGPATH}` to `Software\StarDrivePlus64` (or equivalent new key) so writes don't clobber Mars's `Software\StarDrive` keys.
+   - Mirror the Wix HKCU registry path in [Deploy/Product.wxs:68,78](../Deploy/Product.wxs#L68): `Software\StarDrivePlus` → `Software\StarDrivePlus64`.
+   - Mirror the Wix `INSTALLFOLDER` Name in [Deploy/Product.wxs:43](../Deploy/Product.wxs#L43): `StarDrivePlus` → `StarDrivePlus64`.
+
+   Users who explicitly want to upgrade-in-place can manually browse to `C:\Games\StarDrivePlus` from the installer's path-picker page; the radio-button default just doesn't pre-select that.
+
+4. **Bump `SaveGameVersion`** to partition saves cleanly. Edit [Ship_Game/SavedGame.cs:27](../Ship_Game/SavedGame.cs#L27): `public const int SaveGameVersion = 20` → `21`. Effect: the exact-match filter at [LoadSaveScreen.cs:56](../Ship_Game/GameScreens/LoadSaveItems/LoadSaveScreen.cs#L56) means 1.51 sees only Version-20 saves, 1.6.0 sees only Version-21 saves. Save folder stays single (`%APPDATA%\StarDrive\`) — no `Dir.StarDriveAppData` change. No save corruption; both versions silently filter the other's saves out of the load list.
+
+5. Update README.md "Current Major Release Link" to point at the **itch.io page** for 1.6.0 (replacing the 1.51 GitHub Releases link). Replace the "BlackBox - Hyperion" future-goals list (the migration is now done) with a "BlackBox Jupiter 1.6.0 — 64-bit + MonoGame" achievements list.
+
+6. Author `RELEASE_NOTES_1.6.0.md` summarizing user-visible changes since 1.51:
+   - **Codename: Jupiter** (replaces Mars). 1.6.0 is the first Jupiter release.
+   - **Default install path is now `C:\Games\StarDrivePlus64`** (was `C:\Games\StarDrivePlus`). Both versions can coexist on disk.
+   - **1.51 saves are not loadable in 1.6.0** (and vice versa) — the SaveGameVersion bump partitions the load list. No saves are deleted or corrupted; each version just filters the other's saves out of the menu.
    - 64-bit engine (no more 4 GB limit; Combined Arms + huge galaxies stable).
    - MonoGame 3.8 renderer (XNA + SunBurn replaced).
    - All 6 broken effects restored (BeamFX, scale, Thrust, desaturate, BasicFogOfWar, PlanetHalo).
@@ -137,8 +169,8 @@ Steps:
    StrCpy $INSTDIR "$STEAMDIR\SteamApps\common\StarDrive"
    ```
 3. **Make Steam install opt-in**, not default — present a radio-button page with two choices:
-   - **Replace original StarDrive 1 in Steam folder** (default if Steam install detected)
-   - **Install to standalone folder** (default `C:\Games\StarDrivePlus`)
+   - **Replace original StarDrive 1 in Steam folder** (only available if Steam install detected — but NOT pre-selected; Jupiter clean-break Option A means standalone is the default).
+   - **Install to standalone folder** (default `C:\Games\StarDrivePlus64`, pre-selected). The path-picker still lets the user browse to `C:\Games\StarDrivePlus` if they explicitly want to upgrade an existing 1.51 install in-place.
 4. When the Steam path is chosen and an existing StarDrive 1 install is present:
    - Back up the original `StarDrive.exe` + `Content/` to `<INSTDIR>\Original_StarDrive_Backup\` so the user can restore later.
    - Show a confirmation dialog: "This will replace your original StarDrive 1 with BlackBox 1.6.0. The original files will be backed up to Original_StarDrive_Backup/. Continue?"
@@ -158,7 +190,7 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
 
    Save the captured step list under `phase5-logs/appveyor-mirror.md` for the workflow author to translate into YAML.
 
-2. **Author `.github/workflows/release.yml`.** Triggers on tag push matching `mars-release-*`. Two jobs:
+2. **Author `.github/workflows/release.yml`.** Triggers on tag push matching `jupiter-release-*`. Two jobs:
    - `build` (always runs):
      - Checkout with submodules.
      - Set up .NET 8 SDK + VS2022 build tools (the GitHub-hosted `windows-latest` runner has both).
@@ -170,9 +202,9 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
      - Emit the signed artefacts as **workflow artefacts** (downloadable from the run's summary page) so the maintainer can grab them for the manual itch.io upload.
    - `publish-patch` (conditional — see §5.1.F).
 
-3. Tag `mars-release-1.6.0` on the merged Phase 4 branch and push it. The workflow's `build` job runs.
+3. Tag `jupiter-release-1.6.0` on the merged Phase 4 branch and push it. The workflow's `build` job runs.
 
-4. **Verify the GitHub Action ran successfully**: open the Actions tab, confirm the `release.yml` run for tag `mars-release-1.6.0` reports `build` job green. Specifically check:
+4. **Verify the GitHub Action ran successfully**: open the Actions tab, confirm the `release.yml` run for tag `jupiter-release-1.6.0` reports `build` job green. Specifically check:
    - All build + sign + `SignedBinaryCheck.ps1` steps green.
    - Workflow artefacts uploaded (signed installer, full ZIP, optional MSI). Download size matches expectation.
    - If `build` failed, do not proceed — diagnose the workflow first.
@@ -185,18 +217,21 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
 
 8. Update README.md "Current Major Release Link" to point at the itch.io page (replacing the 1.51 GitHub Releases link). Replace the AppVeyor build badge with the GitHub Actions one (or remove if the legacy badge is misleading now).
 
-9. *(Optional, secondary mirror)* If we keep a GitHub Release page in addition to itch.io: publish under tag `mars-release-1.6.0`, body = `RELEASE_NOTES_1.6.0.md` content. Decide once based on whether external downloaders (e.g., third-party mod listings) link at GitHub.
+9. *(Optional, secondary mirror)* If we keep a GitHub Release page in addition to itch.io: publish under tag `jupiter-release-1.6.0`, body = `RELEASE_NOTES_1.6.0.md` content. Decide once based on whether external downloaders (e.g., third-party mod listings) link at GitHub.
 
-**§5.1.E — Smoke test on three install scenarios**
-1. **Clean machine, standalone install** (`C:\Games\StarDrivePlus`): download installer via Edge or Chrome, run it, confirm no SmartScreen warning, complete install, launch game.
-2. **Clean machine, Steam install**: same as above but pick the Steam-folder option. Confirm Steam still launches StarDrive (now showing BlackBox 1.6.0). Confirm achievements/stats round-trip via §4.9.
-3. **Existing 1.51 install**: install over the top. Confirm registry path detection (`HKLM\Software\StarDrive\InstallPath`) drops the new files into the right place. Confirm save-game files aren't clobbered.
+**§5.1.E — Smoke test on four install scenarios**
+1. **Clean machine, standalone install (default path)**: download installer via Edge or Chrome, run it, confirm no SmartScreen warning, accept the default `C:\Games\StarDrivePlus64`, complete install, launch game.
+2. **Clean machine, Steam install**: same as scenario 1 but pick the Steam-folder option. Confirm Steam still launches StarDrive (now showing BlackBox Jupiter 1.6.0). Confirm achievements/stats round-trip via §4.9.
+3. **Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`**: run the 1.6.0 installer, accept the default `C:\Games\StarDrivePlus64`. Verify (a) installer does NOT default to the 1.51 path (Option A clean break — no `HKLM\Software\StarDrive\InstallPath` detection); (b) installer writes `HKLM\Software\StarDrivePlus64\InstallPath`, leaving `Software\StarDrive` untouched; (c) post-install, both `StarDrive.exe` (1.51) and `StarDrivePlus64\StarDrive.exe` (1.6.0) launch independently; (d) saves at `%APPDATA%\StarDrive\` are visible to both, but each version's load list shows only its own SaveGameVersion (1.51 sees v20, 1.6.0 sees v21).
+4. **Manual upgrade-in-place** (user explicitly chooses old path): on a 1.51 machine, run the 1.6.0 installer, browse the path-picker to `C:\Games\StarDrivePlus`, complete install. Confirm 1.51 binaries are replaced in place; 1.51 desktop shortcut now launches 1.6.0. Saves preserved (load list shows only v21 saves; v20 saves still on disk but invisible until user reinstalls 1.51).
 
 **§5.1.F — Post-release patch automation (`publish-patch` job in the same workflow)**
 
-Patches (1.6.0.x bumps) ship more often than majors, so the post-build steps that are tedious to do by hand — chunking the patch ZIP into 25 MB parts, uploading the chunks to wherever the in-game updater fetches them, posting Sentry — are automated. This is a conditional job in the **same `release.yml` workflow** as §5.1.D (not a separate file): the build steps are shared between full-release and patch flows, and only the post-build packaging differs.
+Patches (1.6.0.x bumps) ship more often than majors, so the post-build steps that are tedious to do by hand — uploading the chunks to wherever the in-game updater fetches them, refreshing the patch manifest, posting Sentry — are automated. This is a conditional job in the **same `release.yml` workflow** as §5.1.D (not a separate file): the build steps are shared between full-release and patch flows, and only the post-build packaging differs.
 
-1. Patch tag convention: `mars-release-1.6.0.<build>-patch`. The trailing `-patch` suffix is what the workflow uses to decide whether to run the patch path.
+**Closed-loop note**: chunking is **already implemented end-to-end**. [Deploy/MakeInstaller.py:60-80](../Deploy/MakeInstaller.py#L60-L80) splits the patch ZIP into raw 25 MB byte slices (`001-BlackBox_Mars_<ver>.zip`, `002-...`, ...) when the produced archive is over 25 MB; the in-game updater's [AutoPatcher.PostProcessMultipleZipChunks](../Ship_Game/GameScreens/MainMenu/AutoPatcher.cs#L136-L169) downloads each chunk per the manifest's `ZipUrls`, concatenates them client-side into `combined.zip`, and unzips. The workflow does **not** chunk in YAML — it just uploads what `MakeInstaller.py` already produced and refreshes the manifest.
+
+1. Patch tag convention: `jupiter-release-1.6.0.<build>-patch`. The trailing `-patch` suffix is what the workflow uses to decide whether to run the patch path.
 
 2. Add the `publish-patch` job to `.github/workflows/release.yml`:
    ```yaml
@@ -206,27 +241,34 @@ Patches (1.6.0.x bumps) ship more often than majors, so the post-build steps tha
      runs-on: windows-latest
      steps:
        - uses: actions/download-artifact@v4
-         with: { name: patch-zip }
-       - name: Split into 25 MB chunks
-         run: # PowerShell: split BlackBox_Mars_<version>_Patch.zip into 001-...zip, 002-...zip, ...
+         with: { name: patch-chunks, path: Deploy/upload }
+       # MakeInstaller.py:60-80 already wrote 001-...zip / 002-...zip into Deploy/upload
+       # when the patch ZIP exceeded 25 MB. AutoPatcher.cs reassembles client-side.
        - name: Upload chunks to in-game updater path
-         run: # curl/azcopy/whatever the legacy host requires (URL+creds from the AppVeyor log audit in §5.1.D step 1)
+         run: # curl/azcopy/whatever the legacy host requires (URL+creds from the AppVeyor log audit in §5.1.D step 1).
+              # Upload every Deploy/upload/*-BlackBox_Jupiter_*.zip in lexical order.
+       - name: Update patch manifest
+         run: # Refresh the JSON manifest the in-game updater reads on launch:
+              # - bump version to ${{ github.ref_name }} (strip the trailing -patch).
+              # - set ZipUrls = ordered list of the chunk URLs just uploaded (or single URL if MakeInstaller.py produced one file).
+              # - publish manifest to the same host as the chunks.
        - name: Sentry release notify
          run: bash Deploy/notify-sentry-of-release.bash
          env: { APPVEYOR_BUILD_VERSION: ${{ github.ref_name }} }
    ```
 
-3. The `build` job needs to **conditionally produce the cumulative patch ZIP** when the tag ends in `-patch` — wire `Deploy/MakeInstaller.py` flags accordingly, or run `BlackBox-Mars-Patch.nsi` instead of the full installer flow. Capture the patch ZIP as a workflow artefact named `patch-zip` so `publish-patch` can pick it up.
+3. The `build` job needs to **conditionally produce the cumulative patch ZIP** when the tag ends in `-patch` — invoke `py -3 Deploy/MakeInstaller.py --root_dir=. --patch --type=zip`. Output lands in `Deploy/upload/`: either a single `BlackBox_Mars_<ver>.zip` (if ≤25 MB) or `001-...zip`, `002-...zip`, ... (if larger; the original is deleted by [MakeInstaller.py:79](../Deploy/MakeInstaller.py#L79)). Capture the entire `Deploy/upload/` directory as a workflow artefact named `patch-chunks` so `publish-patch` can pick it up.
 
-4. Credentials for the in-game updater upload (whatever the legacy AppVeyor used — likely an FTP/S3/HTTP-PUT endpoint) live as GitHub secrets. Recover the URL + auth pattern from the legacy AppVeyor build log in §5.1.D step 1.
+4. Credentials for the in-game updater upload (whatever the legacy AppVeyor used — likely an FTP/S3/HTTP-PUT endpoint) live as GitHub secrets. Recover the URL + auth pattern from the legacy AppVeyor build log in §5.1.D step 1. The patch manifest lives at the same host (the URL the in-game `AutoUpdateChecker` polls on launch); recover that endpoint from the same audit.
 
-5. **Verification per patch (note to self when shipping a patch)**: after pushing a `mars-release-*-patch` tag, **check that the `release.yml` workflow ran green end-to-end**, specifically the `publish-patch` job. Open the Actions tab, find the run for the patch tag, confirm:
-   - `build` job green (signing + `SignedBinaryCheck.ps1` + patch ZIP artefact uploaded).
+5. **Verification per patch (note to self when shipping a patch)**: after pushing a `jupiter-release-*-patch` tag, **check that the `release.yml` workflow ran green end-to-end**, specifically the `publish-patch` job. Open the Actions tab, find the run for the patch tag, confirm:
+   - `build` job green (signing + `SignedBinaryCheck.ps1` + `patch-chunks` artefact uploaded; chunk count = `ceil(zip_size / 25 MB)` if chunked, else 1).
    - `publish-patch` job green:
-     - Download step pulled the patch ZIP.
-     - Chunk split produced the expected count (`ceil(zip_size / 25 MB)` parts).
-     - Upload step landed all chunks at the in-game updater path (HTTP 200 for each).
+     - Download step pulled all chunks from the artefact into `Deploy/upload/`.
+     - Upload step landed every file at the in-game updater path (HTTP 200 for each).
+     - Manifest update step published the refreshed JSON with `ZipUrls` listing chunks in order.
      - Sentry release record posted.
+   - **End-to-end smoke** (one-off, not every patch): on a 1.6.0 install, force the updater to re-check (or wait for the launch poll), confirm AutoPatcher downloads all chunks, `PostProcessMultipleZipChunks` reassembles, and the patch applies without error.
    - If any step failed, the patch chunks aren't reachable to in-game updaters; do **not** announce the patch until the workflow is fixed and re-run.
 
 ### Tests added
@@ -235,20 +277,20 @@ Patches (1.6.0.x bumps) ship more often than majors, so the post-build steps tha
 ### Verification
 - All three smoke scenarios pass with no SmartScreen warning.
 - `signtool verify` reports valid Authenticode signatures on the three target binaries (verified in `release.yml` via `SignedBinaryCheck.ps1` and re-verified locally on the artefacts pulled from itch.io).
-- The `release.yml` workflow run for tag `mars-release-1.6.0` is green (build job); signed artefacts manually downloaded from the workflow run and uploaded to itch.io; itch.io project page shows BlackBox 1.6.0 as the latest build.
+- The `release.yml` workflow run for tag `jupiter-release-1.6.0` is green (build job); signed artefacts manually downloaded from the workflow run and uploaded to itch.io; itch.io project page shows BlackBox 1.6.0 as the latest build.
 - README updated to point at itch.io; Sentry release record posted.
 - 1.51 → 1.6.0 in-place upgrade preserves saves.
 - *(Patch path — verified per patch, not for the initial 1.6.0)* `release.yml` workflow's `publish-patch` job ran green after the `build` job; chunks reachable at the in-game updater URL.
 
 ### Rollback
 - On itch.io: archive (or hide) the 1.6.0 build via the project's Edit Game → Uploads page; users see the previous build until a fixed version replaces it.
-- Revert version bump, README change, and `release.yml` workflow commits via `git revert`. Delete the `mars-release-1.6.0` tag locally + on origin if the workflow needs to be re-run for a fixed build (`git push origin :refs/tags/mars-release-1.6.0`). The unsigned 1.51 binaries are unaffected — users on 1.51 stay on 1.51 until they choose to upgrade.
+- Revert version bump, README change, and `release.yml` workflow commits via `git revert`. Delete the `jupiter-release-1.6.0` tag locally + on origin if the workflow needs to be re-run for a fixed build (`git push origin :refs/tags/jupiter-release-1.6.0`). The unsigned 1.51 binaries are unaffected — users on 1.51 stay on 1.51 until they choose to upgrade.
 - For a bad patch: roll back the in-game updater's distribution path to the previous patch's chunks (the `publish-patch` job overwrites by version, so keep the prior version's chunks live during rollout).
 
 ### Risk
 **Medium.** Two unknowns:
 1. **Signing infrastructure** — Trusted Signing setup involves Microsoft identity verification with unpredictable timing (1–14 days). If signing isn't ready by §5.1 entry, ship 1.6.0 unsigned (acceptable for the existing 1.51 audience who already trust the source) and follow up with a 1.6.0.<build+1> signed patch.
-2. **Replicating AppVeyor's build steps** — we read the legacy log but never owned the config; subtle steps (env vars, NuGet restore order, post-build hooks) may need iteration before the GitHub Action produces an artefact byte-equivalent to AppVeyor's. Mitigate by running the new workflow on a **non-tag pre-release branch first** to shake out failures before the `mars-release-1.6.0` tag pushes.
+2. **Replicating AppVeyor's build steps** — we read the legacy log but never owned the config; subtle steps (env vars, NuGet restore order, post-build hooks) may need iteration before the GitHub Action produces an artefact byte-equivalent to AppVeyor's. Mitigate by running the new workflow on a **non-tag pre-release branch first** to shake out failures before the `jupiter-release-1.6.0` tag pushes.
 
 Steam-folder install is straightforward but the UAC elevation change introduces a UX shift — old users running the installer without admin rights now hit an elevation prompt; document this in release notes.
 
@@ -321,4 +363,4 @@ Steam-folder install is straightforward but the UAC elevation change introduces 
 | 5.1 1.6.0 Release | Medium | Signing infra (Microsoft Trusted Signing identity verification has unpredictable lead time) is the largest unknown. Steam-folder install + UAC elevation are mechanical. Fallback: ship unsigned 1.6.0 to the existing 1.51 audience, follow up with a signed 1.6.0.<build+1> patch when signing infra is ready. |
 | 5.2 Migration close (optional) | Low | Documentation only. The release in §5.1 is what users see; this step is for future maintainers. |
 
-**Migration close**: §5.1 ships `mars-release-1.6.0`. After that, ARCHITECTURE.md §9's "Suggested Migration Order" gets a "Migration completed" marker (in §5.2 if done, or directly when convenient otherwise), and all migration-related memory entries are settled. Future work falls under "post-migration" — gameplay features, mod support extensions, engine upgrades — and is out of scope for this plan series.
+**Migration close**: §5.1 ships `jupiter-release-1.6.0`. After that, ARCHITECTURE.md §9's "Suggested Migration Order" gets a "Migration completed" marker (in §5.2 if done, or directly when convenient otherwise), and all migration-related memory entries are settled. Future work falls under "post-migration" — gameplay features, mod support extensions, engine upgrades — and is out of scope for this plan series.

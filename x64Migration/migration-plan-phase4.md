@@ -36,7 +36,7 @@
 6. **NanoMesh upstream** has a merged PR (or, if upstream rejects, a documented decision to keep the fork on a fixed tag).
 7. **Steam x86 baggage scrubbed**. Vendored `GARSteamManager.dll` + `steam_api.dll` + `steam_appid.txt` removed from `game/`; `SteamManager.cs` reduced to a clean stub with the 6-method external public surface preserved. Full Steamworks.NET wiring deferred — public-alpha distribution doesn't justify it (see §4.9 reopen condition).
 
-(**Release + sign-off** — cutting `mars-release-1.6.0`, signed installer, GitHub release, PHASE4_RESULTS.md, ARCHITECTURE.md update — moved to [Phase 5](migration-plan-phase5.md). §5.1 ships the artefact; §5.2 is the optional post-release migration close.)
+(**Release + sign-off** — cutting `jupiter-release-1.6.0` (the post-migration release line is **BlackBox Jupiter**, replacing Mars; 1.6.0 default install dir is `C:\Games\StarDrivePlus64`; `SavedGame.SaveGameVersion` bumps `20`→`21` to partition saves), signed installer, GitHub release, PHASE4_RESULTS.md, ARCHITECTURE.md update — moved to [Phase 5](migration-plan-phase5.md). §5.1 ships the artefact; §5.2 is the optional post-release migration close.)
 
 **Anti-goals for Phase 4** (out of scope; revisit only if explicitly raised):
 - Pixel-exact match to 2013 SunBurn deferred-renderer output. Forward-renderer-equivalent remains the bar.
