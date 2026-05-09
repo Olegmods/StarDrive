@@ -7,7 +7,7 @@
 Three sub-phases:
 
 1. **§5.0 — Mars-line forward-compat patch (cross-major upgrade discovery).** Ships *before* §5.1 work begins. A final 1.51.x Mars patch adds a new `MajorUpgradeAvailablePopup` that fires when GitHub reports a higher-major release (e.g., `1.60`) — the existing `IsSameMajorVer` silently suppresses the standard new-version popup on major-mismatch, so without §5.0 a 1.51 user has no in-game signal that Jupiter exists. Same code is forward-ported to the migration branch so 1.60 (and any future major bump) inherits the behavior. Authored on the Mars maintenance line, testable in dev by bumping the local AssemblyVersion to simulate a major mismatch.
-2. **§5.1 — Cut 1.60 release.** Signed installer + ZIP + Steam-folder install path. A GitHub Action under `.github/workflows/release.yml` (replicating the legacy AppVeyor steps — we don't have access to modify RedFox20's AppVeyor) builds the artefacts. Maintainer manually downloads the signed artefacts and uploads to itch.io for full releases. Patch tags trigger an additional `publish-patch` job that chunks the patch ZIP and uploads to the in-game updater path. Promoted from §4.11 in the prior plan so the release work has its own document and isn't gated on Phase 4 sign-off; UAC elevation, code signing, and the Steam-folder install path are user-facing and deserve their own PR cadence.
+2. **§5.1 — Cut 1.60 release.** Installer + ZIP. A GitHub Action under `.github/workflows/release.yml` (replicating the legacy AppVeyor steps — we don't have access to modify RedFox20's AppVeyor) builds the artefacts. Maintainer manually downloads the artefacts and uploads to itch.io for full releases. Patch tags trigger an additional `publish-patch` job that chunks the patch ZIP and uploads to the in-game updater path. Promoted from §4.11 in the prior plan so the release work has its own document and isn't gated on Phase 4 sign-off. **§5.1.B (code signing) is deferred** past 1.60 launch (forward-prep scripts already authored). **§5.1.C (Steam-folder install + UAC) is dropped** — Jupiter installs to `C:\Games\StarDrivePlus64`, a user-writable directory, so none of the Program-Files / Steam-folder machinery is needed.
 3. **§5.2 — Migration close (optional, post-release).** PHASE4_RESULTS.md + ARCHITECTURE.md update + memory cleanup. Promoted from §4.10 in the prior plan and reordered after the release because the release is what ships value to users; the wrap-up doc captures what already lives in commits/memory and is not a release blocker.
 
 **Related memory**:
@@ -21,9 +21,8 @@ Three sub-phases:
 1. **BlackBox Jupiter 1.60 published** to itch.io (alongside — not replacing — the 1.51 Mars listing) with installer, ZIP, and release notes. Tag `jupiter-release-1.60` pushed to git as the version marker that triggers the `release.yml` GitHub Action; the maintainer downloads the artefacts from the workflow run and manually uploads to itch.io. **Codename**: BlackBox Jupiter (was Mars through 1.51).
 2. *(DEFERRED — §5.1.B not on critical path for 1.60)* No SmartScreen "Windows protected your PC" warning. Mars-line behavior — users see and dismiss the warning — is the 1.60 baseline. Documented as a known-issue in `RELEASE_NOTES_1.60.md`. Revisit signing in a 1.60.x patch once we have install-rate data.
 3. *(DEFERRED — §5.1.B)* `signtool verify /pa /v` reports valid Authenticode signatures on `StarDrive.exe`, `SDNative.dll`, and the installer EXE. Activated when §5.1.B activates.
-4. **All four install scenarios pass** (see §5.1.E):
+4. **All three install scenarios pass** (see §5.1.E):
    - Clean machine, standalone install at the new default `C:\Games\StarDrivePlus64`.
-   - Clean machine, Steam-folder install (replaces original StarDrive 1 in Steam library; original backed up).
    - Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`, 1.60's directory page defaults to `StarDrivePlus64` (Option A clean break: installer reads `HKLM\Software\StarDrivePlus64\InstallPath` only — empty on this machine — and never falls back to Mars's `HKLM\Software\StarDrive\InstallPath`); both versions launch independently, each sees only its own SaveGameVersion.
    - Manual upgrade-in-place — user explicitly browses to `C:\Games\StarDrivePlus`; 1.51 binaries replaced; saves preserved (1.51 v20 saves stay on disk but invisible to 1.60).
 5. **README + Sentry release record updated** to point at 1.60.
@@ -47,8 +46,7 @@ Three sub-phases:
 | **Default install path** | `C:\Games\StarDrivePlus64` (was `StarDrivePlus` for Mars). Option A clean break: 1.60 installer ignores `HKLM\Software\StarDrive\InstallPath` (the Mars-line registry key) and writes its own `Software\StarDrivePlus64\InstallPath`. | Allows 1.51 and 1.60 to coexist on disk with no surprise overwrite. Users who want upgrade-in-place can manually browse to `C:\Games\StarDrivePlus`; the radio-button default just doesn't pre-select that. The `64` suffix is also a visual signal that this is the bitness-changed line. |
 | **Save-game coexistence** | Bump `SavedGame.SaveGameVersion` from `20` (Mars) to `21` (Jupiter). Save folder stays single (`%APPDATA%\StarDrive\`) — no `Dir.StarDriveAppData` change. Each version's load-list filter at `LoadSaveScreen.cs:56` is exact-match on `SaveGameVersion`, so v20 and v21 saves are mutually invisible. | Cleaner than partitioning the appdata folder — no save-folder migration step, no orphaned saves if a user uninstalls one version. The trade is that 1.51 saves can't be loaded in 1.60; a future save-importer would be a separate workstream. |
 | **Code-signing approach** | Microsoft Trusted Signing (default). Fall back to OV cert if Trusted Signing identity validation stalls; ship unsigned-with-followup-patch as last resort. | ~$10/month, inherits Microsoft reputation immediately. EV cert ($300–$500/yr + hardware token shipping) is the next step up but heavyweight for a community project. |
-| **Steam-folder install** | Opt-in via radio-button page, NOT default. UAC elevation requested via `RequestExecutionLevel admin` in the NSIS script. | Surprise-replacing the user's Steam install of StarDrive 1 is hostile; the user must consciously pick that install target. UAC elevation is required for any write into `Program Files (x86)`. |
-| **Steam-folder backup** | Original `StarDrive.exe` + `Content/` backed up to `<INSTDIR>\Original_StarDrive_Backup\` before BlackBox 1.60 files land. | "Verify Integrity" in Steam may re-fetch original files; the backup gives the user a clean rollback path either way. |
+| ~~**Steam-folder install**~~ | DROPPED (§5.1.C). Default install path lives at `C:\Games\StarDrivePlus64` per §5.1.A — no Program Files writes, no UAC elevation needed. | The Steam-folder scenario was a Mars-line carryover; with Jupiter installing into a user-writable directory by default, none of the radio-button / `CheckSteam` machinery applies. Maintainer also has no SteamPipe push access, so co-locating with Steam's manifest is actively discouraged anyway. |
 | **CI pipeline (build)** | **GitHub Actions** under `.github/workflows/release.yml`, **replicating the legacy AppVeyor build steps**. The legacy AppVeyor at `ci.appveyor.com/project/RedFox20/stardrive` is alive (we can read its public build log to see what steps it runs) but **not modifiable** — owned by RedFox20, no maintainer access — so we can't add signing or change targets there. We mirror its observable steps in our own workflow. | The fork can't drive its own builds through someone else's AppVeyor project; replicating in GitHub Actions gives us write access to our own pipeline (signing keys, secrets, configurable targets) while preserving build-step continuity with what the legacy pipeline does. |
 | **Distribution channel (full release)** | **itch.io** (primary), replacing the 1.51 GitHub Releases listing. **Uploaded manually** by the maintainer through the project's Edit Game → Uploads page after downloading the GitHub Action's signed artefacts. | Major releases happen rarely (~once per multi-year cycle); the manual upload step is acceptable at that cadence and avoids carrying a butler-upload integration we'd touch only every few years. |
 | **Post-release patch automation** | **GitHub Actions** — patch tags trigger an additional `publish-patch` job in the same `release.yml` workflow that builds the patch artefact, splits the cumulative patch ZIP into 25 MB chunks, and uploads to the in-game updater's distribution path. | Patches ship more often than majors, so the post-build steps (chunking + upload) are worth automating. Same workflow, conditional job — keeps the build steps shared between full-release and patch flows. **Verification per patch: confirm the Action ran green before announcing the patch.** |
@@ -62,7 +60,7 @@ Three sub-phases:
 | # | Title | Risk |
 |---|---|---|
 | 5.0 | Mars-line forward-compat patch: cross-major upgrade discovery popup (ships *before* §5.1) | Low |
-| 5.1 | Cut 1.60 release: installer + ZIP + Steam-folder install path (signing DEFERRED) | Medium |
+| 5.1 | Cut 1.60 release: installer + ZIP (signing DEFERRED §5.1.B; Steam-folder DROPPED §5.1.C) | Low–Medium |
 | 5.2 | Migration close (optional, post-release): PHASE4_RESULTS.md + ARCHITECTURE.md update + memory cleanup | Low |
 
 Each sub-phase ends with a commit and is rollback-able. §5.0 puts the discovery channel into 1.51 users' hands first; §5.1 then ships the Jupiter artefact; §5.2 documents the closed migration.
@@ -124,9 +122,9 @@ Each sub-phase ends with a commit and is rollback-able. §5.0 puts the discovery
 
 ---
 
-## 5.1 — Cut 1.60 Release: Installer + ZIP + Steam-folder Install Path
+## 5.1 — Cut 1.60 Release: Installer + ZIP
 
-**Goal**: Ship the first post-migration public release as **BlackBox 1.60**. Two new capabilities relative to the 1.51 release machinery: (a) a Steam-folder install option that replaces the original StarDrive1 install when the user has it on Steam, (b) UAC elevation handling so writes into `Program Files (x86)\Steam\steamapps\...` actually succeed. (Code-signing was originally a third capability but is **deferred** — see §5.1.B for rationale; users will see the same SmartScreen warning that Mars 1.51 users saw, documented as a known-issue in `RELEASE_NOTES_1.60.md`.)
+**Goal**: Ship the first post-migration public release as **BlackBox 1.60**. The release pipeline largely inherits Mars 1.51's machinery (NSIS + Wix MSI + ZIP via `Deploy/MakeInstaller.py`); the 1.60-specific changes are scoped tightly: §5.1.A bumps codename + version + install-path + save-format; §5.1.D wires the build pipeline into a GitHub Action (replacing AppVeyor); §5.1.E smoke-tests; §5.1.F adds patch-pipeline automation. **§5.1.B (code signing) is deferred** — see that section for rationale; users will see the same SmartScreen warning Mars 1.51 users saw, documented as a known-issue in `RELEASE_NOTES_1.60.md`. **§5.1.C (Steam-folder install + UAC) is dropped** — Jupiter's default install path is `C:\Games\StarDrivePlus64`, a user-writable directory, so none of the Program-Files / Steam-folder machinery is needed.
 
 **Context — what the 1.51 release looked like** (from `Deploy/`, `README.md`, GitHub releases page) and what changes for 1.60:
 - Version string lives in `Properties/AssemblyInfo.cs::AssemblyVersion`. Current value: `1.51.15100`. Pattern: `MAJOR.MINOR.BUILD` (mod version + monotonic build counter from AppVeyor's `APPVEYOR_BUILD_VERSION`).
@@ -214,30 +212,15 @@ Steps:
    The `/tr` timestamp ensures the signature stays valid after the cert expires.
 5. Verify on a clean Windows install: download the installer through a browser, run it, confirm SmartScreen does NOT show "Windows protected your PC".
 
-**§5.1.C — Steam-folder install path**
+**§5.1.C — Steam-folder install path — DROPPED**
 
-Steam typically installs StarDrive 1 to `C:\Program Files (x86)\Steam\steamapps\common\StarDrive\`. Writing there requires UAC elevation (the current installer doesn't request it, which is why the Steam-detection code in `Deploy/BBInstaller.nsi` lines 70–74 is commented out).
-
-Steps:
-1. Add UAC manifest to the NSIS installer:
-   ```nsis
-   RequestExecutionLevel admin
-   ```
-   This makes the installer prompt for elevation on launch. Without it, writes to `Program Files (x86)` silently fail or get redirected to `%LOCALAPPDATA%\VirtualStore`.
-2. Uncomment and finalize the `CheckSteam` block in `Deploy/BBInstaller.nsi`:
-   ```nsis
-   ReadRegStr $STEAMDIR HKLM "SOFTWARE\WOW6432Node\Valve\Steam" InstallPath
-   StrCmp $STEAMDIR "" SetDefaultPath 0
-   StrCpy $INSTDIR "$STEAMDIR\SteamApps\common\StarDrive"
-   ```
-3. **Make Steam install opt-in**, not default — present a radio-button page with two choices:
-   - **Replace original StarDrive 1 in Steam folder** (only available if Steam install detected — but NOT pre-selected; Jupiter clean-break Option A means standalone is the default).
-   - **Install to standalone folder** (default `C:\Games\StarDrivePlus64`, pre-selected). The path-picker still lets the user browse to `C:\Games\StarDrivePlus` if they explicitly want to upgrade an existing 1.51 install in-place.
-4. When the Steam path is chosen and an existing StarDrive 1 install is present:
-   - Back up the original `StarDrive.exe` + `Content/` to `<INSTDIR>\Original_StarDrive_Backup\` so the user can restore later.
-   - Show a confirmation dialog: "This will replace your original StarDrive 1 with BlackBox 1.60. The original files will be backed up to Original_StarDrive_Backup/. Continue?"
-   - Verify Steam isn't running; abort with a clear message if it is (Steam files lock under steamapps/common).
-5. After install completes, leave the Steam manifest alone — Steam's manifest still says "StarDrive 1.0", but the launcher binary is now BlackBox 1.60. Document this in the release notes (Steam will not auto-update over our install; user can right-click → Properties → Verify Integrity to roll back).
+> **Status (2026-05-09): DROPPED. Not needed for Jupiter 1.60 or any planned successor.** §5.1.A locked the Jupiter default install path at `C:\Games\StarDrivePlus64`, which is a user-writable location that doesn't require UAC elevation. The Steam-folder install scenario was a Mars-line carryover that targeted `C:\Program Files (x86)\Steam\steamapps\common\StarDrive\`; with Jupiter installing into its own non-Program-Files directory, none of this sub-phase's machinery applies — no `RequestExecutionLevel admin`, no `CheckSteam` registry probe, no replace-vs-standalone radio-button page, no backup-the-original-StarDrive-1 dance. The `CheckSteam` block in `Deploy/BBInstaller.nsi` was already deleted in §5.1.A commit 2 (06b199b12).
+>
+> A user who *explicitly* wants Jupiter under their Steam folder can still browse the directory page there during install — but they'd need to "Run as Administrator" the installer themselves to write into Program Files, and the maintainer has no SteamPipe push access (see [project_steam_partner_access.md](../../../Users/gkapu/.claude/projects/c--Development-stardrive-BlackBoxPlus/memory/project_steam_partner_access.md)) so co-locating with Steam's manifest creates a silent mismatch — actively discouraged, not supported.
+>
+> Original §5.1.C body preserved below in case the Steam-folder scenario ever needs to come back (e.g. if SteamPipe access is acquired and a real Steam-line ships):
+>
+> ~~Steam typically installs StarDrive 1 to `C:\Program Files (x86)\Steam\steamapps\common\StarDrive\`. Writing there requires UAC elevation. Steps: (1) add `RequestExecutionLevel admin` to the NSIS installer; (2) uncomment `CheckSteam` in `Deploy/BBInstaller.nsi` to probe `HKLM\SOFTWARE\WOW6432Node\Valve\Steam\InstallPath`; (3) present a radio-button page offering `Replace original StarDrive 1 in Steam folder` vs `Install to standalone folder` (standalone pre-selected); (4) when Steam path is chosen and an existing StarDrive 1 is present, back up `StarDrive.exe` + `Content/` to `<INSTDIR>\Original_StarDrive_Backup\` and verify Steam isn't running; (5) leave the Steam manifest alone (Steam's manifest still reads "StarDrive 1.0").~~
 
 **§5.1.D — Build pipeline (GitHub Action, replicating AppVeyor) + tag + manual itch.io upload**
 
@@ -287,11 +270,10 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
 
 9. *(Optional, secondary mirror)* If we keep a GitHub Release page in addition to itch.io: publish under tag `jupiter-release-1.60`, body = `RELEASE_NOTES_1.60.md` content. Decide once based on whether external downloaders (e.g., third-party mod listings) link at GitHub.
 
-**§5.1.E — Smoke test on four install scenarios**
+**§5.1.E — Smoke test on three install scenarios**
 1. **Clean machine, standalone install (default path)**: download installer via Edge or Chrome, run it (SmartScreen will warn — click "More info" → "Run anyway"; this is expected behavior for 1.60 with §5.1.B deferred), accept the default `C:\Games\StarDrivePlus64`, complete install, launch game. Then **re-run the same installer**: confirm the directory page is pre-filled from `HKLM\Software\StarDrivePlus64\InstallPath` (the value the first install just wrote) — this validates the Jupiter-line registry-driven upgrade path that future full-installer reinstalls (e.g. 1.60.0 → 1.60.5 catch-up) rely on.
-2. **Clean machine, Steam install**: same as scenario 1 but pick the Steam-folder option. Confirm Steam still launches StarDrive (now showing BlackBox Jupiter 1.60). Confirm achievements/stats round-trip via §4.9.
-3. **Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`**: run the 1.60 installer, accept the default `C:\Games\StarDrivePlus64`. Verify (a) installer does NOT default to the 1.51 path (Option A clean break — no `HKLM\Software\StarDrive\InstallPath` detection); (b) installer writes `HKLM\Software\StarDrivePlus64\InstallPath`, leaving `Software\StarDrive` untouched; (c) post-install, both `StarDrive.exe` (1.51) and `StarDrivePlus64\StarDrive.exe` (1.60) launch independently; (d) saves at `%APPDATA%\StarDrive\` are visible to both, but each version's load list shows only its own SaveGameVersion (1.51 sees v20, 1.60 sees v21).
-4. **Manual upgrade-in-place** (user explicitly chooses old path): on a 1.51 machine, run the 1.60 installer, browse the path-picker to `C:\Games\StarDrivePlus`, complete install. Confirm 1.51 binaries are replaced in place; 1.51 desktop shortcut now launches 1.60. Saves preserved (load list shows only v21 saves; v20 saves still on disk but invisible until user reinstalls 1.51).
+2. **Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`**: run the 1.60 installer, accept the default `C:\Games\StarDrivePlus64`. Verify (a) installer does NOT default to the 1.51 path (Option A clean break — no `HKLM\Software\StarDrive\InstallPath` detection); (b) installer writes `HKLM\Software\StarDrivePlus64\InstallPath`, leaving `Software\StarDrive` untouched; (c) post-install, both `StarDrive.exe` (1.51) and `StarDrivePlus64\StarDrive.exe` (1.60) launch independently; (d) saves at `%APPDATA%\StarDrive\` are visible to both, but each version's load list shows only its own SaveGameVersion (1.51 sees v20, 1.60 sees v21).
+3. **Manual upgrade-in-place** (user explicitly chooses old path): on a 1.51 machine, run the 1.60 installer, browse the path-picker to `C:\Games\StarDrivePlus`, complete install. Confirm 1.51 binaries are replaced in place; 1.51 desktop shortcut now launches 1.60. Saves preserved (load list shows only v21 saves; v20 saves still on disk but invisible until user reinstalls 1.51).
 
 **§5.1.F — Post-release patch automation (`publish-patch` job in the same workflow)**
 
@@ -343,7 +325,7 @@ Patches (1.60.x bumps) ship more often than majors, so the post-build steps that
 - *(DEFERRED — §5.1.B activation only)* [Deploy/SignedBinaryCheck.ps1](../Deploy/SignedBinaryCheck.ps1) *(`release.yml` build-job step)* — runs `signtool.exe verify /pa /v` against `StarDrive.exe`, `SDNative.dll`, and the installer EXE. Fails the workflow if any binary is unsigned or has an expired timestamp. Authored + smoke-tested as forward-prep; not wired into the §5.1 release pipeline.
 
 ### Verification
-- All four smoke scenarios pass. Scenario 1 will trigger SmartScreen ("More info" → "Run anyway") since 1.60 ships unsigned per §5.1.B deferral; the rest are signing-independent.
+- All three smoke scenarios pass. Scenario 1 will trigger SmartScreen ("More info" → "Run anyway") since 1.60 ships unsigned per §5.1.B deferral; the rest are signing-independent.
 - *(DEFERRED — §5.1.B activation only)* `signtool verify` reports valid Authenticode signatures on the three target binaries (verified in `release.yml` via `SignedBinaryCheck.ps1` and re-verified locally on the artefacts pulled from itch.io).
 - The `release.yml` workflow run for tag `jupiter-release-1.60` is green (build job); signed artefacts manually downloaded from the workflow run and uploaded to itch.io; itch.io project page shows BlackBox 1.60 as the latest build.
 - README updated to point at itch.io; Sentry release record posted.
@@ -360,7 +342,7 @@ Patches (1.60.x bumps) ship more often than majors, so the post-build steps that
 1. **Replicating AppVeyor's build steps** — we read the legacy log but never owned the config; subtle steps (env vars, NuGet restore order, post-build hooks) may need iteration before the GitHub Action produces an artefact byte-equivalent to AppVeyor's. Mitigate by running the new workflow on a **non-tag pre-release branch first** to shake out failures before the `jupiter-release-1.60` tag pushes.
 2. *(Signing — §5.1.B activation only, not §5.1)* Trusted Signing setup involves Microsoft identity verification with unpredictable timing (1–14 days). When the maintainer activates §5.1.B in a future patch, the activation PR can wait on validation without blocking unrelated work — the scripts already exist; only the CI wiring + secrets setup is the activation effort.
 
-Steam-folder install is straightforward but the UAC elevation change introduces a UX shift — old users running the installer without admin rights now hit an elevation prompt; document this in release notes.
+*(Steam-folder install + UAC elevation paragraph removed — §5.1.C was dropped. Jupiter installs to `C:\Games\StarDrivePlus64`, so no UAC change is introduced.)*
 
 ---
 
