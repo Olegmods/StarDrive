@@ -126,9 +126,20 @@ namespace Ship_Game
             #endif
 
             #if !DEBUG
-                bool shouldHideConsole = Console.Title.Contains("\\StarDrive.exe");
-                if (shouldHideConsole)
-                    HideConsoleWindow();
+                // Only inspect Console.Title when a real console is attached.
+                // Mars 1.51 ran on net48 with <OutputType>Exe</OutputType> — every
+                // process had a console, so reading Console.Title was always safe.
+                // Jupiter (.NET 8 + <OutputType>WinExe</OutputType>) has no console
+                // when launched from Explorer or NSIS finishpage, and the property
+                // throws "The handle is invalid" in that case. IsOutputRedirected
+                // returns true when there's no console attached, so use that as
+                // the guard (mirroring the HasDebugger branch above).
+                if (Console.IsOutputRedirected == false)
+                {
+                    bool shouldHideConsole = Console.Title.Contains("\\StarDrive.exe");
+                    if (shouldHideConsole)
+                        HideConsoleWindow();
+                }
             #endif
             }
 

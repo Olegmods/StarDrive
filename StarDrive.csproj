@@ -977,21 +977,24 @@
        System.Security.AccessControl, System.Text.Json all ship with net8.
        WiX (installer-only) belongs in Deploy/, not the runtime build. -->
 
-  <PropertyGroup>
-    <PostBuildEvent>if "$(ConfigurationName)" == "Deploy"  (
-  :: Major release flow: produce the full NSIS installer into Deploy\upload\
-  :: for manual upload to itch.io. Patches go through the separate
-  :: patch-build.yml workflow on push-to-main + workflow_dispatch — they
-  :: don't share this code path.
-  ::
-  :: Was --patch --type=zip on the Mars line; flipped to --major --type=nsis
-  :: for Jupiter 1.60 since the local Deploy build is what cuts a major.
-  :: ZIP is intentionally skipped here — MakeInstaller.py chunks ZIPs at
-  :: 25 MB unconditionally (right for the in-game patch updater, wrong for
-  :: an itch.io single-file ZIP), so produce the ZIP separately with a
-  :: chunk-disabled flag if/when needed.
-  py -3 "$(SolutionDir)Deploy\MakeInstaller.py" --root_dir $(SolutionDir) --major --type=nsis
-)</PostBuildEvent>
-  </PropertyGroup>
+  <!--
+    Deploy-only post-build: produce the major NSIS installer into Deploy\upload\
+    for manual upload to itch.io. Patches go through the separate
+    patch-build.yml workflow on push-to-main + workflow_dispatch — they
+    don't share this code path.
+
+    Was a <PostBuildEvent> with $(ConfigurationName) on the Mars line;
+    SDK-style C# csproj resolves $(ConfigurationName) to empty (only
+    $(Configuration) is set), and `::` comments inside cmd `if (…)` blocks
+    parse as commands — both broke the post-build under msbuild Deploy|x64.
+    Switched to a MSBuild Target with a Condition for clarity + correctness.
+
+    ZIP is intentionally skipped here — MakeInstaller.py chunks ZIPs at
+    25 MB unconditionally (right for the in-game patch updater, wrong for
+    an itch.io single-file ZIP).
+  -->
+  <Target Name="MakeMajorInstaller" AfterTargets="Build" Condition="'$(Configuration)' == 'Deploy'">
+    <Exec Command="py -3 &quot;$(SolutionDir)Deploy\MakeInstaller.py&quot; --root_dir &quot;$(SolutionDir).&quot; --major --type=nsis" />
+  </Target>
 
 </Project>
