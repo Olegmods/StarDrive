@@ -57,9 +57,15 @@ elif args.type == 'zip':
     result = os.system(f'cd game && "{zip7}" a -tzip ..\\{archive} @..\\{installer}')
     if result != 0: fatal_error(f'7zip returned with error: {result}')
     else: 
-        max_size = 25 * 1024 * 1024  # 25MB
+        # GitHub's release-asset cap is 2 GB; pick a value just under it. Historically
+        # this was 25 MB to dodge an upload-tool limit on the AppVeyor/web-UI path
+        # (Mars 1.51, commit 82358093b). Verified May 2026 against softprops/action-gh-release@v2
+        # and `gh release create` (both hit uploads.github.com): a 115 MB asset uploads
+        # cleanly in one shot. Chunker now only fires for genuine 2 GB+ patches.
+        # AutoPatcher.PostProcessMultipleZipChunks short-circuits when Count == 1.
+        max_size = 1900 * 1024 * 1024  # 1.9 GB
         if os.path.getsize(archive) > max_size:
-            console(f'Archive is over 25MB, splitting: {archive}')
+            console(f'Archive is over {max_size // (1024*1024)}MB, splitting: {archive}')
             output_dir = os.path.dirname(archive)
             
             with open(archive, 'rb') as f:

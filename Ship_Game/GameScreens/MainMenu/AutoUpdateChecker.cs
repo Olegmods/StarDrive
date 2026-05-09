@@ -425,12 +425,17 @@ public class AutoUpdateChecker : UIElementContainer
         {
             ReleaseInfo info = new(name, latestVersion, changelog, null, null);
             info.ZipUrls = new List<string>();
-            foreach (JsonElement asset in latestRelease.GetProperty("assets").EnumerateArray())
-            {
-                string assetName = asset.GetProperty("name").GetString();
-                if (assetName.EndsWith(".zip"))
-                    info.ZipUrls.Add(asset.GetProperty("browser_download_url").GetString());
-            }
+            // Sort by asset name. Chunked patches use a `001-`, `002-` numeric prefix
+            // (MakeInstaller.py); GitHub's API returns assets in upload order, which
+            // currently happens to be alphabetical because patch-build.yml uses
+            // Get-ChildItem (alpha default) — but that's incidental. Sort here so a
+            // future workflow change or manual re-upload via the UI can't reorder
+            // chunks and corrupt the concatenated archive.
+            var zipAssets = latestRelease.GetProperty("assets").EnumerateArray()
+                .Where(a => a.GetProperty("name").GetString().EndsWith(".zip"))
+                .OrderBy(a => a.GetProperty("name").GetString(), StringComparer.OrdinalIgnoreCase);
+            foreach (JsonElement asset in zipAssets)
+                info.ZipUrls.Add(asset.GetProperty("browser_download_url").GetString());
 
             return info;
         }
