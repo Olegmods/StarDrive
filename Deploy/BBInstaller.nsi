@@ -15,6 +15,13 @@
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "upload/${INSTALLER_NAME}_${PRODUCT_VERSION}.exe"
 
+; UAC up-front. The script writes HKLM keys (line 88-90 in this file) which
+; require admin regardless of install location, and Windows installer-detection
+; heuristics (filename contains "install"/"patch") would prompt anyway. Setting
+; this explicitly elevates via the embedded manifest so the prompt is
+; predictable instead of triggered by EXE-name pattern matching.
+RequestExecutionLevel admin
+
 ;Include Modern UI
 !include "MUI2.nsh"
 !include "Sections.nsh"
@@ -63,19 +70,61 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "LegalCopyright" "Copyright ZeroSum Games 
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileDescription" "StarDrive BlackBox Installer"
 VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "${PRODUCT_VERSION}"
 
-;Var STEAMDIR ; found steam dir
-Var PREVDIR ; previous mod install dir
+Var STEAMDIR ; Steam install of StarDrive (AppID 220660), if any
+Var PREVDIR  ; previous Jupiter install dir
 Function .onInit
+        ; ----- Existing Jupiter install? Re-use that path. -----
         ; Read prior install path from the Jupiter-line registry key only. We deliberately
-        ; do NOT fall back to the Mars-line key (Software\StarDrive) or the Steam install
-        ; path: cross-major fresh installs land at C:\Games\StarDrivePlus64, and the user
-        ; can override via the directory page if they want upgrade-in-place over Mars or
-        ; under their Steam library. See migration-plan-phase5.md §5.1.A step 3 for the
-        ; rationale (clean major break + maintainer has no SteamPipe push access).
+        ; do NOT fall back to the Mars-line key (Software\StarDrive) — the Mars-patch
+        ; installer keeps reading Software\StarDrive, so we want them partitioned.
+        ; See migration-plan-phase5.md §5.1.A step 3 for the rationale.
         ReadRegStr $PREVDIR HKLM ${REGPATH} InstallPath
-        IfFileExists "$PREVDIR\${LAUNCHER}" 0 SetDefaultPath
-        StrCpy $INSTDIR $PREVDIR ;; existing Jupiter install detected — re-use that path
+        IfFileExists "$PREVDIR\${LAUNCHER}" UseJupiterPath 0
+        Goto NoJupiter
+    UseJupiterPath:
+        StrCpy $INSTDIR $PREVDIR
         Goto Done
+
+    NoJupiter:
+        ; ----- No Jupiter install. Probe for a Steam install of StarDrive (AppID 220660). -----
+        ; Steam writes a per-app uninstall registry entry whose InstallLocation
+        ; points at the actual game folder regardless of which library drive
+        ; it's on. Far simpler than parsing libraryfolders.vdf.
+        ;
+        ; Steam's per-app Uninstall entry lives in the 64-bit registry view
+        ; (Steam writes there explicitly via KEY_WOW64_64KEY) — confirmed
+        ; locally: the key is at HKLM\SOFTWARE\Microsoft\...\Steam App 220660
+        ; in the 64-bit view, missing under WOW6432Node. NSIS is 32-bit so
+        ; HKLM\SOFTWARE\... reads are redirected to WOW6432Node by default.
+        ; SetRegView 64 around the read accesses the 64-bit view directly;
+        ; SetRegView 32 restores the redirector for the Section's HKLM writes
+        ; below, which need to land in the 32-bit view to match Mars-line
+        ; convention and the Jupiter REGPATH lookup at the top of .onInit.
+        ;
+        ; Caveats the user must accept (in the MessageBox below):
+        ;   - Disable Steam auto-update for StarDrive — Steam's depot manifest
+        ;     is vanilla StarDrive 15b (the original 2013 publisher build, NOT
+        ;     BlackBox/Mars), so any Steam sync overwrites Jupiter back to
+        ;     stock 15b without warning.
+        ;   - Never run "Verify Integrity of Game Files" — same depot:
+        ;     restores vanilla 15b. BlackBox isn't on Steam at all.
+        ;   - Steam still reports the title as "StarDrive" in profile/playtime
+        ;     (Steam's DisplayName for AppID 220660 is just "StarDrive");
+        ;     achievements/cloud-save aren't wired (Steamworks DLLs not bundled
+        ;     in 1.60 — see Phase 4 §4.9). Playtime tracking still works because
+        ;     it's process-lifetime monitoring on Steam's side.
+        SetRegView 64
+        ReadRegStr $STEAMDIR HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Steam App 220660" "InstallLocation"
+        SetRegView 32
+        StrCmp $STEAMDIR "" SetDefaultPath
+        IfFileExists "$STEAMDIR\${LAUNCHER}" 0 SetDefaultPath
+        MessageBox MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2 \
+            "Steam install of StarDrive detected at:$\r$\n$STEAMDIR$\r$\n$\r$\nInstall Jupiter 1.60 there so Steam keeps tracking your playtime?$\r$\n$\r$\nIMPORTANT — Steam's StarDrive depot is vanilla 15b (the original 2013 build, NOT BlackBox). To avoid Steam wiping Jupiter back to stock 15b:$\r$\n  - Disable auto-updates for StarDrive in Steam (Properties -> Updates)$\r$\n  - Never run 'Verify Integrity of Game Files' (it restores vanilla 15b)$\r$\n  - Steam will still report this title as 'StarDrive' in your profile / playtime — Steam doesn't know about BlackBox/Jupiter." \
+            IDYES UseSteamPath IDNO SetDefaultPath
+    UseSteamPath:
+        StrCpy $INSTDIR $STEAMDIR
+        Goto Done
+
     SetDefaultPath:
         StrCpy $INSTDIR "C:\Games\StarDrivePlus64"
     Done:

@@ -6,7 +6,7 @@ namespace Ship_Game.Utils;
 // The vendored x86 GARSteamManager.dll + steam_api.dll were dropped (no x64
 // source). When the project gets partner-backend access (or scope changes
 // enough to justify it), wire Steamworks.NET against the existing AppID
-// 220680 schema — recipe in x64Migration/migration-plan-phase2.md
+// 220660 schema — recipe in x64Migration/migration-plan-phase2.md
 // "Deferred Final Step" appendix. Until then, IsInitialized stays false and
 // every public method no-ops; the rest of the codebase already gates on the
 // flag.

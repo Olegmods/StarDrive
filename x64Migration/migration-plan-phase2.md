@@ -659,7 +659,7 @@ Items intentionally deferred to Phase 3 (Polish / Advanced Rendering):
    - `game/steam_api.dll` (105KB, x86 — confirmed PE header `Intel i386` on 2026-05-03)
    - `game/GARSteamManager.dll` (x86, no source)
    The Steamworks.NET package will deploy `steam_api64.dll` automatically via its `.targets` file.
-3. **Confirm `game/steam_appid.txt`** still contains `220680` (StarDrive's Steam app ID — present as of 2026-05-03). Required for non-launcher debugging; ignored when launched via Steam client.
+3. **Confirm `game/steam_appid.txt`** still contains `220660` (StarDrive's Steam app ID — present as of 2026-05-03). Required for non-launcher debugging; ignored when launched via Steam client.
 4. **Rewrite [Ship_Game/Utils/SteamManager.cs](Ship_Game/Utils/SteamManager.cs)** internals — keep the public API identical (callers stay untouched). Mapping:
    - `SteamInitialize()` → `SteamAPI.Init()`
    - `SteamShutdown()` → `SteamAPI.Shutdown()`
@@ -676,7 +676,7 @@ Items intentionally deferred to Phase 3 (Polish / Advanced Rendering):
    - `ActivateOverlay*` (Achievements/Community/Friends/etc.) → `SteamFriends.ActivateGameOverlay("achievements"|"community"|...)`
    - `FileExists/GetFileSize/GetFileOnRemoteStorage/SaveFileOnRemoteStorage` → `SteamRemoteStorage.FileExists/GetFileSize/FileRead/FileWrite`
 5. **Add `SteamAPI.RunCallbacks()` to the main game loop** — Steamworks.NET requires periodic callback dispatch (~60Hz is fine; once per `Update` tick is standard).
-6. **Re-enable `Initialize()`**: drop the Phase-1 stub body (`IsInitialized = false; Log.Info("disabled")`); replace with `IsInitialized = SteamAPI.Init();` plus a try/catch around `SteamAPI.RestartAppIfNecessary(220680)` for the launcher-relaunch dance.
+6. **Re-enable `Initialize()`**: drop the Phase-1 stub body (`IsInitialized = false; Log.Info("disabled")`); replace with `IsInitialized = SteamAPI.Init();` plus a try/catch around `SteamAPI.RestartAppIfNecessary(220660)` for the launcher-relaunch dance.
 7. **Verify on a Steam-running dev machine**:
    - `SteamAPI.Init()` returns true
    - `SteamFriends.GetPersonaName()` returns the local user's display name

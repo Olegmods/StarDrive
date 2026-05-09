@@ -63,6 +63,14 @@ jobs:
         shell: pwsh
         run: |
           $version = '${{ steps.version.outputs.version }}'
+          # InformationalVersion gets the trailing "<codename>-<major.minor>"
+          # token (e.g. "1.60.16000 jupiter-1.60"). It's load-bearing:
+          # ModEntry.CheckSupport substring-matches mods' Globals.yaml
+          # SupportedBlackBoxVersions ("jupiter-1.60", "mars-1.51", ...) against
+          # GlobalStats.Version, which comes from this string. Drop the suffix
+          # and every mod silently flips to "Not supported".
+          $codeTag = "$($env:CODENAME.ToLower())-${env:MAJOR_MINOR}"
+          $infoVer = "$version $codeTag"
           $files = @(
             'Properties/AssemblyInfo.cs',
             'SDGraphics/Properties/AssemblyInfo.cs',
@@ -72,9 +80,9 @@ jobs:
           foreach ($f in $files) {
             (Get-Content $f) `
               -replace 'AssemblyVersion\("[^"]*"\)',              "AssemblyVersion(`"$version`")" `
-              -replace 'AssemblyInformationalVersion\("[^"]*"\)', "AssemblyInformationalVersion(`"$version`")" `
+              -replace 'AssemblyInformationalVersion\("[^"]*"\)', "AssemblyInformationalVersion(`"$infoVer`")" `
               | Set-Content $f
-            Write-Host "Patched $f -> $version"
+            Write-Host "Patched $f -> AssemblyVersion=$version  InformationalVersion=$infoVer"
           }
 
       - name: Setup MSBuild

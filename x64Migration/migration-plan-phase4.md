@@ -46,7 +46,7 @@
 - God-class refactor of `Fleet.cs` / `Empire.cs` / `ResourceManager.cs` (ARCHITECTURE.md §8 — gameplay debt, not migration debt).
 - `Xna31ModelReader` runtime decoder (ARCHITECTURE.md §9 alternative path C). The offline FBX pipeline supersedes it; reach for this only if a mod ships an XNB Model that has neither an `.fbx` nor `.obj` sibling.
 - Sound / music engine changes (already working).
-- Wiring Steamworks.NET in Phase 4 at all. The full integration (achievements, stats, cloud saves, web overlay) is parked for public alpha — see §4.9 rescope and reopen conditions. Pushing a build to the Steam store via SteamPipe (or modifying the StarDrive Steam app's achievement/stat/cloud-save schema) is doubly out of scope: maintainer has no partner-backend admin access on AppID 220680.
+- Wiring Steamworks.NET in Phase 4 at all. The full integration (achievements, stats, cloud saves, web overlay) is parked for public alpha — see §4.9 rescope and reopen conditions. Pushing a build to the Steam store via SteamPipe (or modifying the StarDrive Steam app's achievement/stat/cloud-save schema) is doubly out of scope: maintainer has no partner-backend admin access on AppID 220660.
 
 ---
 
@@ -498,7 +498,7 @@ This three-layer setup means the cap on visible glows is intentional, not a hard
 
 **Reopen condition**: revisit when any of these hold:
 - BlackBoxPlus moves out of public alpha into commercial / Steam-store distribution.
-- Maintainer obtains partner-backend access on AppID 220680 (or forks to a new AppID).
+- Maintainer obtains partner-backend access on AppID 220660 (or forks to a new AppID).
 - Closed beta needs Steam-ownership gating (achievements fire on StarDrive-1 owners specifically).
 
 Until then: stub stays stubbed.

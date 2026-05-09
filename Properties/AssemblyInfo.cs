@@ -43,4 +43,10 @@ using System.Runtime.InteropServices;
 // discovery channel for the new release — the popup stays silent because the
 // old `upgrade-url.txt` still points at the now-stale page (or is missing).
 [assembly: AssemblyVersion("1.60.00000")]
-[assembly: AssemblyInformationalVersion("1.60.00000 jupiter")]
+// The "jupiter-1.60" suffix is load-bearing: ModEntry.CheckSupport does a
+// substring match against this string for each comma-separated entry in a
+// mod's Globals.yaml SupportedBlackBoxVersions. Mars-line convention was
+// "1.51.15100 mars-1.51" — the trailing hyphenated codename token is what
+// mods declare against ("mars-1.51,mars-1.50", "jupiter-1.60", ...).
+// Drop the suffix and every mod silently flips to "Not supported".
+[assembly: AssemblyInformationalVersion("1.60.00000 jupiter-1.60")]

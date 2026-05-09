@@ -110,7 +110,7 @@ These three items were touched, scoped, and explicitly deferred — not left und
 
 ### 4. Steam SDK x64 swap — full Steamworks.NET migration
 
-**State**: `SteamManager.Initialize()` short-circuited to `IsInitialized = false`; every public method gates on the flag. Achievements, stats, cloud-saves inactive but graceful. AppID `220680` already in `game/steam_appid.txt`.
+**State**: `SteamManager.Initialize()` short-circuited to `IsInitialized = false`; every public method gates on the flag. Achievements, stats, cloud-saves inactive but graceful. AppID `220660` already in `game/steam_appid.txt`.
 
 **Why deferred**: explicit decision (2026-05-03) to push to the absolute final step of the overall migration. Single-player game, Steam features are nice-to-have not load-bearing, and the work is mechanical-but-noisy (NuGet add, x86 DLL removal, 11-method API rewrite, RunCallbacks loop integration). Doing it now would risk regressing the clean §2.5/§2.6.A boot path with no boot-path payoff.
 
