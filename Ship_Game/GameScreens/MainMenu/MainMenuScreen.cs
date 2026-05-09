@@ -62,6 +62,11 @@ namespace Ship_Game.GameScreens.MainMenu
 
             Add(new AutoUpdateChecker(this));
 
+            // If the game was launched by AutoPatcher self-elevation
+            // (--apply-patch=<version>), pick up where the non-elevated pass
+            // left off and apply the cached patch from AppData/Patches/.
+            AutoPatcher.TryResumePending(this);
+
             if (GlobalStats.HasMod)
             {
                 ScreenManager.AddHotLoadTarget(this, new FileInfo(GlobalStats.ModFile), OnModChanged);

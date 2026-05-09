@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Security.Principal;
+using System.Text.Json;
 using System.Threading;
 using System.Windows.Forms;
 using SDUtils;
@@ -19,15 +21,18 @@ internal class AutoPatcher : PopupWindow
     readonly GameScreen Screen;
     readonly ReleaseInfo Info;
     readonly bool IsMod;
+    readonly bool ResumeMode; // true = elevated resume; skip download/unzip
     TaskResult CurrentTask;
 
     UIList ProgressSteps;
 
-    public AutoPatcher(GameScreen screen, in ReleaseInfo info, bool isMod) : base(screen, 520, 220)
+    public AutoPatcher(GameScreen screen, in ReleaseInfo info, bool isMod, bool resumeMode = false)
+        : base(screen, 520, 220)
     {
         Screen = screen;
         Info = info;
         IsMod = isMod;
+        ResumeMode = resumeMode;
         TitleText = "AutoPatcher " + info.Name;
         CanEscapeFromScreen = false;
     }
@@ -42,8 +47,170 @@ internal class AutoPatcher : PopupWindow
         ProgressSteps.AxisAlign = Align.TopCenter;
         ProgressSteps.SetLocalPos(0, 70);
 
+        if (ResumeMode)
+        {
+            // Elevated resume: download + unzip already done by the non-elevated
+            // pre-elevation pass. Skip straight to file moves against the cached
+            // patch in AppData/Patches/<version>/.
+            Log.Write($"AutoPatcher: resuming pre-downloaded patch {Info.Version} in elevated mode");
+            string outputFolder = GetPatchOutputFolder();
+            if (!Directory.Exists(outputFolder))
+            {
+                AddErrorMessageAndAllowExit(
+                    "Cached patch missing",
+                    $"Expected pre-downloaded patch at {outputFolder} but the folder is gone. Try the update again from the main menu.");
+                DeletePendingPatchMarker();
+                return;
+            }
+            string patchFilesFolder = GetPatchFilesFolder(outputFolder);
+            AddProgressAndRunTaskOnNextFrame("Deleting Stale Files", nextP => DeleteStaleFiles(patchFilesFolder, nextP));
+            return;
+        }
+
         ProgressBarElement p = AddProgressBar("Downloading");
         CurrentTask = Parallel.Run(() => Download(p));
+    }
+
+    bool NeedsElevation()
+    {
+        string gameDir = Directory.GetCurrentDirectory();
+        if (IsMod) gameDir = Path.Combine(gameDir, GlobalStats.ModPath.Replace('/', '\\'));
+        bool inProgramFiles = gameDir.Contains("Program Files");
+        return inProgramFiles && !IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    // Persisted between the non-elevated download/unzip pass and the elevated
+    // apply pass. Stores enough Info for the elevated instance to construct an
+    // AutoPatcher in resume mode without re-querying GitHub.
+    class PendingPatchMarker
+    {
+        public string Version { get; set; }
+        public string Name    { get; set; }
+        public bool   IsMod   { get; set; }
+    }
+
+    static string PendingPatchMarkerPath
+        => Path.Combine(Dir.StarDriveAppData, "PendingPatch.json");
+
+    static void WritePendingPatchMarker(in ReleaseInfo info, bool isMod)
+    {
+        try
+        {
+            var marker = new PendingPatchMarker
+            {
+                Version = info.Version,
+                Name    = info.Name,
+                IsMod   = isMod,
+            };
+            string json = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(PendingPatchMarkerPath, json);
+            Log.Write($"AutoPatcher: wrote pending-patch marker {PendingPatchMarkerPath}");
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"AutoPatcher: failed to write marker: {e.Message}");
+        }
+    }
+
+    static void DeletePendingPatchMarker()
+    {
+        try
+        {
+            if (File.Exists(PendingPatchMarkerPath))
+                File.Delete(PendingPatchMarkerPath);
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"AutoPatcher: failed to delete marker: {e.Message}");
+        }
+    }
+
+    // Called from MainMenuScreen.LoadContent when the game starts up. If the
+    // current launch carries --apply-patch=<version>, find the marker, build a
+    // synthetic ReleaseInfo, and push an AutoPatcher in resume mode.
+    public static void TryResumePending(GameScreen screen)
+    {
+        if (Program.ResumePatchVersion.IsEmpty())
+            return;
+
+        string requestedVer = Program.ResumePatchVersion;
+        Program.ResumePatchVersion = null; // consume regardless of outcome
+
+        if (!File.Exists(PendingPatchMarkerPath))
+        {
+            Log.Warning($"AutoPatcher: --apply-patch={requestedVer} but no marker at {PendingPatchMarkerPath}; ignoring");
+            return;
+        }
+
+        PendingPatchMarker marker = null;
+        try
+        {
+            marker = JsonSerializer.Deserialize<PendingPatchMarker>(File.ReadAllText(PendingPatchMarkerPath));
+        }
+        catch (Exception e)
+        {
+            Log.Warning($"AutoPatcher: failed to read marker: {e.Message}; ignoring");
+            DeletePendingPatchMarker();
+            return;
+        }
+
+        if (marker == null || marker.Version != requestedVer)
+        {
+            Log.Warning($"AutoPatcher: marker version '{marker?.Version}' != arg '{requestedVer}'; ignoring");
+            DeletePendingPatchMarker();
+            return;
+        }
+
+        Log.Write($"AutoPatcher: --apply-patch={requestedVer} -> resuming (isMod={marker.IsMod}, elevated={IsInRole(WindowsBuiltInRole.Administrator)})");
+
+        // ZipUrls/Changelog/InstallerUrl unused on the resume path; pass through
+        // empty placeholders so the synthetic ReleaseInfo is well-formed.
+        var synthetic = new ReleaseInfo(marker.Name, marker.Version, "", new List<string>(), null);
+        screen.ScreenManager.AddScreen(new AutoPatcher(screen, synthetic, marker.IsMod, resumeMode: true));
+    }
+
+    // Self-elevation: write marker, relaunch with --apply-patch=<version> and
+    // Verb = "runas" (UAC prompt fires), exit. The elevated instance's
+    // TryResumePending picks up where we left off.
+    void RelaunchAsAdminWithMarker()
+    {
+        try
+        {
+            Log.Write("AutoPatcher: install dir requires elevation; writing marker and relaunching as admin");
+            WritePendingPatchMarker(Info, IsMod);
+            Log.FlushAllLogs();
+
+            // De-duplicate: if the user somehow already had --apply-patch on the
+            // command line (shouldn't happen, but defensive), strip it before
+            // re-appending the current version.
+            string argString = string.Join(" ",
+                Environment.GetCommandLineArgs().Skip(1)
+                    .Where(a => !a.StartsWith("--apply-patch", StringComparison.OrdinalIgnoreCase))
+                    .Append($"--apply-patch={Info.Version}"));
+
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName        = Application.ExecutablePath,
+                UseShellExecute = true,    // required for Verb = "runas"
+                Verb            = "runas", // triggers the Windows UAC prompt
+                Arguments       = argString,
+            };
+            System.Diagnostics.Process.Start(psi);
+
+            Thread.Sleep(500); // give the elevated instance a moment to claim the window
+            Program.RunCleanup();
+            Application.Exit();
+        }
+        catch (System.ComponentModel.Win32Exception ex)
+        {
+            // ERROR_CANCELLED (1223) -> user clicked No on the UAC dialog. Drop
+            // the marker so a future re-attempt doesn't see stale state.
+            Log.Warning($"AutoPatcher: UAC elevation denied: {ex.Message}");
+            DeletePendingPatchMarker();
+            AddErrorMessageAndAllowExit(
+                "Admin rights required",
+                "The patch is downloaded but needs admin rights to write to your install folder.\nClick the update notification again and accept the UAC prompt, or right-click 'StarDrive.exe' and choose 'Run as administrator'.");
+        }
     }
 
     public override void ExitScreen()
@@ -178,6 +345,23 @@ internal class AutoPatcher : PopupWindow
 
             Log.Write($"Deleting archive {zipArchive}");
             File.Delete(zipArchive);
+
+            // Elevation check sits HERE (post-unzip, pre-file-moves). Download
+            // and unzip work fine non-elevated (write to AppData), so we save
+            // bandwidth by deferring UAC until we actually need to write into
+            // $INSTDIR. The cached download survives a UAC denial — the user
+            // can re-trigger the popup and we resume from this exact point.
+            if (NeedsElevation())
+            {
+                RunOnNextFrame(() =>
+                {
+                    var label = ProgressSteps.AddLabel("Patch downloaded — relaunching as administrator to apply...");
+                    label.Color = Color.Yellow;
+                    label.Anim().Alpha(new(0.5f, 1.0f)).Loop();
+                    CurrentTask = Parallel.Run(RelaunchAsAdminWithMarker);
+                });
+                return;
+            }
 
             string patchFilesFolder = GetPatchFilesFolder(outputFolder);
             AddProgressAndRunTaskOnNextFrame("Deleting Stale Files", nextP => DeleteStaleFiles(patchFilesFolder, nextP));
@@ -443,10 +627,19 @@ internal class AutoPatcher : PopupWindow
         Log.FlushAllLogs();
         //Log.LogEventStats(Log.GameEvent.AutoUpdateFinished);
 
+        // Apply succeeded — drop the marker so a future launch doesn't try to
+        // resume against an already-applied patch.
+        DeletePendingPatchMarker();
+
         Thread.Sleep(2900);
         Program.RunCleanup();
 
-        string args = string.Join(" ", Environment.GetCommandLineArgs().AsSpan(1).ToArray());
+        // Strip --apply-patch from the relaunch args. The elevated instance
+        // had it set to drive the resume; the new (non-elevated) instance
+        // shouldn't see it or TryResumePending would log a stale-marker warning.
+        string args = string.Join(" ",
+            Environment.GetCommandLineArgs().Skip(1)
+                .Where(a => !a.StartsWith("--apply-patch", StringComparison.OrdinalIgnoreCase)));
         Application.Exit();
         System.Diagnostics.Process.Start(Application.ExecutablePath, args);
     }
