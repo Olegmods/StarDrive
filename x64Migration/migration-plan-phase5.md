@@ -18,9 +18,9 @@ Three sub-phases:
 
 ## Phase 5 Goals (Success Gate)
 
-1. **BlackBox Jupiter 1.60 published** to itch.io (replacing the 1.51 Mars listing) with signed installer, ZIP, and release notes. Tag `jupiter-release-1.60` pushed to git as the version marker that triggers the `release.yml` GitHub Action; the maintainer downloads the signed artefacts from the workflow run and manually uploads to itch.io. **Codename**: BlackBox Jupiter (was Mars through 1.51).
-2. **No SmartScreen "Windows protected your PC" warning** when the installer is downloaded via a clean browser on a clean Windows install.
-3. **`signtool verify /pa /v` reports valid Authenticode signatures** on `StarDrive.exe`, `SDNative.dll`, and the installer EXE — including a valid timestamp so signatures survive cert expiry.
+1. **BlackBox Jupiter 1.60 published** to itch.io (alongside — not replacing — the 1.51 Mars listing) with installer, ZIP, and release notes. Tag `jupiter-release-1.60` pushed to git as the version marker that triggers the `release.yml` GitHub Action; the maintainer downloads the artefacts from the workflow run and manually uploads to itch.io. **Codename**: BlackBox Jupiter (was Mars through 1.51).
+2. *(DEFERRED — §5.1.B not on critical path for 1.60)* No SmartScreen "Windows protected your PC" warning. Mars-line behavior — users see and dismiss the warning — is the 1.60 baseline. Documented as a known-issue in `RELEASE_NOTES_1.60.md`. Revisit signing in a 1.60.x patch once we have install-rate data.
+3. *(DEFERRED — §5.1.B)* `signtool verify /pa /v` reports valid Authenticode signatures on `StarDrive.exe`, `SDNative.dll`, and the installer EXE. Activated when §5.1.B activates.
 4. **All four install scenarios pass** (see §5.1.E):
    - Clean machine, standalone install at the new default `C:\Games\StarDrivePlus64`.
    - Clean machine, Steam-folder install (replaces original StarDrive 1 in Steam library; original backed up).
@@ -62,7 +62,7 @@ Three sub-phases:
 | # | Title | Risk |
 |---|---|---|
 | 5.0 | Mars-line forward-compat patch: cross-major upgrade discovery popup (ships *before* §5.1) | Low |
-| 5.1 | Cut 1.60 release: signed installer + ZIP + Steam-folder install path | Medium |
+| 5.1 | Cut 1.60 release: installer + ZIP + Steam-folder install path (signing DEFERRED) | Medium |
 | 5.2 | Migration close (optional, post-release): PHASE4_RESULTS.md + ARCHITECTURE.md update + memory cleanup | Low |
 
 Each sub-phase ends with a commit and is rollback-able. §5.0 puts the discovery channel into 1.51 users' hands first; §5.1 then ships the Jupiter artefact; §5.2 documents the closed migration.
@@ -124,9 +124,9 @@ Each sub-phase ends with a commit and is rollback-able. §5.0 puts the discovery
 
 ---
 
-## 5.1 — Cut 1.60 Release: Signed Installer + ZIP + Steam-folder Install Path
+## 5.1 — Cut 1.60 Release: Installer + ZIP + Steam-folder Install Path
 
-**Goal**: Ship the first post-migration public release as **BlackBox 1.60**. Three new capabilities relative to the 1.51 release machinery: (a) signed binaries and installer so Windows Defender SmartScreen doesn't flag the download as a potential virus, (b) a Steam-folder install option that replaces the original StarDrive1 install when the user has it on Steam, (c) UAC elevation handling so writes into `Program Files (x86)\Steam\steamapps\...` actually succeed.
+**Goal**: Ship the first post-migration public release as **BlackBox 1.60**. Two new capabilities relative to the 1.51 release machinery: (a) a Steam-folder install option that replaces the original StarDrive1 install when the user has it on Steam, (b) UAC elevation handling so writes into `Program Files (x86)\Steam\steamapps\...` actually succeed. (Code-signing was originally a third capability but is **deferred** — see §5.1.B for rationale; users will see the same SmartScreen warning that Mars 1.51 users saw, documented as a known-issue in `RELEASE_NOTES_1.60.md`.)
 
 **Context — what the 1.51 release looked like** (from `Deploy/`, `README.md`, GitHub releases page) and what changes for 1.60:
 - Version string lives in `Properties/AssemblyInfo.cs::AssemblyVersion`. Current value: `1.51.15100`. Pattern: `MAJOR.MINOR.BUILD` (mod version + monotonic build counter from AppVeyor's `APPVEYOR_BUILD_VERSION`).
@@ -185,9 +185,11 @@ The post-migration release line is **BlackBox Jupiter** (was Mars through 1.51) 
    - Steam SDK x64 via Steamworks.NET (achievements/stats/cloud saves work in 64-bit).
    - Combined Arms compatible.
 
-**§5.1.B — Code signing**
+**§5.1.B — Code signing — DEFERRED**
 
-The blocker today: an unsigned EXE downloaded from the internet triggers SmartScreen "Windows protected your PC" dialog, which 9 out of 10 users dismiss as malware. We need an authenticode signature on `StarDrive.exe`, `SDNative.dll`, and the installer EXE itself.
+> **Status (2026-05-09): DEFERRED past the Jupiter 1.60 launch.** Mars 1.51 and earlier shipped unsigned and the project survived. Cost/benefit for the §5.1 launch tilted toward "ship faster, defer signing until we have data on whether SmartScreen friction hurts install rates." The signing scripts ([Deploy/sign-binaries.ps1](../Deploy/sign-binaries.ps1) — dual-mode Trusted Signing + local thumbprint) and verify gate ([Deploy/SignedBinaryCheck.ps1](../Deploy/SignedBinaryCheck.ps1)) are already authored, smoke-tested with a self-signed cert, and committed as forward-prep — flipping signing on in a later patch is one PR plus 1–3 business days of Microsoft identity validation. See [Deploy/SIGNING.md](../Deploy/SIGNING.md) for the procurement checklist + GitHub Actions secret names. **Activation procedure** when ready: (1) maintainer completes Trusted Signing procurement per SIGNING.md §1, (2) sets the seven repo secrets per SIGNING.md §2, (3) opens a PR adding the signing + verify steps to release.yml per SIGNING.md §3 Option A, (4) ships as a 1.60.x patch.
+
+The blocker today (deferred): an unsigned EXE downloaded from the internet triggers SmartScreen "Windows protected your PC" dialog, which most users dismiss as malware. We need an authenticode signature on `StarDrive.exe`, `SDNative.dll`, and the installer EXE itself to defeat that dialog. Documented here for the activation sub-phase, not for §5.1.
 
 **Signing options** (pick one in §5.1 entry):
 
@@ -255,21 +257,21 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
      - Checkout with submodules.
      - Set up .NET 8 SDK + VS2022 build tools (the GitHub-hosted `windows-latest` runner has both).
      - Run the build commands captured in step 1, but on `Release|x64` (legacy AppVeyor likely builds x86; this is the 1.60 difference).
-     - Run §5.1.B signing on `game/StarDrive.exe` + `game/SDNative.dll` (Trusted Signing credentials from GitHub secrets).
+     - *(DEFERRED — §5.1.B activation only)* Run signing on `game/StarDrive.exe` + `game/SDNative.dll` via [Deploy/sign-binaries.ps1](../Deploy/sign-binaries.ps1) (Trusted Signing credentials from GitHub secrets). Skipped for the §5.1 1.60 launch.
      - Run `Deploy/MakeInstaller.py` to produce NSIS full installer + full ZIP. **Full ZIP is a single file** — no 25 MB split.
-     - Sign the installer EXE last.
-     - Run `Deploy/SignedBinaryCheck.ps1` (see Tests added) — fail the workflow if any binary is unsigned or has an expired timestamp.
-     - Emit the signed artefacts as **workflow artefacts** (downloadable from the run's summary page) so the maintainer can grab them for the manual itch.io upload.
+     - *(DEFERRED — §5.1.B activation only)* Sign the installer EXE last via [Deploy/sign-binaries.ps1](../Deploy/sign-binaries.ps1).
+     - *(DEFERRED — §5.1.B activation only)* Run [Deploy/SignedBinaryCheck.ps1](../Deploy/SignedBinaryCheck.ps1) — fail the workflow if any binary is unsigned or has an expired timestamp.
+     - Emit the artefacts as **workflow artefacts** (downloadable from the run's summary page) so the maintainer can grab them for the manual itch.io upload.
    - `publish-patch` (conditional — see §5.1.F).
 
 3. Tag `jupiter-release-1.60` on the merged Phase 4 branch and push it. The workflow's `build` job runs. **Prerequisite**: §5.0 already shipped (the Mars-line forward-compat patch with `MajorUpgradeAvailablePopup` is published). No deliberate user-soak is needed — the patch is the discovery channel whenever a user lands on it via standard intra-major auto-update — but §5.0 must have happened, otherwise existing 1.51 users get no in-game discovery channel for Jupiter.
 
 4. **Verify the GitHub Action ran successfully**: open the Actions tab, confirm the `release.yml` run for tag `jupiter-release-1.60` reports `build` job green. Specifically check:
-   - All build + sign + `SignedBinaryCheck.ps1` steps green.
-   - Workflow artefacts uploaded (signed installer, full ZIP, optional MSI). Download size matches expectation.
+   - All build steps green. (Sign + `SignedBinaryCheck.ps1` steps are deferred — §5.1.B activation only.)
+   - Workflow artefacts uploaded (installer, full ZIP, optional MSI). Download size matches expectation.
    - If `build` failed, do not proceed — diagnose the workflow first.
 
-5. **Download the signed artefacts** from the workflow run's Artifacts section.
+5. **Download the artefacts** from the workflow run's Artifacts section.
 
 6. **Manually upload** to itch.io via the project's Edit Game → Uploads page. Set the user-version on each upload to `1.60.<build>`. Major releases happen rarely — once per multi-year cycle — so the manual step is acceptable here and avoids carrying a butler integration we'd touch only every few years.
 
@@ -286,7 +288,7 @@ We can't use the existing AppVeyor (`ci.appveyor.com/project/RedFox20/stardrive`
 9. *(Optional, secondary mirror)* If we keep a GitHub Release page in addition to itch.io: publish under tag `jupiter-release-1.60`, body = `RELEASE_NOTES_1.60.md` content. Decide once based on whether external downloaders (e.g., third-party mod listings) link at GitHub.
 
 **§5.1.E — Smoke test on four install scenarios**
-1. **Clean machine, standalone install (default path)**: download installer via Edge or Chrome, run it, confirm no SmartScreen warning, accept the default `C:\Games\StarDrivePlus64`, complete install, launch game. Then **re-run the same installer**: confirm the directory page is pre-filled from `HKLM\Software\StarDrivePlus64\InstallPath` (the value the first install just wrote) — this validates the Jupiter-line registry-driven upgrade path that future full-installer reinstalls (e.g. 1.60.0 → 1.60.5 catch-up) rely on.
+1. **Clean machine, standalone install (default path)**: download installer via Edge or Chrome, run it (SmartScreen will warn — click "More info" → "Run anyway"; this is expected behavior for 1.60 with §5.1.B deferred), accept the default `C:\Games\StarDrivePlus64`, complete install, launch game. Then **re-run the same installer**: confirm the directory page is pre-filled from `HKLM\Software\StarDrivePlus64\InstallPath` (the value the first install just wrote) — this validates the Jupiter-line registry-driven upgrade path that future full-installer reinstalls (e.g. 1.60.0 → 1.60.5 catch-up) rely on.
 2. **Clean machine, Steam install**: same as scenario 1 but pick the Steam-folder option. Confirm Steam still launches StarDrive (now showing BlackBox Jupiter 1.60). Confirm achievements/stats round-trip via §4.9.
 3. **Coexistence — 1.51 already installed at `C:\Games\StarDrivePlus`**: run the 1.60 installer, accept the default `C:\Games\StarDrivePlus64`. Verify (a) installer does NOT default to the 1.51 path (Option A clean break — no `HKLM\Software\StarDrive\InstallPath` detection); (b) installer writes `HKLM\Software\StarDrivePlus64\InstallPath`, leaving `Software\StarDrive` untouched; (c) post-install, both `StarDrive.exe` (1.51) and `StarDrivePlus64\StarDrive.exe` (1.60) launch independently; (d) saves at `%APPDATA%\StarDrive\` are visible to both, but each version's load list shows only its own SaveGameVersion (1.51 sees v20, 1.60 sees v21).
 4. **Manual upgrade-in-place** (user explicitly chooses old path): on a 1.51 machine, run the 1.60 installer, browse the path-picker to `C:\Games\StarDrivePlus`, complete install. Confirm 1.51 binaries are replaced in place; 1.51 desktop shortcut now launches 1.60. Saves preserved (load list shows only v21 saves; v20 saves still on disk but invisible until user reinstalls 1.51).
@@ -328,7 +330,7 @@ Patches (1.60.x bumps) ship more often than majors, so the post-build steps that
 4. Credentials for the in-game updater upload (whatever the legacy AppVeyor used — likely an FTP/S3/HTTP-PUT endpoint) live as GitHub secrets. Recover the URL + auth pattern from the legacy AppVeyor build log in §5.1.D step 1. The patch manifest lives at the same host (the URL the in-game `AutoUpdateChecker` polls on launch); recover that endpoint from the same audit.
 
 5. **Verification per patch (note to self when shipping a patch)**: after pushing a `jupiter-release-*-patch` tag, **check that the `release.yml` workflow ran green end-to-end**, specifically the `publish-patch` job. Open the Actions tab, find the run for the patch tag, confirm:
-   - `build` job green (signing + `SignedBinaryCheck.ps1` + `patch-chunks` artefact uploaded; chunk count = `ceil(zip_size / 25 MB)` if chunked, else 1).
+   - `build` job green (`patch-chunks` artefact uploaded; chunk count = `ceil(zip_size / 25 MB)` if chunked, else 1). Once §5.1.B activates, signing + `SignedBinaryCheck.ps1` are also gated here.
    - `publish-patch` job green:
      - Download step pulled all chunks from the artefact into `Deploy/upload/`.
      - Upload step landed every file at the in-game updater path (HTTP 200 for each).
@@ -338,11 +340,11 @@ Patches (1.60.x bumps) ship more often than majors, so the post-build steps that
    - If any step failed, the patch chunks aren't reachable to in-game updaters; do **not** announce the patch until the workflow is fixed and re-run.
 
 ### Tests added
-- `Deploy/SignedBinaryCheck.ps1` *(`release.yml` build-job step)* — runs `signtool.exe verify /pa /v` against `StarDrive.exe`, `SDNative.dll`, and the installer EXE. Fails the workflow if any binary is unsigned or has an expired timestamp.
+- *(DEFERRED — §5.1.B activation only)* [Deploy/SignedBinaryCheck.ps1](../Deploy/SignedBinaryCheck.ps1) *(`release.yml` build-job step)* — runs `signtool.exe verify /pa /v` against `StarDrive.exe`, `SDNative.dll`, and the installer EXE. Fails the workflow if any binary is unsigned or has an expired timestamp. Authored + smoke-tested as forward-prep; not wired into the §5.1 release pipeline.
 
 ### Verification
-- All three smoke scenarios pass with no SmartScreen warning.
-- `signtool verify` reports valid Authenticode signatures on the three target binaries (verified in `release.yml` via `SignedBinaryCheck.ps1` and re-verified locally on the artefacts pulled from itch.io).
+- All four smoke scenarios pass. Scenario 1 will trigger SmartScreen ("More info" → "Run anyway") since 1.60 ships unsigned per §5.1.B deferral; the rest are signing-independent.
+- *(DEFERRED — §5.1.B activation only)* `signtool verify` reports valid Authenticode signatures on the three target binaries (verified in `release.yml` via `SignedBinaryCheck.ps1` and re-verified locally on the artefacts pulled from itch.io).
 - The `release.yml` workflow run for tag `jupiter-release-1.60` is green (build job); signed artefacts manually downloaded from the workflow run and uploaded to itch.io; itch.io project page shows BlackBox 1.60 as the latest build.
 - README updated to point at itch.io; Sentry release record posted.
 - 1.51 → 1.60 in-place upgrade preserves saves.
@@ -354,9 +356,9 @@ Patches (1.60.x bumps) ship more often than majors, so the post-build steps that
 - For a bad patch: roll back the in-game updater's distribution path to the previous patch's chunks (the `publish-patch` job overwrites by version, so keep the prior version's chunks live during rollout).
 
 ### Risk
-**Medium.** Two unknowns:
-1. **Signing infrastructure** — Trusted Signing setup involves Microsoft identity verification with unpredictable timing (1–14 days). If signing isn't ready by §5.1 entry, ship 1.60 unsigned (acceptable for the existing 1.51 audience who already trust the source) and follow up with a 1.60.<build+1> signed patch.
-2. **Replicating AppVeyor's build steps** — we read the legacy log but never owned the config; subtle steps (env vars, NuGet restore order, post-build hooks) may need iteration before the GitHub Action produces an artefact byte-equivalent to AppVeyor's. Mitigate by running the new workflow on a **non-tag pre-release branch first** to shake out failures before the `jupiter-release-1.60` tag pushes.
+**Low–Medium.** With §5.1.B deferred, the main remaining unknown is:
+1. **Replicating AppVeyor's build steps** — we read the legacy log but never owned the config; subtle steps (env vars, NuGet restore order, post-build hooks) may need iteration before the GitHub Action produces an artefact byte-equivalent to AppVeyor's. Mitigate by running the new workflow on a **non-tag pre-release branch first** to shake out failures before the `jupiter-release-1.60` tag pushes.
+2. *(Signing — §5.1.B activation only, not §5.1)* Trusted Signing setup involves Microsoft identity verification with unpredictable timing (1–14 days). When the maintainer activates §5.1.B in a future patch, the activation PR can wait on validation without blocking unrelated work — the scripts already exist; only the CI wiring + secrets setup is the activation effort.
 
 Steam-folder install is straightforward but the UAC elevation change introduces a UX shift — old users running the installer without admin rights now hit an elevation prompt; document this in release notes.
 
