@@ -16,7 +16,7 @@ parser.add_argument('--patch', action='store_true', help='Is this a cumulative p
 parser.add_argument('--type', type=str, help='Type of installer: nsis, zip, msi', default='nsis')
 args = parser.parse_args()
 
-BUILD_VERSION = env('APPVEYOR_BUILD_VERSION', default='1.51.15100')
+BUILD_VERSION = env('APPVEYOR_BUILD_VERSION', default='1.60.00000')
 
 os.chdir(args.root_dir)
 
@@ -38,8 +38,8 @@ if args.type == 'nsis':
     if not os.path.exists(makensis):
         fatal_error('makensis.exe was not found: MakeInstaller.py must be executed with WorkingDir=BlackBox/')
 
-    installer = 'Deploy/BlackBox-Mars.nsi'
-    if args.patch: installer = 'Deploy/BlackBox-Mars-Patch.nsi'
+    installer = 'Deploy/BlackBox-Jupiter.nsi'
+    if args.patch: installer = 'Deploy/BlackBox-Jupiter-Patch.nsi'
 
     console(f'\nMakeNSIS {installer}')
     result = os.system(f'"{makensis}" /V3 /DVERSION={BUILD_VERSION} /DSOURCE_DIR={source} {installer}')
@@ -51,7 +51,7 @@ elif args.type == 'zip':
         fatal_error('7za.exe was not found: MakeInstaller.py must be executed with WorkingDir=BlackBox/')
 
     installer = 'Deploy\\GeneratedFilesList.txt'
-    archive_filename = f'BlackBox_Mars_{BUILD_VERSION}.zip'
+    archive_filename = f'BlackBox_Jupiter_{BUILD_VERSION}.zip'
     archive = f'Deploy\\upload\\{archive_filename}'    
     console(f'\nMakeZIP {installer}')
     result = os.system(f'cd game && "{zip7}" a -tzip ..\\{archive} @..\\{installer}')

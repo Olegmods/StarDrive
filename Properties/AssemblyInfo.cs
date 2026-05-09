@@ -42,5 +42,5 @@ using System.Runtime.InteropServices;
 // Skipping step 2 means existing users on the previous major have no in-game
 // discovery channel for the new release — the popup stays silent because the
 // old `upgrade-url.txt` still points at the now-stale page (or is missing).
-[assembly: AssemblyVersion("1.51.15100")]
-[assembly: AssemblyInformationalVersion("1.51.15100 mars-1.51")]
+[assembly: AssemblyVersion("1.60.00000")]
+[assembly: AssemblyInformationalVersion("1.60.00000 jupiter")]

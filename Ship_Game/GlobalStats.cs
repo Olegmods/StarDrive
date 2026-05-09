@@ -41,8 +41,8 @@ public static class GlobalStats
 
     // 1.Major.Patch commit
     public static string Version = ""; // "1.30.13000 develop/f83ab4a"
-    public static string ExtendedVersion = ""; // "Mars : 1.20.12000 develop/f83ab4a"
-    public static string ExtendedVersionNoHash = ""; // "Mars : 1.20.12000"
+    public static string ExtendedVersion = ""; // "Jupiter : 1.60.12345 develop/f83ab4a"
+    public static string ExtendedVersionNoHash = ""; // "Jupiter : 1.60.12345"
         
     // Global GamePlay options for BB+ and for Mods which are loaded from Globals.yaml
     public static GamePlayGlobals Defaults;
@@ -310,8 +310,8 @@ public static class GlobalStats
                 .GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)
             as AssemblyInformationalVersionAttribute[])?[0].InformationalVersion ?? "";
 
-        ExtendedVersion = $"Mars : {Version}";
-        ExtendedVersionNoHash = $"Mars : {Version.Split(' ')[0]}";
+        ExtendedVersion = $"Jupiter : {Version}";
+        ExtendedVersionNoHash = $"Jupiter : {Version.Split(' ')[0]}";
             
         var config = OpenUserConfiguration();
         GetSetting(config, "ConfigVersion", ref ConfigVersion);
