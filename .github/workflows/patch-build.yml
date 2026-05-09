@@ -122,7 +122,13 @@ jobs:
           $log               >> $env:GITHUB_OUTPUT
           $delim             >> $env:GITHUB_OUTPUT
 
+      # Explicit gate: do NOT create a release if any prior step (build, tests,
+      # MakeInstaller) failed. This is also GHA's default for steps with no `if:`
+      # condition, but stating it here protects against future edits that might
+      # add `continue-on-error: true` to a prior step and silently let a broken
+      # build through to a release.
       - name: Create draft GitHub release
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
