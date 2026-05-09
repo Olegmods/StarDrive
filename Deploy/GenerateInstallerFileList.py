@@ -4,8 +4,17 @@ from typing import List, Dict, Iterable
 from DeployUtils import console, new_guid, path_combine, read_lines
 from FileInfo import FileInfo
 
-BIN_EXTENSIONS = ['.dll', '.pdb', '.config', '.exe']
+BIN_EXTENSIONS = ['.dll', '.pdb', '.config', '.exe', '.json']
 BIN_EXCLUDE = ['SDNativeTests.exe', 'SDNativeTests.pdb', 'SDNative.pdb']
+# .json was added for the Jupiter (.NET 8) line. The Mars line ran on net48
+# which had no runtimeconfig.json or deps.json — those files only appear in
+# .NET Core / .NET 5+ builds. Without them in the deploy, the apphost has
+# no framework metadata at runtime and falls back to a broken
+# "must install .NET Desktop Runtime" dialog even when the runtime IS
+# installed (it doesn't know WHICH framework to look for). list_files is
+# non-recursive on the top-level game/ dir, so this filter only picks up
+# the four JSON files we need: StarDrive.runtimeconfig.json,
+# StarDrive.deps.json, SDGraphics.deps.json, SDUtils.deps.json.
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--root_dir', type=str, help='BlackBox/ repository root directory')
