@@ -75,7 +75,6 @@ namespace Ship_Game.Data
 
         static GameContentManager()
         {
-            FixSunBurnTypeLoader();
             Xna31Compat.Register();
             Mesh.SunBurnReaderStubs.Register();
         }
@@ -805,7 +804,7 @@ namespace Ship_Game.Data
                 // branch only runs if a mod ships an XNB Model that has neither an
                 // .fbx nor .obj sibling. The Phase 1 Xna31VertexDeclarationReader
                 // decodes part of the XNA-3.1 wire format but not enough on its own —
-                // the Model XNB itself has structural drift (TODO Phase 4: write
+                // the Model XNB itself has structural drift (TODO Post-1.60: write
                 // Xna31ModelReader). Stub-StaticMesh fallback keeps the runtime alive.
                 // See memory: project_phase2_xnb_model_drift.md for the original hex.
                 try
@@ -879,26 +878,6 @@ namespace Ship_Game.Data
                     throw new ContentLoadException($"Asset '{assetNameWithExt}' could not be opened", ex);
                 throw;
             }
-        }
-
-        // TODO Phase 4: restore SunBurn ContentTypeReader routing if SunBurn-derived
-        // types ever need to load via XNB. Phase 1.8.12 stubbed this because:
-        //   1) SDSunBurn is excluded from the solution in Phase 1.9, so
-        //      `typeof(SceneInterface)` is no longer resolvable.
-        //   2) MonoGame's ContentTypeReaderManager has different private fields
-        //      (`readerTypeToReader`/`nameToReader`) than XNA 3.1, so the
-        //      MethodUtil.ReplaceMethod monkey-patch would silently no-op.
-        // No live callers depend on this rerouting today; the stubbed type readers
-        // (SunBurnReaderStubs.cs, Xna31* readers) cover the actual XNB load paths.
-        static void FixSunBurnTypeLoader()
-        {
-        }
-
-        // TODO Phase 4: restore SunBurn type rerouting (see FixSunBurnTypeLoader)
-        static bool InstantiateTypeReader(string readerTypeName, ContentReader contentReader, out ContentTypeReader reader)
-        {
-            reader = null;
-            return false;
         }
 
     }

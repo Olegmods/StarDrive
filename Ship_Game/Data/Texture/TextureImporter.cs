@@ -43,7 +43,7 @@ namespace Ship_Game.Data.Texture
 
         Texture2D LoadXna(string fullPath)
         {
-            // TODO Phase 4: XNA 3.1's Texture.GetCreationParameters/FromFile removed in MonoGame.
+            // TODO Post-1.60: XNA 3.1's Texture.GetCreationParameters/FromFile removed in MonoGame.
             // Texture2D.FromStream is the working substitute; revisit if format-specific
             // metadata recovery is ever needed (currently no consumers ask for it).
             try

@@ -29,7 +29,7 @@ namespace Ship_Game.Data
             ContentTypeReaderManager.AddTypeCreator(Texture2DReaderName, () => new Xna31Texture2DReader());
             ContentTypeReaderManager.AddTypeCreator(Texture3DReaderName, () => new Xna31Texture3DReader());
 
-            // Phase 3.4 step 5 / TODO Phase 4: XNA 3.1 VertexDeclaration binary format
+            // Phase 3.4 step 5 / TODO Post-1.60: XNA 3.1 VertexDeclaration binary format
             // reader. Empirically decoded — see Xna31VertexDeclarationReader. Originally
             // intended to unblock runtime XNB Model loads, but Phase 3.4 pivoted to an
             // offline FBX export pipeline (legacy/mesh_exporter_xna31 branch + commit

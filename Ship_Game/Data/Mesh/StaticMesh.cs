@@ -243,7 +243,7 @@ public sealed class StaticMesh : IDisposable
         Draw((Effect)effect);
     }
 
-    // TODO Phase 4: static Draw(Model,...) overloads have no current callers; preserved as
+    // TODO Post-1.60: static Draw(Model,...) overloads have no current callers; preserved as
     // no-ops in case mod / test code relies on the legacy signatures. Remove if confirmed unused.
     public static void Draw(Model model, Effect effect) { }
     public static void Draw(Model model, BasicEffect effect, Texture2D texture) { }

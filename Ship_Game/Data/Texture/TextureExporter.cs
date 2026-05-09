@@ -49,7 +49,7 @@ namespace Ship_Game.Data.Texture
 
         public bool Save(Texture3D texture, string outPath)
         {
-            // TODO Phase 4: XNA 3.1 Texture.Save removed in MonoGame; restore Texture3D
+            // TODO Post-1.60: XNA 3.1 Texture.Save removed in MonoGame; restore Texture3D
             // export through a custom DDS writer when a consumer needs it. Currently
             // no live caller exercises this branch.
             Log.Warning($"Texture3D save disabled (Phase 4 follow-up) for {outPath}");

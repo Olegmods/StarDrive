@@ -710,7 +710,7 @@ namespace Ship_Game
 
         public void OnPlayerDefeated()
         {
-            // TODO Phase 4: StarDriveGame.EndingGame() lived in the deleted XNA wrapper;
+            // TODO Post-1.60: StarDriveGame.EndingGame() lived in the deleted XNA wrapper;
             // restore once we wire equivalent shutdown hooks on MonoGame's Game class.
             // Low priority — current path still ends the game correctly via screen-stack
             // unwind; the missing hook only affects the legacy graceful-shutdown contract.

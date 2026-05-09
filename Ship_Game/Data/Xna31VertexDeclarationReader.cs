@@ -7,7 +7,7 @@ using SDUtils;
 
 namespace Ship_Game.Data
 {
-    // Phase 3.4 step 5 / TODO Phase 4: empirical decoder for the XNA 3.1 VertexDeclaration
+    // Phase 3.4 step 5 / TODO Post-1.60: empirical decoder for the XNA 3.1 VertexDeclaration
     // XNB binary format. MonoGame's stock VertexDeclarationReader expects 8 + 16*N bytes
     // (vertexStride:int + elementCount:int + per-element { offset:int, format:int,
     // usage:int, usageIndex:int }), but XNA 3.1 baked content uses a much more compact

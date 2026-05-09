@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace Ship_Game.Graphics
 {
-    // TODO Phase 4: XNA 3.1 MultiSampleType / MultiSampleQuality / GraphicsDeviceCapabilities
+    // TODO Post-1.60: XNA 3.1 MultiSampleType / MultiSampleQuality / GraphicsDeviceCapabilities
     // / GraphicsAdapter.GetCapabilities removed in MonoGame. The MultiSampleCount on
     // PresentationParameters covers the basics — fine for current usage; extra capability
     // querying (POT-only, max RT size, etc.) is a polish item.
@@ -40,7 +40,7 @@ namespace Ship_Game.Graphics
 
         public static bool CheckTextureSize(int width, int height, out int newWidth, out int newHeight)
         {
-            // TODO Phase 4: GraphicsDeviceCapabilities removed; restore POT/square-only checks
+            // TODO Post-1.60: GraphicsDeviceCapabilities removed; restore POT/square-only checks
             // by querying GraphicsProfile / GraphicsDevice limits when needed.
             newWidth = width;
             newHeight = height;
