@@ -104,7 +104,10 @@ namespace Ship_Game.Spatial
 
         ~NativeSpatial()
         {
+            // Idempotent: Dispose may have already freed Spat.
+            if (Spat == IntPtr.Zero) return;
             SpatialDestroy(Spat);
+            Spat = IntPtr.Zero;
         }
 
         public void Dispose()
@@ -113,12 +116,17 @@ namespace Ship_Game.Spatial
             IntPtr tree = Spat;
             Spat = IntPtr.Zero;
             Root = IntPtr.Zero;
-            SpatialDestroy(tree);
+            if (tree != IntPtr.Zero)
+                SpatialDestroy(tree);
             Lock.Dispose();
         }
 
         public void Clear()
         {
+            // Defensive: tolerate post-Dispose / finalizer-race callers.
+            // Calling SpatialClear on a freed Spat AVs in SDNative.
+            if (Spat == IntPtr.Zero) return;
+
             using (Lock.AcquireWriteLock())
             {
                 SpatialClear(Spat);
