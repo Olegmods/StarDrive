@@ -18,5 +18,12 @@ CRCCheck force
 !define INSTALLER_NAME   "BlackBox_Jupiter_Patch"
 !define PRODUCT_VERSION  ${VERSION}
 
+; Patch-only flag. BBInstaller.nsi reads this in .onInit to abort when no
+; existing Jupiter install is present — patches are incremental deltas
+; against the major's Release.txt baseline, never standalone, and overlaying
+; one on a vanilla/Steam folder produces a frankenstein install (only the
+; files that changed since the baseline are shipped; the rest stays vanilla).
+!define IS_PATCH
+
 ;; Payload:
 !include "BBInstaller.nsi"

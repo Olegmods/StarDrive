@@ -86,6 +86,16 @@ Function .onInit
         Goto Done
 
     NoJupiter:
+        ; Patch installers are incremental deltas — they ship only files that changed
+        ; since the major's Release.txt baseline, so overlaying one on a vanilla/Steam
+        ; folder leaves the install in a broken half-Jupiter half-vanilla state. Refuse
+        ; to run if no existing Jupiter major install was found.
+        !ifdef IS_PATCH
+            MessageBox MB_OK|MB_ICONSTOP \
+                "This is a patch installer for an existing BlackBox Jupiter install, but no Jupiter install was found.$\r$\n$\r$\nPlease install the BlackBox Jupiter major release first, then run this patch.$\r$\n$\r$\nDownload from: https://github.com/TeamStarDrive/StarDrive/releases"
+            Abort
+        !endif
+
         ; ----- No Jupiter install. Probe for a Steam install of StarDrive (AppID 220660). -----
         ; Steam writes a per-app uninstall registry entry whose InstallLocation
         ; points at the actual game folder regardless of which library drive
