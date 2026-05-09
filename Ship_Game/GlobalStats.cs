@@ -427,6 +427,28 @@ public static class GlobalStats
         }
     }
 
+    // First-launch only: stamp XRES/YRES from the primary monitor's native bounds,
+    // capped at 2560x1440 so 4K/ultrawide users don't land at panel-max with no
+    // chance to dial it back before the first menu render. User can change this
+    // freely afterwards through OptionsScreen — it only fires when no user.config
+    // exists in %APPDATA%/StarDrive yet.
+    static void AutoDetectScreenResolution(Configuration exeCfg)
+    {
+        try
+        {
+            var bounds = System.Windows.Forms.Screen.PrimaryScreen.Bounds;
+            int w = Math.Min(bounds.Width, 2560);
+            int h = Math.Min(bounds.Height, 1440);
+            var settings = exeCfg.AppSettings.Settings;
+            if (settings["XRES"] != null) settings["XRES"].Value = w.ToString();
+            if (settings["YRES"] != null) settings["YRES"].Value = h.ToString();
+        }
+        catch
+        {
+            // fall back to shipped XRES/YRES defaults from app.config
+        }
+    }
+
     static Configuration OpenUserConfiguration()
     {
         string configFile = Dir.StarDriveAppData + "/StarDrive.user.config";
@@ -435,6 +457,7 @@ public static class GlobalStats
         // if the AppData config file doesn't exist, create one based on current defaults
         if (!File.Exists(configFile))
         {
+            AutoDetectScreenResolution(exeCfg);
             exeCfg.SaveAs(configFile, ConfigurationSaveMode.Full);
         }
 

@@ -162,23 +162,19 @@ public class AutoUpdateChecker : UIElementContainer
     // bumps can't be applied as a file-drop patch.
     class MajorUpgradeAvailablePopup : UIPanel
     {
-        readonly AutoUpdateChecker Updater;
-        readonly string LatestVersion;
         readonly string Url;
 
-        public MajorUpgradeAvailablePopup(AutoUpdateChecker updater, string latestVersion, string url)
+        public MajorUpgradeAvailablePopup(AutoUpdateChecker updater, string displayLabel, string url)
             : base(updater.ContentManager.LoadTextureOrDefault("Textures/MMenu/popup_banner_small.png"))
         {
-            Updater = updater;
-            LatestVersion = latestVersion;
             Url = url;
 
-            UILabel headline = base.Add(new UILabel("Major Release Available!", Fonts.Pirulen16));
+            UILabel headline = base.Add(new UILabel("Major Release Available!", Fonts.Pirulen16, Microsoft.Xna.Framework.Color.Red));
             headline.TextAlign = TextAlign.HorizontalCenter;
             headline.AxisAlign = Align.CenterLeft;
             headline.SetLocalPos(20, -20);
 
-            UILabel version = base.Add(new UILabel($"BlackBox {latestVersion}", Fonts.Pirulen12));
+            UILabel version = base.Add(new UILabel(displayLabel, Fonts.Pirulen12));
             version.TextAlign = TextAlign.HorizontalCenter;
             version.AxisAlign = Align.CenterLeft;
             version.SetLocalPos(20, 2);
@@ -289,55 +285,102 @@ public class AutoUpdateChecker : UIElementContainer
         }
     }
 
-    bool IsLatestVerNewer(string latestVersion, bool isMod)
+    bool IsLatestVerNewer(string latestVersion, bool isMod, string codename = null)
     {
         string currentVersion = !isMod ? GlobalStats.Version.Split(' ').First()
                                        : GlobalStats.ActiveMod.Mod.Version;
 
-        if (!isMod && !IsSameMajorVer(latestVersion, currentVersion))
-        {
-            NotifyMajorUpgradeIfConfigured(latestVersion);
-            return false;
-        }
-
         Log.Write($"AutoUpdater: latest  {latestVersion}");
         Log.Write($"AutoUpdater: current {currentVersion}");
-        return string.CompareOrdinal(latestVersion, currentVersion) > 0;
+
+        // Mods: keep legacy ordinal compare. Mod authors don't follow a strict
+        // numeric scheme and the major-upgrade popup path is vanilla-only.
+        if (isMod)
+            return string.CompareOrdinal(latestVersion, currentVersion) > 0;
+
+        switch (ClassifyVanillaUpdate(latestVersion, currentVersion))
+        {
+            case UpdateAvailability.Unparseable:
+                Log.Warning($"AutoUpdater: unparseable version (latest='{latestVersion}', current='{currentVersion}'), skipping");
+                return false;
+            case UpdateAvailability.None:
+                return false;
+            case UpdateAvailability.CrossMajor:
+                Log.Write($"AutoUpdater: Cross-major upgrade {currentVersion} -> {latestVersion}");
+                NotifyMajorUpgradeIfConfigured(latestVersion, codename);
+                return false;
+            case UpdateAvailability.InGamePatch:
+                return true;
+            default:
+                return false;
+        }
     }
 
-    static bool IsSameMajorVer(string latestVersion, string currentVersion)
+    public enum UpdateAvailability
     {
-        if (JoinVersionParts(latestVersion) != JoinVersionParts(currentVersion))
-        {
-            Log.Write($"AutoUpdater: Major version mismatch: (latest) " +
-                $"{latestVersion} != {currentVersion} (current). Will not update");
-            return false;
-        }
+        None,         // latest <= current
+        InGamePatch,  // same major.minor, latest > current — file-drop patch
+        CrossMajor,   // different major.minor, latest > current — fresh installer
+        Unparseable,  // either version string failed Version.TryParse
+    }
 
-        return true;
-
-        string JoinVersionParts(string version)
-        {
-            return string.Join(".", version.Split('.').Take(2));
-        }
+    // Pure: classify a vanilla-line update purely from version strings.
+    // Parses both via System.Version so 1.51.15118 < 1.60.00000 sorts numerically
+    // (string ordinal compare misorders these and surfaces older Mars-line tags
+    // pinned alongside Jupiter on the GitHub Releases page as "newer").
+    public static UpdateAvailability ClassifyVanillaUpdate(string latestVersion, string currentVersion)
+    {
+        if (!Version.TryParse(latestVersion, out var latest) ||
+            !Version.TryParse(currentVersion, out var current))
+            return UpdateAvailability.Unparseable;
+        if (latest <= current)
+            return UpdateAvailability.None;
+        if (latest.Major != current.Major || latest.Minor != current.Minor)
+            return UpdateAvailability.CrossMajor;
+        return UpdateAvailability.InGamePatch;
     }
 
     // Schedules a top-left MajorUpgradeAvailablePopup if game/upgrade-url.txt
     // is present with a valid URL. Absence of the file is the "stay silent"
     // signal — preserves the historical log-only behavior on major-mismatch.
-    void NotifyMajorUpgradeIfConfigured(string latestVersion)
+    void NotifyMajorUpgradeIfConfigured(string latestVersion, string codename)
     {
         string url = TryReadUpgradeUrl();
         if (url == null)
             return;
 
         MajorReleaseUpgradeNotified = true;
-        Log.Write($"AutoUpdater: Major release {latestVersion} available at {url}");
+        string displayLabel = BuildMajorUpgradeDisplayLabel(latestVersion, codename);
+        Log.Write($"AutoUpdater: Major release {latestVersion} ({displayLabel}) available at {url}");
         Screen.RunOnNextFrame(() =>
         {
-            var popup = Add(new MajorUpgradeAvailablePopup(this, latestVersion, url));
+            var popup = Add(new MajorUpgradeAvailablePopup(this, displayLabel, url));
             popup.SetLocalPos(10, 30);
         });
+    }
+
+    // "1.60.00002" + "Jupiter" -> "Jupiter 1.60". Codename comes from the
+    // GitHub tag (`jupiter-release-1.60` -> "Jupiter"); when absent we fall
+    // back to "BlackBox 1.60" so the popup still reads sensibly. Full build
+    // number stays in Log.Write for diagnostics — only the user-facing label
+    // is trimmed to major.minor.
+    public static string BuildMajorUpgradeDisplayLabel(string latestVersion, string codename)
+    {
+        string majorMinor = string.Join(".", latestVersion.Split('.').Take(2));
+        return codename.NotEmpty() ? $"{codename} {majorMinor}" : $"BlackBox {majorMinor}";
+    }
+
+    // "jupiter-release-1.60"  -> "Jupiter"
+    // "mars-patch-1.51.15118" -> "Mars"
+    // null/empty/non-alpha first segment -> null (caller falls back to "BlackBox")
+    public static string ExtractCodenameFromTag(string tagName)
+    {
+        if (tagName.IsEmpty())
+            return null;
+        string first = tagName.Split('-').FirstOrDefault();
+        if (first.IsEmpty() || !first.All(char.IsLetter))
+            return null;
+        return char.ToUpperInvariant(first[0]) + first.Substring(1).ToLowerInvariant();
     }
 
     static string TryReadUpgradeUrl()
@@ -376,8 +419,9 @@ public class AutoUpdateChecker : UIElementContainer
         string tagName = latestRelease.GetProperty("tag_name").GetString();
         string changelog = latestRelease.GetProperty("body").GetString();
         string latestVersion = tagName.Split('-').FindMax(s => s.Count(c => c == '.')); // part-v1.2.4-withmostdots
+        string codename = ExtractCodenameFromTag(tagName);
 
-        if (IsLatestVerNewer(latestVersion, isMod))
+        if (IsLatestVerNewer(latestVersion, isMod, codename))
         {
             ReleaseInfo info = new(name, latestVersion, changelog, null, null);
             info.ZipUrls = new List<string>();
