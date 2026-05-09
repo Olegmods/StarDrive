@@ -7,7 +7,11 @@
 ; Project related helper defines
 !define PRODUCT_PUBLISHER   "Mod by The BlackBox Team"
 !define LAUNCHER            "StarDrive.exe"
-!define REGPATH             "Software\StarDrive"
+; Jupiter writes to its own registry key (was "Software\StarDrive" through Mars 1.51).
+; This keeps Jupiter installs partitioned from Mars: a 1.51 user running the Jupiter
+; installer doesn't have their Mars-line registry overwritten, and the Mars-patch
+; installer (which still reads Software\StarDrive) continues to find the Mars install.
+!define REGPATH             "Software\StarDrivePlus64"
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "upload/${INSTALLER_NAME}_${PRODUCT_VERSION}.exe"
 
@@ -62,18 +66,18 @@ VIAddVersionKey /LANG=${LANG_ENGLISH} "FileVersion" "${PRODUCT_VERSION}"
 ;Var STEAMDIR ; found steam dir
 Var PREVDIR ; previous mod install dir
 Function .onInit
-        ; Get Game path from registry
+        ; Read prior install path from the Jupiter-line registry key only. We deliberately
+        ; do NOT fall back to the Mars-line key (Software\StarDrive) or the Steam install
+        ; path: cross-major fresh installs land at C:\Games\StarDrivePlus64, and the user
+        ; can override via the directory page if they want upgrade-in-place over Mars or
+        ; under their Steam library. See migration-plan-phase5.md §5.1.A step 3 for the
+        ; rationale (clean major break + maintainer has no SteamPipe push access).
         ReadRegStr $PREVDIR HKLM ${REGPATH} InstallPath
         IfFileExists "$PREVDIR\${LAUNCHER}" 0 SetDefaultPath
-        StrCpy $INSTDIR $PREVDIR ;; use the previous path
+        StrCpy $INSTDIR $PREVDIR ;; existing Jupiter install detected — re-use that path
         Goto Done
-    ; CheckSteam:
-    ;     ReadRegStr $STEAMDIR HKLM "SOFTWARE\WOW6432Node\Valve\Steam" InstallPath
-    ;     StrCmp $STEAMDIR "" SetDefaultPath 0
-    ;     StrCpy $INSTDIR "$STEAMDIR\SteamApps\common\StarDrive"
-    ;     Goto Done
     SetDefaultPath:
-        StrCpy $INSTDIR "C:\Games\StarDrivePlus"
+        StrCpy $INSTDIR "C:\Games\StarDrivePlus64"
     Done:
 FunctionEnd
 
