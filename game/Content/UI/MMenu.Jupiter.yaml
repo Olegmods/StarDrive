@@ -151,6 +151,19 @@ Elements:
             Animation:
               Params: [3, 2, 0, 2, 0] # delay, duration, end-time, fadein, fadeout
               Alpha: [0, 1]
+            Children:
+          - Panel:
+            Name: blackbox_subver2
+            Texture: MMenu/subver2.png
+            RelSize: [0, 0.75]
+            RelPos: [0.33, -0.27]
+            ParentAlign: BottomLeft
+            DrawDepth: Foreground
+            Animations:
+              - Animation:
+                Params: [0, 10, 10, 5, 5, 5] # delay, duration, end-time, fadein, fadeout
+                MinColor: [0,0,0,0] # vary the color from min
+                MaxColor: [0.8,0.0,0.0,0] # to max
 
   - Panel:
     Name: vignette
