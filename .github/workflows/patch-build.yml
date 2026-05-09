@@ -18,6 +18,11 @@ on:
   push:
     branches: [migration/monogame_migration]
   workflow_dispatch:
+    inputs:
+      run_perf_tests:
+        description: "Include [TestCategory(\"Performance\")] tests (manual runs only; flaky on shared runners)"
+        type: boolean
+        default: false
 
 # Codename + major.minor are stable per release line; bump these in lockstep with §5.1.A
 # (Mars → Jupiter rename, 1.51 → 1.60). Build counter comes from github.run_number, which
@@ -114,6 +119,19 @@ jobs:
         # Use vstest.console (not `dotnet test`) — closer to AppVeyor's known-good
         # invocation. Either runner hits the OpenUserConfiguration NRE without the
         # pre-seed step above; vstest is just the lower-overhead path.
+        #
+        # Performance tests are SKIPPED by default. The unittests.runsettings file
+        # carries `<TestCaseFilter>TestCategory!=Performance</TestCaseFilter>`,
+        # which vstest applies via the /Settings flag below. Wall-clock-based
+        # benchmarks are flaky on shared CI VMs and provide no signal we'd act on
+        # — they're for local profiling. Override on a manual run by setting the
+        # `run_perf_tests` workflow_dispatch input to true; the step below then
+        # drops the /Settings flag entirely (vstest's CLI /TestCaseFilter is ANDed
+        # with the runsettings one, so it can only narrow — never widen — which
+        # is why we drop /Settings instead). UnitTests.dll's net8.0-windows + x64
+        # are auto-detected without the runsettings hints.
+        # To run perf tests locally:
+        #   vstest.console UnitTests.dll /TestCaseFilter:TestCategory=Performance
         shell: pwsh
         run: |
           $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
@@ -134,7 +152,13 @@ jobs:
           $dll = $candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
           Write-Host "Running tests against: $dll"
 
-          & $vstest $dll '/Settings:unittests.runsettings' '/Logger:console;verbosity=normal'
+          if ('${{ inputs.run_perf_tests }}' -eq 'true') {
+            Write-Host "run_perf_tests=true -> including [TestCategory(\"Performance\")] tests (dropping /Settings)"
+            $vstestArgs = @($dll, '/Logger:console;verbosity=normal')
+          } else {
+            $vstestArgs = @($dll, '/Settings:unittests.runsettings', '/Logger:console;verbosity=normal')
+          }
+          & $vstest @vstestArgs
           if ($LASTEXITCODE -ne 0) { throw "vstest.console failed with exit $LASTEXITCODE" }
 
       - name: Build patch artefacts (ZIP + NSIS)
