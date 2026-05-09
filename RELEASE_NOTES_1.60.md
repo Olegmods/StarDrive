@@ -48,6 +48,11 @@ If you're on a Mars 1.51 build *before* `15118`, the popup does not exist — yo
 - **Combined Arms** is compatible with Jupiter 1.60.
 - **Star Trek: Shattered Alliance** — verify against Jupiter before assuming compatibility; some mods that depend on specific XNA/SunBurn quirks may need maintainer updates.
 
+## System requirements
+
+- **Windows 10 or later, 64-bit**.
+- **.NET 8 Desktop Runtime (x64)** — required, **separate download**. The Mars 1.51 line ran on .NET Framework 4.8, which ships with Windows; Jupiter migrated to .NET 8 (`net8.0-windows`), which is a separate install. If you don't already have it, the installer or first launch will surface a "must install .NET Desktop Runtime" prompt — Windows usually offers a "Download it now" link, but if not, grab it directly from <https://dotnet.microsoft.com/download/dotnet/8.0> (pick **Windows → Desktop Runtime → x64**). Install once; future Jupiter patches reuse the same runtime.
+
 ## Known limitations
 
 - **SmartScreen warning on first install**: the Jupiter 1.60 installer is **unsigned**, same as Mars 1.51 and earlier. When you download and run it, Windows will show a "Windows protected your PC" dialog. Click **More info** → **Run anyway** to proceed. Code signing is being evaluated for a later 1.60.x patch; for now the install path matches the Mars-line precedent. (The Mars 1.51 → Jupiter 1.60 cross-major popup, when clicked, exits the running game and opens the itch.io page — you download the new installer from there and dismiss the SmartScreen warning the same way.)
