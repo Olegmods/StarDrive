@@ -89,7 +89,30 @@ jobs:
         run: msbuild StarDrive.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x64
 
       - name: Run unit tests
-        run: dotnet test UnitTests/SDUnitTests.csproj --configuration Release --no-build --settings unittests.runsettings --logger "console;verbosity=normal"
+        # Use vstest.console (not `dotnet test`) so UnitTests.dll is the entry assembly
+        # and `ConfigurationManager.OpenExeConfiguration(...)` reads UnitTests.dll.config
+        # (mirrored from UnitTests/app.config). Under `dotnet test`, testhost.dll is the
+        # entry assembly and its empty .config makes GlobalStats.OpenUserConfiguration
+        # NRE at line 460 on `exeSettings["ConfigVersion"].Value`. AppVeyor's known-good
+        # invocation was vstest.console UnitTests.dll — same shape used here.
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "vswhere.exe not found at $vswhere" }
+          $vsPath = & $vswhere -latest -property installationPath
+          $vstest = Join-Path $vsPath 'Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe'
+          if (-not (Test-Path $vstest)) { throw "vstest.console.exe not found at $vstest" }
+
+          $candidates = Get-ChildItem -Path UnitTests/bin -Recurse -Filter UnitTests.dll -ErrorAction SilentlyContinue `
+            | Where-Object { $_.FullName -like '*\Release\*' }
+          if (-not $candidates) {
+            throw "No Release UnitTests.dll found under UnitTests/bin/. Build step likely failed silently."
+          }
+          $dll = $candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "Running tests against: $dll"
+
+          & $vstest $dll '/Settings:unittests.runsettings' '/Logger:console;verbosity=normal'
+          if ($LASTEXITCODE -ne 0) { throw "vstest.console failed with exit $LASTEXITCODE" }
 
       - name: Build patch artefacts (ZIP + NSIS)
         env:
