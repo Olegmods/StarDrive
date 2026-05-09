@@ -9,14 +9,14 @@ name: Patch Build
 #   1. Release is created as DRAFT — maintainer publishes manually after sanity-checking.
 #   2. Release body includes a one-line-per-commit summary since the previous patch tag.
 #
-# Triggers on pushes to the migration branch for the duration of the migration cycle.
-# Once migration/monogame_migration merges to main, change this to `main` to match
-# AppVeyor's deploy gate (should_deploy() returns true only for main/develop).
+# Triggers on pushes to main — matches AppVeyor's deploy gate (should_deploy() returns
+# true only for main/develop). The migration cycle is closed; the migration branch is
+# preserved for history but no longer cuts patches.
 # workflow_dispatch is enabled for manual testing on any branch the workflow file exists on.
 
 on:
   push:
-    branches: [migration/monogame_migration]
+    branches: [main]
   workflow_dispatch:
     inputs:
       run_perf_tests:
@@ -24,13 +24,14 @@ on:
         type: boolean
         default: false
 
-# Codename + major.minor are stable per release line; bump these in lockstep with §5.1.A
-# (Mars → Jupiter rename, 1.51 → 1.60). Build counter comes from github.run_number, which
-# is monotonically incremented per-workflow-file by GitHub Actions — equivalent to
+# Codename + major.minor are stable per release line; bumped from Mars 1.51 to Jupiter
+# 1.60 with §5.1.A (post-migration release line; first Jupiter installer defaults to
+# C:\Games\StarDrivePlus64). Build counter comes from github.run_number, which is
+# monotonically incremented per-workflow-file by GitHub Actions — equivalent to
 # AppVeyor's APPVEYOR_BUILD_VERSION counter.
 env:
-  CODENAME: Mars
-  MAJOR_MINOR: "1.51"
+  CODENAME: Jupiter
+  MAJOR_MINOR: "1.60"
 
 jobs:
   build:
