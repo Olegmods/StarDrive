@@ -1,0 +1,297 @@
+name: Patch Build
+
+# Replicates the legacy AppVeyor patch flow (RedFox20/stardrive on AppVeyor) which we
+# can't modify. Mirrored steps captured from AppVeyor build 15118 (job v3ap90let099hhk0):
+#   checkout (with submodules) → patch AssemblyInfo → nuget restore → msbuild → vstest →
+#   MakeInstaller.py (zip + nsis) → upload artefacts → create GitHub release (publish).
+#
+# This workflow diverges in two places:
+#   1. Release is created as DRAFT — maintainer publishes manually after sanity-checking.
+#   2. Release body includes a one-line-per-commit summary since the previous patch tag.
+#
+# MAIN-ONLY STUB: this copy of the workflow lives on main solely so the
+# GitHub Actions UI registers it and surfaces the "Run workflow" button.
+# The full active version (with `on: push: branches: [main]` re-enabled)
+# lives on the `migration/monogame_migration` branch and is what runs at
+# dispatch time when you pick that branch in the UI dropdown.
+#
+# When the migration branch merges into main, restore the full `on:` block
+# below — Git will see this stub vs. migration's version as a conflict on
+# this file; resolve by taking migration's side. Until then, leaving
+# `push:` off prevents accidental fires against the Mars-1.51 source still
+# on main (which would build a bogus Mars-line patch).
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_perf_tests:
+        description: "Include [TestCategory(\"Performance\")] tests (manual runs only; flaky on shared runners)"
+        type: boolean
+        default: false
+
+# Codename + major.minor are stable per release line; bumped from Mars 1.51 to Jupiter
+# 1.60 with §5.1.A (post-migration release line; first Jupiter installer defaults to
+# C:\Games\StarDrivePlus64). Build counter comes from github.run_number, which is
+# monotonically incremented per-workflow-file by GitHub Actions — equivalent to
+# AppVeyor's APPVEYOR_BUILD_VERSION counter.
+env:
+  CODENAME: Jupiter
+  MAJOR_MINOR: "1.60"
+
+jobs:
+  build:
+    runs-on: windows-2022
+    permissions:
+      contents: write   # required for `gh release create`
+
+    steps:
+      - name: Checkout (with submodules + tags)
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0    # need full history + tags for commit summary
+
+      - name: Compute build version
+        id: version
+        shell: pwsh
+        run: |
+          $build  = '{0:D5}' -f ${{ github.run_number }}
+          $version = "${env:MAJOR_MINOR}.$build"
+          $tag    = "$($env:CODENAME.ToLower())-patch-$version"
+          $title  = "$($env:CODENAME) Patch v$version"
+          Write-Host "version=$version`ntag=$tag`ntitle=$title"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag"         >> $env:GITHUB_OUTPUT
+          "title=$title"     >> $env:GITHUB_OUTPUT
+
+      - name: Patch AssemblyInfo files
+        shell: pwsh
+        run: |
+          $version = '${{ steps.version.outputs.version }}'
+          # InformationalVersion gets the trailing "<codename>-<major.minor>"
+          # token (e.g. "1.60.16000 jupiter-1.60"). It's load-bearing:
+          # ModEntry.CheckSupport substring-matches mods' Globals.yaml
+          # SupportedBlackBoxVersions ("jupiter-1.60", "mars-1.51", ...) against
+          # GlobalStats.Version, which comes from this string. Drop the suffix
+          # and every mod silently flips to "Not supported".
+          $codeTag = "$($env:CODENAME.ToLower())-${env:MAJOR_MINOR}"
+          $infoVer = "$version $codeTag"
+          $files = @(
+            'Properties/AssemblyInfo.cs',
+            'SDGraphics/Properties/AssemblyInfo.cs',
+            'SDUtils/Properties/AssemblyInfo.cs',
+            'UnitTests/Properties/AssemblyInfo.cs'
+          )
+          foreach ($f in $files) {
+            (Get-Content $f) `
+              -replace 'AssemblyVersion\("[^"]*"\)',              "AssemblyVersion(`"$version`")" `
+              -replace 'AssemblyInformationalVersion\("[^"]*"\)', "AssemblyInformationalVersion(`"$infoVer`")" `
+              | Set-Content $f
+            Write-Host "Patched $f -> AssemblyVersion=$version  InformationalVersion=$infoVer"
+          }
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Setup NuGet
+        uses: NuGet/setup-nuget@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: NuGet restore
+        run: nuget restore StarDrive.sln
+
+      - name: Build solution (Release|x64)
+        run: msbuild StarDrive.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x64
+
+      - name: Pre-seed StarDrive.user.config (workaround for GlobalStats NRE)
+        # GlobalStats.OpenUserConfiguration() at line 460 NREs in fresh testhost
+        # environments where neither exeCfg nor roamingCfg can find ConfigVersion:
+        # the default literal baseVersion=1 != default field ConfigVersion=0, so we
+        # enter the upgrade branch, then `roamingSettings["ConfigVersion"].Value =
+        # exeSettings["ConfigVersion"].Value` NREs on the null indexer access.
+        #
+        # On AppVeyor (net48 mars-1.51), the testhost was vstest's net48 host which
+        # loads UnitTests.dll.config — exeCfg got populated and the upgrade branch
+        # never fired. On net8 (this branch), vstest spawns `dotnet testhost.dll`
+        # which ignores the test assembly's .config — exeCfg is empty.
+        #
+        # CI workaround: pre-seed StarDrive.user.config with ConfigVersion=1 so the
+        # roamingCfg load gives ConfigVersion=1 == baseVersion=1, skipping the
+        # upgrade branch entirely. The proper fix is in GlobalStats.OpenUserConfiguration.
+        shell: pwsh
+        run: |
+          $appDataDir = Join-Path $env:APPDATA 'StarDrive'
+          New-Item -Path $appDataDir -ItemType Directory -Force | Out-Null
+          Copy-Item -Path 'UnitTests/app.config' -Destination (Join-Path $appDataDir 'StarDrive.user.config') -Force
+          Write-Host "Seeded $appDataDir/StarDrive.user.config from UnitTests/app.config"
+
+      - name: Run unit tests
+        # Use vstest.console (not `dotnet test`) — closer to AppVeyor's known-good
+        # invocation. Either runner hits the OpenUserConfiguration NRE without the
+        # pre-seed step above; vstest is just the lower-overhead path.
+        #
+        # Performance tests are SKIPPED by default. The unittests.runsettings file
+        # carries `<TestCaseFilter>TestCategory!=Performance</TestCaseFilter>`,
+        # which vstest applies via the /Settings flag below. Wall-clock-based
+        # benchmarks are flaky on shared CI VMs and provide no signal we'd act on
+        # — they're for local profiling. Override on a manual run by setting the
+        # `run_perf_tests` workflow_dispatch input to true; the step below then
+        # drops the /Settings flag entirely (vstest's CLI /TestCaseFilter is ANDed
+        # with the runsettings one, so it can only narrow — never widen — which
+        # is why we drop /Settings instead). UnitTests.dll's net8.0-windows + x64
+        # are auto-detected without the runsettings hints.
+        # To run perf tests locally:
+        #   vstest.console UnitTests.dll /TestCaseFilter:TestCategory=Performance
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw "vswhere.exe not found at $vswhere" }
+          $vsPath = & $vswhere -latest -property installationPath
+          $vstest = Join-Path $vsPath 'Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe'
+          if (-not (Test-Path $vstest)) { throw "vstest.console.exe not found at $vstest" }
+
+          # NOTE: UnitTests/SDUnitTests.csproj:13 hardcodes <OutputPath>bin\Debug\</OutputPath>
+          # for ALL configs (Release builds ALSO land in bin/Debug/), so we can't filter
+          # by path containing 'Release'. The msbuild step is the only build action in
+          # this workflow, so the freshest UnitTests.dll under UnitTests/bin/ IS the
+          # Release-config output we just built.
+          $candidates = Get-ChildItem -Path UnitTests/bin -Recurse -Filter UnitTests.dll -ErrorAction SilentlyContinue
+          if (-not $candidates) {
+            throw "No UnitTests.dll found under UnitTests/bin/. Build step likely failed silently."
+          }
+          $dll = $candidates | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+          Write-Host "Running tests against: $dll"
+
+          if ('${{ inputs.run_perf_tests }}' -eq 'true') {
+            Write-Host "run_perf_tests=true -> including [TestCategory(\"Performance\")] tests (dropping /Settings)"
+            $vstestArgs = @($dll, '/Logger:console;verbosity=normal')
+          } else {
+            $vstestArgs = @($dll, '/Settings:unittests.runsettings', '/Logger:console;verbosity=normal')
+          }
+          & $vstest @vstestArgs
+          if ($LASTEXITCODE -ne 0) { throw "vstest.console failed with exit $LASTEXITCODE" }
+
+      - name: Build patch artefacts (ZIP + NSIS)
+        env:
+          APPVEYOR_BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          py -3 Deploy/MakeInstaller.py --root_dir=. --patch --type=zip
+          py -3 Deploy/MakeInstaller.py --root_dir=. --patch --type=nsis
+
+      - name: List produced artefacts
+        shell: pwsh
+        run: Get-ChildItem -Path Deploy/upload -File | Select-Object Name, Length
+
+      - name: Generate commit summary since previous patch tag
+        id: summary
+        shell: pwsh
+        run: |
+          $codename = $env:CODENAME.ToLower()
+          $prev = git tag --list "$codename-patch-*" --sort=-v:refname | Select-Object -First 1
+          if ($prev) {
+            Write-Host "Previous tag: $prev"
+            $log = git log "$prev..HEAD" --oneline --no-merges
+          } else {
+            Write-Host "No previous patch tag; falling back to last 20 commits"
+            $log = git log -20 --oneline --no-merges
+          }
+          if (-not $log) { $log = "_(no new commits since previous patch)_" }
+
+          $delim = "EOF_$([guid]::NewGuid().ToString('N'))"
+          "summary<<$delim" >> $env:GITHUB_OUTPUT
+          $log               >> $env:GITHUB_OUTPUT
+          $delim             >> $env:GITHUB_OUTPUT
+
+      # Explicit gate: do NOT create a release if any prior step (build, tests,
+      # MakeInstaller) failed. This is also GHA's default for steps with no `if:`
+      # condition, but stating it here protects against future edits that might
+      # add `continue-on-error: true` to a prior step and silently let a broken
+      # build through to a release.
+      - name: Create draft GitHub release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag    = '${{ steps.version.outputs.tag }}'
+          $title  = '${{ steps.version.outputs.title }}'
+          $body   = @"
+          ## Changes since previous patch
+
+          ${{ steps.summary.outputs.summary }}
+          "@
+          $bodyFile = Join-Path $env:RUNNER_TEMP "release-notes.md"
+          Set-Content -Path $bodyFile -Value $body -Encoding utf8
+
+          $assets = Get-ChildItem -Path Deploy/upload -File | ForEach-Object FullName
+          Write-Host "Creating draft release $tag with $($assets.Count) asset(s)"
+
+          $args = @(
+            'release', 'create', $tag,
+            '--draft',
+            '--title',     $title,
+            '--target',    '${{ github.sha }}',
+            '--notes-file', $bodyFile
+          ) + $assets
+
+          & gh @args
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed with exit $LASTEXITCODE" }
+
+      - name: Notify Discord (build status)
+        if: always()
+        shell: pwsh
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          STATUS:      ${{ job.status }}
+          VERSION:     ${{ steps.version.outputs.version }}
+          TAG:         ${{ steps.version.outputs.tag }}
+          RUN_URL:     ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO:        ${{ github.repository }}
+          BRANCH:      ${{ github.ref_name }}
+          COMMIT_SHA:  ${{ github.sha }}
+          ACTOR:       ${{ github.actor }}
+        run: |
+          if (-not $env:WEBHOOK_URL) {
+            Write-Host "DISCORD_WEBHOOK_URL secret not set; skipping Discord notification"
+            exit 0
+          }
+
+          # Discord embed colors: green/red/gray for success/failure/cancelled
+          $color = switch ($env:STATUS) {
+            'success'   { 3066993 }
+            'failure'   { 15158332 }
+            'cancelled' { 9807270 }
+            default     { 9807270 }
+          }
+          $statusUpper = $env:STATUS.ToUpper()
+          $shortSha    = $env:COMMIT_SHA.Substring(0, 7)
+          $title       = if ($env:VERSION) { "${env:CODENAME} Patch v$($env:VERSION) - $statusUpper" } else { "Patch Build - $statusUpper" }
+
+          $payload = @{
+            username = 'GitHub Actions'
+            embeds   = @(@{
+              title       = $title
+              url         = $env:RUN_URL
+              color       = $color
+              description = "Status: **$statusUpper**"
+              fields      = @(
+                @{ name = 'Repository'; value = $env:REPO;   inline = $true }
+                @{ name = 'Branch';     value = $env:BRANCH; inline = $true }
+                @{ name = 'Commit';     value = $shortSha;   inline = $true }
+                @{ name = 'Tag';        value = $(if ($env:TAG) { $env:TAG } else { '_(not assigned)_' }); inline = $true }
+                @{ name = 'Triggered by'; value = $env:ACTOR; inline = $true }
+              )
+            })
+          } | ConvertTo-Json -Depth 6 -Compress
+
+          try {
+            Invoke-RestMethod -Uri $env:WEBHOOK_URL -Method Post -ContentType 'application/json' -Body $payload | Out-Null
+            Write-Host "Discord notification sent ($statusUpper)"
+          } catch {
+            Write-Host "Discord webhook failed: $($_.Exception.Message)"
+            # don't fail the workflow over a notification miss
+          }
