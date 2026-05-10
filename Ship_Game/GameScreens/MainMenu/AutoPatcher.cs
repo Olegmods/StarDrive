@@ -12,6 +12,40 @@ using Color = Microsoft.Xna.Framework.Color;
 
 namespace Ship_Game.GameScreens.MainMenu;
 
+// AutoPatcher — applies an in-line file-drop patch from GitHub Releases.
+//
+// Lifecycle:
+//   1. AutoUpdateChecker discovers a newer codename-tagged release (vanilla
+//      filters /releases by VanillaDefaults.ReleaseTagPrefix; mods hit
+//      /releases/latest) and pushes AutoPatcher onto the screen stack.
+//   2. Download phase: pulls the patch zip(s) from Info.ZipUrls into
+//      %APPDATA%\StarDrive\Patches\<version>\. Chunked patches are concatenated
+//      in name order before unzip — see Deploy/MakeInstaller.py for the
+//      "001-…", "002-…" chunk layout.
+//   3. Unzip phase: extracts into the same per-version cache folder.
+//
+// UAC self-elevation (Option A — split-pass):
+//   The download/unzip pass runs in the original (non-elevated) process so it
+//   can write under %APPDATA% without any prompt. After unzip, NeedsElevation
+//   gates on `gameDir.Contains("Program Files")` && !IsInRole(Administrator).
+//   If true:
+//     a. WritePendingPatchMarker writes %APPDATA%\StarDrive\PendingPatch.json
+//        with { Version, Name, IsMod }.
+//     b. RelaunchAsAdminWithMarker spawns StarDrive.exe again with
+//        --apply-patch=<version> and Verb="runas". Windows shows the UAC
+//        dialog. The original process exits.
+//     c. The new (elevated) process boots normally; Program.ParseMainArgs sees
+//        --apply-patch and stashes the version in Program.ResumePatchVersion.
+//     d. MainMenuScreen.LoadContent calls AutoPatcher.TryResumePending. If the
+//        marker matches, it builds a synthetic ReleaseInfo and pushes a new
+//        AutoPatcher with ResumeMode=true.
+//     e. ResumeMode skips Download/Unzip (the cache is already on disk) and
+//        jumps straight to DeleteStaleFiles + file-move into the install dir.
+//   The marker is deleted on RestartAsync (success path) and on the
+//   "cached patch missing" branch, so a failed second leg doesn't loop.
+//
+// Mods: NeedsElevation also fires when the active mod folder lands inside
+// "Program Files". Mod patches go through the same UAC dance.
 /// <summary>
 /// This will automatically apply the latest patch,
 /// while showing progress

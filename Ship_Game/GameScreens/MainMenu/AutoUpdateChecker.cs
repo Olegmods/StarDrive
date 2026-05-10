@@ -258,8 +258,28 @@ public class AutoUpdateChecker : UIElementContainer
             {
                 // "https://github.com/TeamStarDrive/StarDrive/releases" --> "TeamStarDrive/StarDrive"
                 string teamAndRepo = RegexExtractTeamAndRepo(downloadUrl, "\\/([\\w-]+\\/[\\w-]+)\\/releases");
-                downloadUrl = $"https://api.github.com/repos/{teamAndRepo}/releases/latest";
-                info = GetLatestVersionInfoGitHub(downloadUrl, isMod);
+                string apiBase = $"https://api.github.com/repos/{teamAndRepo}/releases";
+
+                // Vanilla: hit /releases (array of all published) and pick the
+                // highest-version release. If its major.minor differs from the
+                // current install, route to the cross-major popup
+                // (file-gated by game/upgrade-url.txt). Otherwise treat it as
+                // an in-game patch candidate. This decouples the release line
+                // from GitHub's "Set as latest" flag — a hotfix can be
+                // published not-as-latest without breaking discovery for new
+                // installs, and the latest flag stays free to point at a
+                // legacy line (e.g. mars-1.51 for older binaries that still
+                // hit /releases/latest from pre-Jupiter code).
+                //
+                // Mods: keep the legacy /releases/latest path. Mods don't
+                // follow the same versioning discipline and changing their
+                // behavior would affect every mod author's existing release
+                // setup.
+                Version currentLine = !isMod ? TryParseCurrentVanillaLine() : null;
+                if (currentLine != null)
+                    info = GetLatestVersionInfoGitHub(apiBase, isMod, currentLine);
+                else
+                    info = GetLatestVersionInfoGitHub(apiBase + "/latest", isMod, currentLine: null);
             }
             else if (downloadUrl.Contains("bitbucket.org"))
             {
@@ -407,18 +427,74 @@ public class AutoUpdateChecker : UIElementContainer
     }
 
 
-    ReleaseInfo? GetLatestVersionInfoGitHub(string url, bool isMod)
+    // Parses the current vanilla install version (e.g. "1.60.00000 (abcdef1)" -> Version 1.60.0).
+    // Returns null on dev builds / unparseable strings — caller falls back to /releases/latest.
+    static Version TryParseCurrentVanillaLine()
+    {
+        string currentVer = GlobalStats.Version.Split(' ').First();
+        if (Version.TryParse(currentVer, out var v))
+            return v;
+        Log.Warning($"AutoUpdater: cannot parse current vanilla version '{currentVer}' — falling back to /releases/latest");
+        return null;
+    }
+
+    static string ExtractVersionPartFromTag(string tagName)
+        => tagName.Split('-').FindMax(s => s.Count(c => c == '.')); // part-v1.2.4-withmostdots
+
+    ReleaseInfo? GetLatestVersionInfoGitHub(string url, bool isMod, Version currentLine)
     {
         string jsonText = DownloadWithCancel(url, AsyncTask, timeout: TimeSpan.FromSeconds(30));
         if (AsyncTask is { IsCancelRequested: true })
             return null;
 
         using JsonDocument doc = JsonDocument.Parse(jsonText);
-        JsonElement latestRelease = doc.RootElement;
+
+        // /releases returns a JSON array; /releases/latest returns a single object.
+        // GetVersionAsync picks the URL based on whether a current install line
+        // could be parsed, so handle both shapes here.
+        JsonElement latestRelease;
+        if (doc.RootElement.ValueKind == JsonValueKind.Array)
+        {
+            if (currentLine == null)
+            {
+                Log.Warning("AutoUpdater: /releases array returned but no currentLine — refusing to guess");
+                return null;
+            }
+            if (!TrySelectMaxVersionRelease(doc.RootElement, predicate: null, out JsonElement maxOverall, out Version maxOverallVer))
+            {
+                Log.Write("AutoUpdater: /releases empty or no parseable versions");
+                return null;
+            }
+            // Cross-major: highest published release is on a different line than
+            // current install. Route through the popup (file-gated by
+            // game/upgrade-url.txt) and skip the in-game patcher — major bumps
+            // can't be applied as a file-drop.
+            if (maxOverallVer.Major != currentLine.Major || maxOverallVer.Minor != currentLine.Minor)
+            {
+                string overallTag = maxOverall.GetProperty("tag_name").GetString();
+                string overallVersion = ExtractVersionPartFromTag(overallTag);
+                string overallCodename = ExtractCodenameFromTag(overallTag);
+                string currentVer = GlobalStats.Version.Split(' ').First();
+                if (ClassifyVanillaUpdate(overallVersion, currentVer) == UpdateAvailability.CrossMajor)
+                {
+                    Log.Write($"AutoUpdater: cross-major upgrade detected: {currentVer} -> {overallVersion}");
+                    NotifyMajorUpgradeIfConfigured(overallVersion, overallCodename);
+                }
+                return null;
+            }
+            // Same line: max-overall is also the max-in-line, use it as the
+            // in-game patch candidate.
+            latestRelease = maxOverall;
+        }
+        else
+        {
+            latestRelease = doc.RootElement;
+        }
+
         string name = latestRelease.GetProperty("name").GetString();
         string tagName = latestRelease.GetProperty("tag_name").GetString();
         string changelog = latestRelease.GetProperty("body").GetString();
-        string latestVersion = tagName.Split('-').FindMax(s => s.Count(c => c == '.')); // part-v1.2.4-withmostdots
+        string latestVersion = ExtractVersionPartFromTag(tagName);
         string codename = ExtractCodenameFromTag(tagName);
 
         if (IsLatestVerNewer(latestVersion, isMod, codename))
@@ -440,6 +516,38 @@ public class AutoUpdateChecker : UIElementContainer
             return info;
         }
         return null;
+    }
+
+    // Pick the highest-versioned release on a /releases array. Version-based
+    // (not date-based) so a security hotfix published to an older line can't
+    // trick a newer install into "downgrading" — only an actual higher Version
+    // wins. The version segment is the dot-richest split-on-'-' part of the
+    // tag. Pass a `predicate` to scope to a release line (e.g. major.minor
+    // match); pass null to scan all releases.
+    static bool TrySelectMaxVersionRelease(JsonElement releases, Func<Version, bool> predicate,
+                                           out JsonElement best, out Version bestVer)
+    {
+        best = default;
+        bestVer = null;
+        foreach (JsonElement release in releases.EnumerateArray())
+        {
+            if (!release.TryGetProperty("tag_name", out JsonElement tagEl))
+                continue;
+            string tag = tagEl.GetString();
+            if (tag.IsEmpty())
+                continue;
+            string verPart = ExtractVersionPartFromTag(tag);
+            if (verPart.IsEmpty() || !Version.TryParse(verPart, out var v))
+                continue;
+            if (predicate != null && !predicate(v))
+                continue;
+            if (bestVer == null || v > bestVer)
+            {
+                bestVer = v;
+                best = release;
+            }
+        }
+        return bestVer != null;
     }
 
     ReleaseInfo? GetLatestVersionInfoBitBucket(string modName, string url, bool isMod)
