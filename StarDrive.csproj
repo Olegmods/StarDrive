@@ -77,6 +77,17 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
+  <!-- Deploy is what MakeMajorInstaller bundles into the itch.io NSIS package
+       (post-build hook below). Mirror Release's compile flags so the shipped
+       binary is optimized and has STEAM integration; warning gate stays off
+       per §4.3 (Release|x64 only). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Deploy'">
+    <DefineConstants>STEAM</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Ship_Game\AI\EmpireAI\Components\BudgetPriorities.cs" />
