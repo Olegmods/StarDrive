@@ -36,6 +36,7 @@ Each version's load screen filters out the other version's saves, so you'll see 
 
 - A save started on Mars 1.51 cannot be loaded in Jupiter 1.60, and vice versa. There's no migration path — finish your in-progress Mars campaigns on Mars, or start fresh on Jupiter.
 - The desktop shortcut behavior is install-path-dependent. If you have shortcuts pointing at `C:\Games\StarDrivePlus\StarDrive.exe`, they keep launching Mars. Jupiter installs its own shortcuts pointing at `StarDrivePlus64`.
+- **User-content folders are *not* partitioned** the way save games are. `Saved Designs\`, `Fleet Designs\`, `Saved Setups\`, `Saved Races\`, and `Colony Blueprints\` under `%APPDATA%\StarDrive\` are shared by both versions. A ship/fleet/setup file authored on Jupiter may reference modules, hulls, or tech IDs that Mars 1.51 doesn't recognise (and vice versa) — Mars will either reject it or load it with the unknown bits silently dropped, which can produce a half-working design. Until the format diverges enough to break loading outright, **treat these folders as one-way: prefer the newer (Jupiter) version, or back up the folders before switching back to Mars.**
 
 ## Cross-major discovery
 
