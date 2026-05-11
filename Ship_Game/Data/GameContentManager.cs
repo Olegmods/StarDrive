@@ -143,7 +143,6 @@ namespace Ship_Game.Data
                 }
             }
             while ((mgr = mgr.Parent) != null);
-
             asset = null;
             return false;
         }
