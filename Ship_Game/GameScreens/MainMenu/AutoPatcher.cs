@@ -731,6 +731,16 @@ internal class AutoPatcher : PopupWindow
         string args = string.Join(" ",
             Environment.GetCommandLineArgs().Skip(1)
                 .Where(a => !a.StartsWith("--apply-patch", StringComparison.OrdinalIgnoreCase)));
+
+        // Release blackbox.log BEFORE spawning the replacement process — same
+        // race as RelaunchAsAdminWithMarker. Application.Exit() is async (just
+        // queues a quit message), so Process.Start fires before the old
+        // process's message loop has actually unwound and released file
+        // handles. The new patched instance opens the same log path with
+        // FileMode.Create at startup, which throws "file is being used by
+        // another process" if we still hold the handle here.
+        Log.Close();
+
         Application.Exit();
         System.Diagnostics.Process.Start(Application.ExecutablePath, args);
     }
