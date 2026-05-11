@@ -32,7 +32,7 @@ namespace Ship_Game
         static readonly Array<TipItem> ActiveTips = new();
 
         public static void ShipYardArcTip()
-            => CreateTooltip("Shift for fine tune\nAlt for previous arcs");
+            => CreateTooltip("Shift for fine tune\nAlt to match an existing turret");
 
         public static void PlanetLandingSpotsTip(string locationText, int spots)
             => CreateTooltip($"{locationText}\n{spots} Landing Spots");
