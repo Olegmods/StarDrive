@@ -23,6 +23,49 @@ The installer **prompts** you for the install location with `C:\Games\StarDriveP
 
 Subsequent Jupiter patches (1.60.x → 1.60.y) read `HKLM\Software\StarDrivePlus64\InstallPath` and re-use the directory that the first Jupiter install wrote there, so the standard upgrade-in-place ergonomics still work within the Jupiter line.
 
+## Install and update flow
+
+**First-time install (Jupiter 1.60):**
+
+1. **Download** the installer from [https://stardriveteam.itch.io/jupiter-160](https://stardriveteam.itch.io/jupiter-160) (~690 MB).
+2. **Run the .exe.** Windows SmartScreen warns that the installer is unsigned — click **More info** → **Run anyway** (see "SmartScreen warning" under Known limitations).
+3. **Accept the UAC prompt.** The installer needs admin rights to write into `C:\Games\` and update the registry.
+4. **Choose an install location.** The directory page pre-fills `C:\Games\StarDrivePlus64`. You can browse to a different location, including a Steam folder (see "Steam folder install" below).
+5. **.NET 8 prerequisite.** If the installer detects that the .NET 8 Desktop Runtime (x64) isn't present, it launches Microsoft's official runtime installer as a prerequisite step (~56 MB extra). Accept the second UAC prompt; this only happens once per machine.
+6. **Finish.** Desktop and Start Menu shortcuts named **StarDrive BlackBox 64** are created. Launch the game from either.
+7. **First launch — in-game auto-updater fires.** On the main menu, a top-left popup checks for the latest 1.60 patch. Click to download and apply; the game restarts into the patched build automatically. Right-click to dismiss for the session.
+
+**Subsequent patch updates (1.60.x → 1.60.y):**
+
+1. The in-game auto-updater checks for new patches on every launch and shows a top-left popup with the new version number. Hover for the changelog.
+2. Click the popup. The game downloads the cumulative patch zip, applies it on top of the install, requests UAC if the install path requires elevated writes, and restarts into the patched build.
+3. If you decline once, the popup reappears on the next launch. No automatic background updates.
+
+**Manual patch install** (fallback if the in-game updater can't run, or for offline machines): download the patch installer .exe from the [GitHub Releases page](https://github.com/TeamStarDrive/StarDrive/releases), run it, and point it at your existing install directory. Patches are cumulative — you only need the latest one.
+
+## Steam folder install (new in 1.60)
+
+The Jupiter installer can install **over** a vanilla 15b Steam install of StarDrive so Steam keeps tracking your playtime under the title you already own. **This is a new feature in 1.60 — supported, but take it with a grain of salt.** It works in straightforward cases, but the Steam-side ergonomics are awkward and the failure mode (Steam silently overwriting Jupiter with vanilla 15b) is unforgiving.
+
+**How to use it:**
+
+1. Run the Jupiter installer normally.
+2. On the directory page, the installer auto-detects an existing Steam install of StarDrive via the Uninstall registry entry and offers to point at it. Accept that offer, or browse manually to your Steam `steamapps\common\StarDrive` folder.
+3. Complete the install. Jupiter files land on top of the Steam install's vanilla 15b content; Steam's existing shortcuts continue to launch the game (now Jupiter instead of 15b).
+
+**Before you launch the game through Steam, do these two things:**
+
+1. **Disable Steam auto-updates for StarDrive.** In your Steam library: right-click StarDrive → **Properties** → **Updates** → set to **Only update this game when I launch it** (or, better, launch via the desktop/Start Menu shortcut and never click the Steam launcher entry). Steam's StarDrive depot is **vanilla 15b** — the original 2013 publisher build, not any BlackBox version. The next Steam auto-sync will overwrite Jupiter back to stock 15b without asking.
+2. **Never run "Verify Integrity of Game Files"** on StarDrive in Steam. Same depot, same wipe.
+
+**Known caveats:**
+
+- Steam reports the title as plain **"StarDrive"** in your profile and playtime. Steam has no knowledge of BlackBox, Mars, or Jupiter — the DisplayName for AppID 220660 is just "StarDrive".
+- **Steam achievements and cloud-save sync are not wired in 1.60** (planned for a 1.60.x patch). The Steam SDK x64 binding is in place; the integration just isn't done yet.
+- The maintainer has no SteamPipe push access for AppID 220660, so this overlay install is the closest we can get to a "Steam release" without a publisher relationship.
+
+If any of this feels too fiddly, install to `C:\Games\StarDrivePlus64` (the default) and skip the Steam path entirely. The game runs identically — you just don't get Steam playtime tracking.
+
 ## Coexistence with Mars 1.51
 
 A user with Mars 1.51 already installed at `C:\Games\StarDrivePlus` (or in their Steam library) **keeps it**. Jupiter installs side by side at `StarDrivePlus64`. The two majors share a save folder at `%APPDATA%\StarDrive\` but partition the load list by **save-game version**:
@@ -57,7 +100,7 @@ If you're on a Mars 1.51 build *before* `15118`, the popup does not exist — yo
 ## Known limitations
 
 - **SmartScreen warning on first install**: the Jupiter 1.60 installer is **unsigned**, same as Mars 1.51 and earlier. When you download and run it, Windows will show a "Windows protected your PC" dialog. Click **More info** → **Run anyway** to proceed. Code signing is being evaluated for a later 1.60.x patch; for now the install path matches the Mars-line precedent. (The Mars 1.51 → Jupiter 1.60 cross-major popup, when clicked, exits the running game and opens the itch.io page — you download the new installer from there and dismiss the SmartScreen warning the same way.)
-- **Steam release**: the maintainer has no SteamPipe push access for the StarDrive Steam app (AppID 220660). The Jupiter 1.60 installer auto-detects a Steam install of StarDrive (via the Uninstall registry entry) and offers to install over it so Steam keeps tracking your playtime. Two warnings before you accept that offer: Steam's StarDrive depot is **vanilla 15b** — the original 2013 publisher build, *not* any BlackBox/Mars version — so (a) you must disable Steam auto-updates for StarDrive (Properties → Updates), else Steam silently overwrites Jupiter back to stock 15b on the next sync, and (b) never run "Verify Integrity of Game Files" — same depot, same wipe. Steam will still report this title as "StarDrive" in your profile/playtime (Steam's DisplayName for AppID 220660 is just "StarDrive" — Steam has no knowledge of BlackBox or Jupiter); achievements and cloud-save sync aren't wired in 1.60 (planned for a 1.60.x patch).
+- **Steam folder install is supported but new** — see the "Steam folder install (new in 1.60)" section above for the gotchas (disabling Steam auto-update to prevent overwrite, "Verify Integrity of Game Files" wipes Jupiter, achievements/cloud-save not yet wired).
 - The legacy `mars-1.51` development branch on GitHub is preserved for back-port hotfixes to the 32-bit Mars line. New feature work targets the Jupiter line.
 - **Don't install Jupiter into a Mars 1.51 directory.** The 1.60 installer permits browsing to an existing Mars install (e.g. `C:\Games\StarDrivePlus`) and will write Jupiter files on top, but it does **not** remove pre-existing Mars files first — you end up with a Frankenstein directory: Jupiter binaries plus orphan Mars/SunBurn/XNA files, plus two registry entries (`HKLM\Software\StarDrive` from Mars and `HKLM\Software\StarDrivePlus64` from Jupiter) that both point at the same directory. Running Mars's uninstaller after this would delete a mix of Mars-era and Jupiter-era files and break the Jupiter install. The supported flow is: install Jupiter at the default `C:\Games\StarDrivePlus64`, leave Mars where it is (or uninstall Mars separately first via Add/Remove Programs).
 
