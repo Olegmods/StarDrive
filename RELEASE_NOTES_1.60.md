@@ -61,8 +61,8 @@ The Jupiter installer can install **over** a vanilla 15b Steam install of StarDr
 **Known caveats:**
 
 - Steam reports the title as plain **"StarDrive"** in your profile and playtime. Steam has no knowledge of BlackBox, Mars, or Jupiter — the DisplayName for AppID 220660 is just "StarDrive".
-- **Steam achievements and cloud-save sync are not wired in 1.60** (planned for a 1.60.x patch). The Steam SDK x64 binding is in place; the integration just isn't done yet.
-- The maintainer has no SteamPipe push access for AppID 220660, so this overlay install is the closest we can get to a "Steam release" without a publisher relationship.
+- **Steam achievements and cloud-save sync are not wired in 1.60**. The Steam SDK x64 binding is in place; the integration just isn't done yet.
+- The maintainer has no SteamPipe push access, so this overlay install is the closest we can get to a "Steam release" without a publisher relationship.
 
 If any of this feels too fiddly, install to `C:\Games\StarDrivePlus64` (the default) and skip the Steam path entirely. The game runs identically — you just don't get Steam playtime tracking.
 
