@@ -364,7 +364,19 @@ namespace Ship_Game
                         return true;
                     }
 
-                    if (Input.IsAltKeyDown)
+                    // Snap modifier differs by AltArcControl mode:
+                    //   - Default mode: LMB-held is the activation; Alt as
+                    //     modifier means "snap to closest existing turret."
+                    //   - AltArcControl mode: Alt+LMB is the activation, so
+                    //     Alt can't double as the snap modifier (it's *always*
+                    //     held inside this block). Use Ctrl as snap modifier
+                    //     instead — Ctrl-held during a drag doesn't conflict
+                    //     with anything else in InputState (Ctrl+Z/Ctrl+Y are
+                    //     key-press combos, not Ctrl-held).
+                    bool wantSnap = GlobalStats.AltArcControl
+                        ? Input.IsCtrlKeyDown
+                        : Input.IsAltKeyDown;
+                    if (wantSnap)
                     {
                         // Snap to the closest existing turret angle on the ship.
                         // Excludes the highlighted turret itself, and (in
@@ -377,12 +389,16 @@ namespace Ship_Game
                         if (TryFindClosestExistingTurretAngle(slotStruct, highlighted, arc, out int snap))
                         {
                             SetFiringArc(slotStruct, snap, round:false);
-                            return true;
                         }
                         // No other arc-turret on the ship to snap to; leave the
                         // current arc unchanged rather than silently committing
-                        // the unaligned cursor angle.
-                        return false;
+                        // the unaligned cursor angle. Still return true: the
+                        // user is actively performing an arc-move gesture and
+                        // the input should be consumed even when there's
+                        // nothing to snap to, so downstream input handlers
+                        // (HandleModuleSelection etc.) don't see the Alt-held
+                        // LMB and interpret it as something else.
+                        return true;
                     }
                     else
                     {
