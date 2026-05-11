@@ -35,7 +35,7 @@ Feel free to drop in for questions, bug reports, requests and what not.
 
 # BlackBox - Jupiter (current)
 What Jupiter 1.60 delivers, building on the Mars line:
-* **64-bit engine** — the 32-bit ~3 GB process ceiling is gone; late-game crashes with large empires or Combined Arms are fixed
+* **64-bit engine** — the 32-bit ~2 GB process ceiling is gone; late-game crashes with large empires or Combined Arms are fixed
 * **MonoGame 3.8 renderer** replaces the discontinued XNA + SunBurn stack; no more XNA 3.1 redistributable requirement
 * **.NET 8 runtime** bundled with the installer (was .NET Framework 4.8)
 * Restored visual effects, skinned/animated meshes, material maps, post-process passes, basic shadow maps
@@ -86,7 +86,7 @@ What the Mars line delivered (1.50 / 1.51), now preserved on the [`mars-1.51`](h
 * For other feature ideas, you can join our Discord chat and talk with the team!
 
 # Modding
-BlackBox - Jupiter has greatly improved modding capabilities over the original game,
+BlackBox has greatly improved modding capabilities over the original game,
 contact us in [Discord](https://discord.gg/dfvnfH4) for more information on modding.
 
 ## What is moddable?
