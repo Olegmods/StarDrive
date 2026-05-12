@@ -236,6 +236,11 @@ namespace Ship_Game
             // SDK background threads briefly touching the file during
             // shutdown, antivirus scanners holding the file open after the
             // process exits, etc.
+            // Only retry on the sharing/lock HRESULTs that mean "another process
+            // still has the file" — retrying on disk-full, perm-denied, or
+            // invalid-path just delays surfacing the real error by ~1s.
+            const int errorSharingViolation = unchecked((int)0x80070020); // ERROR_SHARING_VIOLATION
+            const int errorLockViolation    = unchecked((int)0x80070021); // ERROR_LOCK_VIOLATION
             const int maxAttempts = 10;
             const int retryDelayMs = 100;
             for (int attempt = 1; ; attempt++)
@@ -250,7 +255,8 @@ namespace Ship_Game
                         AutoFlush = true
                     };
                 }
-                catch (IOException) when (attempt < maxAttempts)
+                catch (IOException ex) when (attempt < maxAttempts
+                    && (ex.HResult == errorSharingViolation || ex.HResult == errorLockViolation))
                 {
                     Thread.Sleep(retryDelayMs);
                 }
