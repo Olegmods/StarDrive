@@ -32,6 +32,12 @@ namespace Ship_Game
         public readonly SubTexture Texture;
         public readonly StaticMesh Model;
 
+        // Set inside Update when the bomb should be retired (impact or miss).
+        // The sim loop in UniverseScreen.UpdateGame.cs does the actual
+        // BombList.RemoveAt — keeps BombList mutation single-threaded relative
+        // to the main-thread DrawBombs reader.
+        public bool Dead { get; private set; }
+
         public Bomb(Vector3 position, Empire empire, string weaponName, int shipLevel, float shipHealthPercent)
         {
             Owner = empire;
@@ -60,7 +66,7 @@ namespace Ship_Game
         void DoImpact()
         {
             TargetPlanet.DropBomb(this);
-            Owner.Universe.Screen.BombList.Remove(this);
+            Dead = true;
         }
 
         private void SurfaceImpactEffects()
@@ -131,12 +137,23 @@ namespace Ship_Game
             Vector3 planetPos = TargetPlanet.Position3D;
             float impactRadius = TargetPlanet.ShieldStrengthCurrent > 0f ? 100f : 30f;
             if (Position.InRadius(planetPos, PlanetRadius + impactRadius))
+            {
                 DoImpact();
-
+                return;
+            }
 
             // fiery trail radius:
-            if (!Position.InRadius(planetPos, PlanetRadius + 1000f))
+            bool insideTrailZone = Position.InRadius(planetPos, PlanetRadius + 1000f);
+            if (!insideTrailZone)
+            {
+                // If TrailEmitter already exists, the bomb was inside the trail
+                // zone on a previous frame and has now exited without hitting —
+                // it missed. Mark it dead so the mesh doesn't keep drawing
+                // forever as the bomb sails off into space.
+                if (TrailEmitter != null)
+                    Dead = true;
                 return;
+            }
 
             if (TrailEmitter == null)
             {
