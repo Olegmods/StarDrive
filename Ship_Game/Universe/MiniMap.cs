@@ -310,7 +310,7 @@ namespace Ship_Game
                 
                 {
                     float radius = Math.Min(0.09f, nodeRad);
-                    // Empire-colored gradient halo (alpha 150).
+                    // Empire-colored gradient halo (alpha 80).
                     batch.Draw(Node1, nodePos, ec, 0f, nodeOrigin, radius, SpriteEffects.None, 1f);
                     // Black-tinted gradient overlay to dim the surroundings.
                     batch.Draw(Node1, nodePos, transparentBlack, 0f, nodeOrigin, nodeRad, SpriteEffects.None, 1f);
