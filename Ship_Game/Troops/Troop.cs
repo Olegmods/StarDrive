@@ -442,7 +442,11 @@ namespace Ship_Game
         {
             if (!forceLaunch && !CanLaunch)
                 return null;
-            if (HostPlanet?.Troops.TryRemoveTroop(tile, this) != true)
+            // quiet: UniverseObjectManager.UpdateAllShips runs ship updates in parallel, so two
+            // ships' ProcessResupply → GetTroopShipForRebase calls can pick the same launchable
+            // troop from the same planet. The loser hits TryRemoveTroop after the winner already
+            // removed it — benign (caller gets null, retries next tick) but used to spam Sentry.
+            if (HostPlanet?.Troops.TryRemoveTroop(tile, this, quiet: true) != true)
                 return null;
 
             Ship troopShip = CreateShipForTroop(HostPlanet);
