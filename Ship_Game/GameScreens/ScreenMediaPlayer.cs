@@ -155,7 +155,10 @@ namespace Ship_Game.GameScreens
             }
             catch (Exception ex)
             {
-                Log.Error(ex, $"PlayVideo failed: 'Video/{videoPath}'");
+                // Mark failed so callers (e.g. DiplomacyScreen.Update gates PlayVideoAndMusic on
+                // !PlaybackFailed) stop retrying every frame after a definitive load failure.
+                PlaybackFailed = true;
+                Log.Warning($"PlayVideo failed: 'Video/{videoPath}' reason: {ex.Message}");
             }
         }
 
@@ -265,25 +268,37 @@ namespace Ship_Game.GameScreens
 
         public void Update(GameScreen screen)
         {
-            if (!PlaybackSuccess || IsDisposed)
+            if (!PlaybackSuccess || IsDisposed || PlaybackFailed)
                 return;
 
-            if (Video != null && Player.State != MediaState.Stopped)
+            try
             {
-                // pause video when game screen goes inactive
-                if (screen.IsActive && Player.State == MediaState.Paused)
-                    Player.Resume();
-                else if (!screen.IsActive && Player.State == MediaState.Playing)
-                    Player.Pause();
-            }
+                if (Video != null && Player.State != MediaState.Stopped)
+                {
+                    // pause video when game screen goes inactive
+                    if (screen.IsActive && Player.State == MediaState.Paused)
+                        Player.Resume();
+                    else if (!screen.IsActive && Player.State == MediaState.Playing)
+                        Player.Pause();
+                }
 
-            if (!ExtraMusic.IsStopped)
+                if (!ExtraMusic.IsStopped)
+                {
+                    // pause music if needed
+                    if (screen.IsActive && ExtraMusic.IsPaused)
+                        ExtraMusic.Resume();
+                    else if (!screen.IsActive && ExtraMusic.IsPlaying)
+                        ExtraMusic.Pause();
+                }
+            }
+            catch (Exception ex)
             {
-                // pause music if needed
-                if (screen.IsActive && ExtraMusic.IsPaused)
-                    ExtraMusic.Resume();
-                else if (!screen.IsActive && ExtraMusic.IsPlaying)
-                    ExtraMusic.Pause();
+                // Underlying MediaSession can transition to an invalid state (alt-tab, device loss,
+                // GPU reset, codec hiccup) and throw E_POINTER from Resume/Pause. Video is incidental;
+                // mark failed and bail so the game keeps running. DiplomacyScreen and other callers
+                // gate further PlayVideo calls on PlaybackFailed.
+                Log.Warning($"ScreenMediaPlayer.Update Pause/Resume failed for '{Name}': {ex.Message}");
+                PlaybackFailed = true;
             }
         }
 
@@ -299,9 +314,9 @@ namespace Ship_Game.GameScreens
 
         public void Draw(SpriteBatch batch, in Rectangle rect, Color color, float rotation, SpriteEffects effects)
         {
-            if (!PlaybackSuccess || Player.IsDisposed || !Active || IsDisposed)
+            if (!PlaybackSuccess || Player.IsDisposed || !Active || IsDisposed || PlaybackFailed)
                 return;
-            
+
             if (!Visible)
             {
                 if (IsPlaying)
@@ -314,7 +329,18 @@ namespace Ship_Game.GameScreens
                 // don't grab lo-fi default video thumbnail while video is looping around
                 if (CaptureThumbnail || Player.PlayPosition.TotalMilliseconds > 0)
                 {
-                    Frame = Player.GetTexture();
+                    try
+                    {
+                        Frame = Player.GetTexture();
+                    }
+                    catch (Exception ex)
+                    {
+                        // Same MediaSession failure mode as Update's Pause/Resume: platform layer can
+                        // return a null texture / throw when the underlying video session is invalid.
+                        Log.Warning($"ScreenMediaPlayer.Draw GetTexture failed for '{Name}': {ex.Message}");
+                        PlaybackFailed = true;
+                        return;
+                    }
                 }
             }
 

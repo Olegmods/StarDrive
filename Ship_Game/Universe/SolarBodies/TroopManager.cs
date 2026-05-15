@@ -75,7 +75,10 @@ namespace Ship_Game
             }
         }
 
-        public bool TryRemoveTroop(PlanetGridSquare tile, Troop troop)
+        // quiet: caller knows the troop may already be gone (concurrent removal race) and
+        // doesn't want this surfaced to Sentry. Used by Troop.LaunchToSpace where parallel
+        // ship updates can pick the same launchable troop.
+        public bool TryRemoveTroop(PlanetGridSquare tile, Troop troop, bool quiet = false)
         {
             lock (TroopsHere)
             {
@@ -89,7 +92,8 @@ namespace Ship_Game
                     return true;
                 }
 
-                Log.Error($"Could not remove troop {troop} on planet {Ground.Name}");
+                if (!quiet)
+                    Log.Error($"Could not remove troop {troop} on planet {Ground.Name}");
                 return false;
             }
         }
