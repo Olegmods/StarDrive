@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Xna.Framework;
 
@@ -10,6 +11,10 @@ internal static class Program
     public const int GAME_RUN_FAILURE = -1;
     public const int SCREEN_UPDATE_FAILURE = -2;
     public const int UNHANDLED_EXCEPTION = -3;
+    public const int NATIVE_DLL_LOAD_FAILURE = -4;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "MessageBoxW")]
+    static extern int Win32MessageBox(IntPtr hWnd, string text, string caption, uint type);
 
     // Set by --apply-patch=<version> CLI arg. AutoPatcher's pre-elevation pass
     // (non-elevated download + unzip) writes a PendingPatch.json marker, then
@@ -199,6 +204,40 @@ internal static class Program
         return runGame;
     }
 
+    // Probe SDNative.dll explicitly so we can produce a clear, actionable error if the file
+    // is blocked by Windows security policy (Smart App Control, WDAC, AppLocker) or quarantined
+    // by AV. Without this probe the failure surfaces deep in startup as a TypeInitializationException
+    // for Ship_Game.Parallel (the first P/Invoke into SDNative.dll), which gives the user an opaque
+    // stack trace they can't act on. See Sentry HRESULT 0x800711C7 reports for context.
+    static void EnsureNativeDependenciesLoadable()
+    {
+        try
+        {
+            NativeLibrary.Load("SDNative.dll", typeof(Program).Assembly, null);
+        }
+        catch (Exception ex)
+        {
+            const uint MB_OK = 0x0;
+            const uint MB_ICONERROR = 0x10;
+            string message =
+                "StarDrive cannot start because the required native library 'SDNative.dll' could not be loaded.\n\n" +
+                "This is most often caused by Windows security policies blocking the file:\n" +
+                "  • Smart App Control (Windows 11)\n" +
+                "  • Windows Defender Application Control (WDAC) or AppLocker\n" +
+                "  • Antivirus quarantine\n\n" +
+                "How to fix:\n" +
+                "  1. Open Windows Security → App & browser control → Smart App Control settings.\n" +
+                "     Set it to 'Off' or 'Evaluation'.\n" +
+                "  2. Add an exception in your antivirus for the StarDrive install folder.\n" +
+                "  3. On a managed (work/school) machine, contact your IT administrator.\n\n" +
+                "Need help? Join our Discord server (link is on the game release page) and we'll help you sort it out.\n\n" +
+                "Technical details:\n" + ex.Message;
+
+            Win32MessageBox(IntPtr.Zero, message, "StarDrive — Native library blocked", MB_OK | MB_ICONERROR);
+            Environment.Exit(NATIVE_DLL_LOAD_FAILURE);
+        }
+    }
+
     [STAThread]
     static void Main(string[] args)
     {
@@ -208,6 +247,8 @@ internal static class Program
         Thread.CurrentThread.CurrentUICulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentCulture   = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+
+        EnsureNativeDependenciesLoadable();
 
         try
         {
