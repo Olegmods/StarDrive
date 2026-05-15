@@ -185,9 +185,23 @@ namespace Ship_Game
             if (IsDeviceGood)
             {
                 FrameTimeLogger.BeginDraw();
-                ScreenManager.ClearScreen(Color.Black);
-                ScreenManager.Draw();
-                base.Draw(gameTime);
+                try
+                {
+                    ScreenManager.ClearScreen(Color.Black);
+                    ScreenManager.Draw();
+                    base.Draw(gameTime);
+                }
+                finally
+                {
+                    // Defensive: several render-to-texture paths (Bloom, Distortion, ShadowMap,
+                    // FogMap ping-pong, DrawBorders RT, LightsTarget, MainTarget) bind a render
+                    // target without try/finally cleanup. If any of them throws or skips its
+                    // SetRenderTarget(null), MonoGame crashes Present with
+                    // "Cannot call Present when a render target is active." Restore the back
+                    // buffer unconditionally as a safety net. The underlying leak should still
+                    // be tracked and fixed; this just stops it from taking the game down.
+                    ScreenManager?.GraphicsDevice?.SetRenderTarget(null);
+                }
                 string topScreen = ScreenManager.NumScreens > 0
                     ? ScreenManager.Current?.GetType().Name ?? ""
                     : "";
