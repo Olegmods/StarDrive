@@ -60,16 +60,15 @@ public static class GameAudio
         try
         {
             Destroy(); // just in case
+            AudioEngineGood = false; // reset; only flip true once Music/RacialMusic/AudioEngine are all set
 
             Devices = new();
-            AudioEngineGood = true;
 
             // try selecting an audio device if no argument given
             if (device == null && !Devices.PickAudioDevice(out device))
             {
                 Log.Warning("GameAudio is disabled since audio device selection failed.");
                 AudioDisabled = true;
-                AudioEngineGood = false;
                 return;
             }
 
@@ -86,10 +85,19 @@ public static class GameAudio
             AsyncSfxQueue = new(16);
             SfxThread = new(SfxEnqueueThread) { Name = "GameAudioSfx" };
             SfxThread.Start();
+
+            // Invariant for callers: AudioEngineGood == true implies Music, RacialMusic and
+            // AudioEngine are non-null. Worker threads (e.g. LoadGame.SetupUniverseScreen calling
+            // StopGenericMusic) may observe this flag concurrently with a re-init, so flipping
+            // it early — before fields are populated — caused NREs on Music.Stop.
+            AudioEngineGood = true;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "AudioEngine init failed. Make sure that Speakers/Headphones are attached");
+            // Almost always user-environment: WASAPI AUDCLNT_E_UNSUPPORTED_FORMAT (0x88890008) from
+            // Bluetooth headsets in handsfree/mono, USB DACs with restricted format support, virtual
+            // audio devices, or a device-switch race. Game gracefully degrades to silent mode.
+            Log.Warning($"AudioEngine init failed (game will run without sound): {ex.Message}");
             Destroy();
             AudioEngineGood = false;
         }
@@ -154,7 +162,7 @@ public static class GameAudio
     public static void StopGenericMusic(bool fadeout)
     {
         if (AudioEngineGood)
-            Music.Stop(fadeout);
+            Music?.Stop(fadeout);
     }
 
     public static void PauseGenericMusic()  { if (!IsMusicDisabled) Music.Pause(); }
