@@ -106,9 +106,23 @@ namespace Ship_Game
             }
         }
 
-        public bool Done => DefendingTroop?.Strength <= 0 || DefendingBuilding?.IsDestroyed == true 
-                                                          || AttackingBuilding?.IsDestroyed == true 
-                                                          || AttackingTroop?.Strength <= 0;
+        // External paths (volcano lava, ship crash, terraforming, bomb tile destroy, outcome events,
+        // UI scrap) can remove a building from BuildingList + tile while its Strength is still > 0.
+        // The Combat keeps a direct ref to the orphaned Building, ticks damage onto it, eventually
+        // drives Strength <= 0, then DestroyBuilding fails because it's already gone from the list.
+        // Detect the orphan state so ResolveTacticalCombats can sweep this Combat cleanly first.
+        bool DefendingBuildingOrphaned => DefendingBuilding != null
+                                       && DefenseTile != null
+                                       && DefenseTile.Building != DefendingBuilding;
+
+        bool AttackingBuildingOrphaned => AttackingBuilding != null
+                                       && !Planet.HasBuilding(b => b == AttackingBuilding);
+
+        public bool Done => DefendingTroop?.Strength <= 0 || DefendingBuilding?.IsDestroyed == true
+                                                          || AttackingBuilding?.IsDestroyed == true
+                                                          || AttackingTroop?.Strength <= 0
+                                                          || DefendingBuildingOrphaned
+                                                          || AttackingBuildingOrphaned;
 
         private struct AttackerStats
         {
