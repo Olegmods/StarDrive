@@ -235,7 +235,7 @@ namespace Ship_Game.Commands.Goals
                 return false;
 
             // Refit only one station of this resource type on this planet per refit
-            if (MiningStation.Name != bestRefit
+            if (MiningStation.Name != bestRefit 
                 && Owner.NeedMoreMiningOpsOfThis(ExoticBonusType)
                 && !Owner.AI.HasGoal(g => g is RefitOrbital && g.ToBuild.IsMiningStation && g.OldShip == MiningStation))
             {

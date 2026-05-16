@@ -871,7 +871,8 @@ namespace Ship_Game
         {
             foreach (Technology.LeadsToTech leadsToTech in tech.Tech.LeadsTo)
             {
-                TechEntry entry = GetTechEntry(leadsToTech.UID);
+                if (!TryGetTechEntry(leadsToTech.UID, out TechEntry entry))
+                    continue;
                 if (entry.shipDesignsCanuseThis || WeCanUseThisLater(entry))
                     return true;
             }
