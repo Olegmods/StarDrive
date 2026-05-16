@@ -187,12 +187,14 @@ jobs:
         run: |
           $codename = $env:CODENAME.ToLower()
           $prev = git tag --list "$codename-patch-*" --sort=-v:refname | Select-Object -First 1
+          # `--format='- %s'` drops the commit SHA and prefixes each subject with
+          # a hyphen, which GitHub renders as a markdown bullet in the release body.
           if ($prev) {
             Write-Host "Previous tag: $prev"
-            $log = git log "$prev..HEAD" --oneline --no-merges
+            $log = git log "$prev..HEAD" --format='- %s' --no-merges
           } else {
             Write-Host "No previous patch tag; falling back to last 20 commits"
-            $log = git log -20 --oneline --no-merges
+            $log = git log -20 --format='- %s' --no-merges
           }
           if (-not $log) { $log = "_(no new commits since previous patch)_" }
 
