@@ -674,8 +674,15 @@ internal class AutoPatcher : PopupWindow
             {
                 // Restore best-effort: if even the restore fails we can't fix it,
                 // and chaining the original cause is more useful than a noisy throw
-                // from inside a catch.
-                try { File.Move(tmpFile, dstFile); } catch { }
+                // from inside a catch. Log the swallowed reason so an operator
+                // reading the patch log can correlate a missing file with the
+                // failed restore (otherwise the install just appears truncated).
+                try { File.Move(tmpFile, dstFile); }
+                catch (Exception restoreEx)
+                {
+                    Log.Warning(ConsoleColor.Red,
+                        $"AutoPatcher: failed to restore {relPath} from {tmpFile}: {restoreEx.Message}");
+                }
             }
 
             throw new IOException(relPath, e);

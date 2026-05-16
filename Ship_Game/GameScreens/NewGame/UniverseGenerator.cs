@@ -861,7 +861,13 @@ namespace Ship_Game.GameScreens.NewGame
                 // edge clusters look as airy as inner ones. Subtract `offset` to leave a
                 // small natural gap between neighbors. Captured BEFORE the post-creation
                 // Center jitter so cluster size stays stable as Center moves.
-                SampleRadius = Math.Min(xSection, ySection) - offset;
+                //
+                // LowerBound: on very dense grids (e.g. SmallClusters numSectorsPerAxis ~15,
+                // xSection ~0.067 universeSize) `min - offset` can drift negative because
+                // offsetMultiplier floors at 0.28/4 = 0.07. A negative radius silently
+                // inverts GenerateRandomPointInsideCircle and makes the safeInner clamp
+                // larger than universeSize. Pin to 5% of half-extent as a sane floor.
+                SampleRadius = (Math.Min(xSection, ySection) - offset).LowerBound(universeSize * 0.05f);
 
                 // Post-creation jitter: move Center in a random direction by a random
                 // magnitude to break the visible grid pattern. Magnitude varies per
