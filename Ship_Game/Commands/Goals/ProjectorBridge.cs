@@ -39,11 +39,18 @@ namespace Ship_Game.Commands.Goals
             ProjectorBridgeEndCondition endCondition) : this(e)
         {
             TargetSystem = targetSystem;
-            float distanceToDeploy = Owner.AI.SpaceRoadsManager.ProgectorBridgeRadiusThreshold;
-            Vector2 dir = targetSystem.Position.DirectionToTarget(originPos);
-            StaticBuildPosition = TargetSystem.Position + dir * distanceToDeploy;
+            StaticBuildPosition = GetBridgeBuildPosition(targetSystem, originPos, Owner);
             BuildGoal = new BuildConstructionShip(StaticBuildPosition, "Subspace Projector", Owner, rush: true);
             EndCondition = endCondition;
+        }
+
+        // directionRefPos is only used to pick which side of the target system the bridge
+        // projector lands on; the build position itself is always offset from the system center.
+        public static Vector2 GetBridgeBuildPosition(SolarSystem targetSystem, Vector2 directionRefPos, Empire owner)
+        {
+            float distanceToDeploy = owner.AI.SpaceRoadsManager.ProgectorBridgeRadiusThreshold;
+            Vector2 dir = targetSystem.Position.DirectionToTarget(directionRefPos);
+            return targetSystem.Position + dir * distanceToDeploy;
         }
 
         GoalStep BuildProjector()
