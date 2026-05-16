@@ -653,9 +653,12 @@ namespace Ship_Game.GameScreens.NewGame
 
         void GenerateBigClusters(ProgressCounter step)
         {
-            // Divides the galaxy to several sectors and populates each sector with stars
+            // Divides the galaxy to several sectors and populates each sector with stars.
+            // 0.35 deviation lets each cluster center wander noticeably off its grid point
+            // so a 3x2 / 3x3 layout doesn't look mechanical. Sector ctor enforces a
+            // border pad so the wider deviation can't push systems against the universe rim.
             (int numHorizontalSectors, int numVerticalSectors) = GetNumSectors(NumOpponents + 1);
-            Array<Sector> sectors = GenerateSectors(numHorizontalSectors, numVerticalSectors, 0.25f);
+            Array<Sector> sectors = GenerateSectors(numHorizontalSectors, numVerticalSectors, 0.35f);
             GenerateClustersStartingSystems(step, sectors);
             GenerateClusterSystems(step, sectors);
         }
@@ -665,7 +668,7 @@ namespace Ship_Game.GameScreens.NewGame
             // Divides the galaxy to many sectors and populates each sector with stars
             int numSectorsPerAxis = GetNumSectorsPerAxis(NumSystems, NumOpponents + 1);
             float offsetMultiplier = 0.28f / numSectorsPerAxis.UpperBound(4);
-            float deviation = 0.05f * numSectorsPerAxis.UpperBound(4);
+            float deviation = 0.07f * numSectorsPerAxis.UpperBound(4);
             Array<Sector> sectors = GenerateSectors(numSectorsPerAxis, numSectorsPerAxis, deviation, offsetMultiplier);
             GenerateClustersStartingSystems(step, sectors, numSectorsPerAxis - 1);
             GenerateClusterSystems(step, sectors);
@@ -808,12 +811,12 @@ namespace Ship_Game.GameScreens.NewGame
 
         struct Sector
         {
-            private readonly float RightX;
+            private readonly float SampleRadius;
             private readonly Vector2 Center;
             public readonly int X;
             public readonly int Y;
 
-            public Sector(RandomBase random, float universeSize, 
+            public Sector(RandomBase random, float universeSize,
                           int horizontalSectors, int verticalSectors, int horizontalNum, int verticalNum,
                           float deviation, float offsetMultiplier) : this()
             {
@@ -823,6 +826,14 @@ namespace Ship_Game.GameScreens.NewGame
                 float ySection = universeSize / verticalSectors;
                 float offset = universeSize * offsetMultiplier;
 
+                // Border pad keeps cluster bounds (and therefore the systems sampled
+                // inside them) away from the universe rim, even when a wide deviation
+                // would otherwise push an edge sector hard against the wall.
+                float borderPad = universeSize * 0.08f;
+                float innerSize = universeSize - borderPad;
+                float minBound  = -innerSize;
+                float maxBound  = +innerSize;
+
                 // raw center is the center of the sector before generating offset (for gaps)
                 Vector2 rawCenter = new Vector2(-universeSize + xSection * (-1 + horizontalNum * 2),
                                              -universeSize + ySection * (-1 + verticalNum * 2));
@@ -830,17 +841,38 @@ namespace Ship_Game.GameScreens.NewGame
                 // Some deviation in the center of the cluster
                 rawCenter = rawCenter.GenerateRandomPointInsideCircle(universeSize * deviation, random);
 
-                float leftX = (rawCenter.X - xSection).LowerBound(-universeSize);
-                RightX = (rawCenter.X + xSection).UpperBound(universeSize);
-                float topY = (rawCenter.Y - ySection).LowerBound(-universeSize) + offset;
-                float botY = (rawCenter.Y + ySection).UpperBound(universeSize) - offset;
+                float leftX  = (rawCenter.X - xSection).LowerBound(minBound);
+                float rightX = (rawCenter.X + xSection).UpperBound(maxBound);
+                float topY   = (rawCenter.Y - ySection).LowerBound(minBound) + offset;
+                float botY   = (rawCenter.Y + ySection).UpperBound(maxBound) - offset;
 
-                // creating some gaps between clusters
-                GenerateOffset(universeSize, offset, ref leftX, ref RightX);
-                GenerateOffset(universeSize, offset, ref topY, ref botY);
+                // creating some gaps between clusters; pass innerSize so the edge-detection
+                // inside GenerateOffset still fires for sectors clamped to the padded bound.
+                GenerateOffset(innerSize, offset, ref leftX, ref rightX);
+                GenerateOffset(innerSize, offset, ref topY, ref botY);
 
-                // This is the true Center, after all offsets are applied with borders
-                Center = new Vector2((leftX + RightX) / 2, (topY + botY) / 2);
+                Center = new Vector2((leftX + rightX) * 0.5f, (topY + botY) * 0.5f);
+
+                // Sample radius derives from the GRID section size, not the post-offset
+                // bounds. Edge sectors get clamped + offset-shrunk by GenerateOffset above,
+                // which would give them a noticeably smaller radius than inner sectors and
+                // make their stars visibly crowded for the same star count. Anchoring the
+                // radius to the grid section size gives every cluster the same scale, so
+                // edge clusters look as airy as inner ones. Subtract `offset` to leave a
+                // small natural gap between neighbors. Captured BEFORE the post-creation
+                // Center jitter so cluster size stays stable as Center moves.
+                SampleRadius = Math.Min(xSection, ySection) - offset;
+
+                // Post-creation jitter: move Center in a random direction by a random
+                // magnitude to break the visible grid pattern. Magnitude varies per
+                // cluster so neighbors don't shift uniformly together. Clamped to a
+                // safe inner box so the cluster never wanders toward the rim.
+                float maxJitter = universeSize * 0.18f;
+                float safeInner = universeSize - SampleRadius - borderPad;
+                Vector2 jitter = random.Direction2D() * random.Float(0f, maxJitter);
+                Center = new Vector2(
+                    (Center.X + jitter.X).Clamped(-safeInner, safeInner),
+                    (Center.Y + jitter.Y).Clamped(-safeInner, safeInner));
             }
 
             // Offset from borders. Less offset if near one or 2 edges
@@ -863,7 +895,7 @@ namespace Ship_Game.GameScreens.NewGame
                 }
             }
 
-            public Vector2 GetRandomPosInSector(RandomBase random) => Center.GenerateRandomPointInsideCircle(RightX - Center.X, random);
+            public Vector2 GetRandomPosInSector(RandomBase random) => Center.GenerateRandomPointInsideCircle(SampleRadius, random);
         }
 
         Vector2 GenerateRandomCorners(int corner) //Added by Gretman for Corners Game type
