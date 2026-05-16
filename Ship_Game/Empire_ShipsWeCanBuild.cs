@@ -8,52 +8,124 @@ namespace Ship_Game;
 
 public sealed partial class Empire
 {
-    [StarData] public HashSet<IShipDesign> ShipsWeCanBuild;
+    // Source of truth; private so all external access goes through the safe API
+    // (Snapshot/Count for reads, AddBuildableShip/RemoveBuildableShip/ClearShipsWeCanBuild
+    // for writes). Both HashSets are mutated under the same lock and share the cache
+    // invalidation flow.
+    [StarData] HashSet<IShipDesign> ShipsWeCanBuild;
     // shipyards, platforms, SSP-s
-    [StarData] public HashSet<IShipDesign> SpaceStationsWeCanBuild;
+    [StarData] HashSet<IShipDesign> SpaceStationsWeCanBuild;
+
+    // Copy-on-write cache for safe lock-free iteration. Sim-thread readers used
+    // to iterate the HashSets directly and could crash with `Collection was modified`
+    // when any other code path mutated them concurrently. Now readers call the
+    // *Snapshot properties which return these cached arrays; the cache is
+    // invalidated to null by every writer under ShipsWeCanBuildLock and lazily
+    // rebuilt on the next read. `volatile` is required because the reader's
+    // fast path is lock-free — without it the JIT could cache the field in a
+    // register and never observe the writer's invalidation.
+    readonly object ShipsWeCanBuildLock = new();
+    volatile IShipDesign[] CachedShipsWeCanBuildSnapshot;
+    volatile IShipDesign[] CachedSpaceStationsWeCanBuildSnapshot;
 
     // For TESTING
-    public string[] ShipsWeCanBuildIds => ShipsWeCanBuild.Select(s => s.Name);
+    public string[] ShipsWeCanBuildIds => ShipsWeCanBuildSnapshot.Select(s => s.Name);
+
+    /// <summary>
+    /// Stable snapshot of ShipsWeCanBuild for safe iteration. Lock-free in the
+    /// common case (cache hit). Use this instead of iterating ShipsWeCanBuild
+    /// directly from any code path that might race with ship-design mutations.
+    /// </summary>
+    public IShipDesign[] ShipsWeCanBuildSnapshot
+    {
+        get
+        {
+            var snap = CachedShipsWeCanBuildSnapshot;
+            if (snap != null)
+                return snap;
+            lock (ShipsWeCanBuildLock)
+                return CachedShipsWeCanBuildSnapshot ??= ShipsWeCanBuild.ToArray();
+        }
+    }
+
+    /// <summary>Stable snapshot of SpaceStationsWeCanBuild. See ShipsWeCanBuildSnapshot.</summary>
+    public IShipDesign[] SpaceStationsWeCanBuildSnapshot
+    {
+        get
+        {
+            var snap = CachedSpaceStationsWeCanBuildSnapshot;
+            if (snap != null)
+                return snap;
+            lock (ShipsWeCanBuildLock)
+                return CachedSpaceStationsWeCanBuildSnapshot ??= SpaceStationsWeCanBuild.ToArray();
+        }
+    }
+
+    public int ShipsWeCanBuildCount         => ShipsWeCanBuildSnapshot.Length;
+    public int SpaceStationsWeCanBuildCount => SpaceStationsWeCanBuildSnapshot.Length;
 
     /// <summary>
     /// TRUE if this Empire can build this ship
     /// </summary>
     public bool CanBuildShip(string shipUID)
     {
-        if (ResourceManager.Ships.GetDesign(shipUID, out IShipDesign design))
+        if (!ResourceManager.Ships.GetDesign(shipUID, out IShipDesign design))
+            return false;
+        lock (ShipsWeCanBuildLock)
             return ShipsWeCanBuild.Contains(design);
-        return false;
     }
 
     public bool CanBuildShip(IShipDesign ship)
     {
-        return ship != null && ShipsWeCanBuild.Contains(ship);
+        if (ship == null) return false;
+        lock (ShipsWeCanBuildLock)
+            return ShipsWeCanBuild.Contains(ship);
     }
 
     public bool CanBuildStation(IShipDesign station)
     {
-        return station != null && SpaceStationsWeCanBuild.Contains(station);
+        if (station == null) return false;
+        lock (ShipsWeCanBuildLock)
+            return SpaceStationsWeCanBuild.Contains(station);
     }
 
     public bool AddBuildableShip(IShipDesign ship)
     {
-        bool added = ShipsWeCanBuild.Add(ship);
-        if (added && ship.Role <= RoleName.station)
-            SpaceStationsWeCanBuild.Add(ship);
-        return added;
+        lock (ShipsWeCanBuildLock)
+        {
+            bool added = ShipsWeCanBuild.Add(ship);
+            if (added)
+            {
+                CachedShipsWeCanBuildSnapshot = null;
+                if (ship.Role <= RoleName.station && SpaceStationsWeCanBuild.Add(ship))
+                    CachedSpaceStationsWeCanBuildSnapshot = null;
+            }
+            return added;
+        }
     }
 
     public bool RemoveBuildableShip(IShipDesign ship)
     {
-        bool removed = ShipsWeCanBuild.Remove(ship);
-        SpaceStationsWeCanBuild.Remove(ship);
-        return removed;
+        lock (ShipsWeCanBuildLock)
+        {
+            bool removed = ShipsWeCanBuild.Remove(ship);
+            if (removed)
+                CachedShipsWeCanBuildSnapshot = null;
+            if (SpaceStationsWeCanBuild.Remove(ship))
+                CachedSpaceStationsWeCanBuildSnapshot = null;
+            return removed;
+        }
     }
 
     public void ClearShipsWeCanBuild()
     {
-        ShipsWeCanBuild.Clear();
-        SpaceStationsWeCanBuild.Clear();
+        lock (ShipsWeCanBuildLock)
+        {
+            ShipsWeCanBuild.Clear();
+            SpaceStationsWeCanBuild.Clear();
+            CachedShipsWeCanBuildSnapshot = null;
+            CachedSpaceStationsWeCanBuildSnapshot = null;
+        }
     }
 
     public void FactionShipsWeCanBuild()
@@ -85,14 +157,15 @@ public sealed partial class Empire
 
     public void RemoveInvalidShipDesigns()
     {
-        if (ShipsWeCanBuild.Any(sd => !sd.IsValidDesign))
+        IShipDesign[] snapshot = ShipsWeCanBuildSnapshot;
+        for (int i = 0; i < snapshot.Length; i++)
         {
-            foreach (IShipDesign sd in ShipsWeCanBuild.ToArr())
-                if (!sd.IsValidDesign)
-                {
-                    Log.Warning($"Removing invalid Buildable Ship: {sd.Name}");
-                    RemoveBuildableShip(sd);
-                }
+            IShipDesign sd = snapshot[i];
+            if (!sd.IsValidDesign)
+            {
+                Log.Warning($"Removing invalid Buildable Ship: {sd.Name}");
+                RemoveBuildableShip(sd);
+            }
         }
     }
 
@@ -139,12 +212,18 @@ public sealed partial class Empire
 
     public void RemoveDuplicateShipDesigns()
     {
-        RemoveDuplicateShipDesigns(ShipsWeCanBuild);
-        RemoveDuplicateShipDesigns(SpaceStationsWeCanBuild);
+        lock (ShipsWeCanBuildLock)
+        {
+            if (RemoveDuplicateShipDesigns(ShipsWeCanBuild))
+                CachedShipsWeCanBuildSnapshot = null;
+            if (RemoveDuplicateShipDesigns(SpaceStationsWeCanBuild))
+                CachedSpaceStationsWeCanBuildSnapshot = null;
+        }
     }
 
-    void RemoveDuplicateShipDesigns(HashSet<IShipDesign> designs)
+    bool RemoveDuplicateShipDesigns(HashSet<IShipDesign> designs)
     {
+        bool anyRemoved = false;
         Map<string, IShipDesign> unique = new();
         foreach (IShipDesign design in designs.ToArr())
         {
@@ -172,7 +251,8 @@ public sealed partial class Empire
                                 $"Remove Cost={toRemove.BaseCost} Warp={toRemove.BaseWarpThrust} Str={toRemove.BaseStrength}.");
                 }
 
-                designs.Remove(toRemove);
+                if (designs.Remove(toRemove))
+                    anyRemoved = true;
                 unique[design.Name] = toKeep;
             }
             else
@@ -180,6 +260,7 @@ public sealed partial class Empire
                 unique.Add(design.Name, design);
             }
         }
+        return anyRemoved;
     }
 
     public bool WeCanShowThisWIP(IShipDesign shipData)
@@ -291,7 +372,7 @@ public sealed partial class Empire
             return true;
 
         var scoutShipsWeCanBuild = new Array<IShipDesign>();
-        foreach (IShipDesign design in ShipsWeCanBuild)
+        foreach (IShipDesign design in ShipsWeCanBuildSnapshot)
             if (design.Role == RoleName.scout)
                 scoutShipsWeCanBuild.Add(design);
 

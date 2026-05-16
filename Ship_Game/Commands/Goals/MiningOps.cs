@@ -225,12 +225,17 @@ namespace Ship_Game.Commands.Goals
             if (Owner.isPlayer && !Owner.AutoBuildMiningStations)
                 return false;
 
+            // BestMiningStationWeCanBuild is null until Empire.UpdateBestOrbitals has run, and
+            // can also stay null if the mod's data.MiningStation no longer resolves (Combined Arms
+            // renames designs). No candidate -> nothing to refit toward.
             string bestRefit = Owner.isPlayer && !Owner.AutoPickBestMiningStation
                 ? Owner.data.MiningStation
-                : Owner.BestMiningStationWeCanBuild.Name;
+                : Owner.BestMiningStationWeCanBuild?.Name;
+            if (bestRefit.IsEmpty())
+                return false;
 
             // Refit only one station of this resource type on this planet per refit
-            if (MiningStation.Name != bestRefit
+            if (MiningStation.Name != bestRefit 
                 && Owner.NeedMoreMiningOpsOfThis(ExoticBonusType)
                 && !Owner.AI.HasGoal(g => g is RefitOrbital && g.ToBuild.IsMiningStation && g.OldShip == MiningStation))
             {

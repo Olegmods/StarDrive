@@ -162,6 +162,19 @@ namespace Ship_Game.Spatial
                         var so = new NativeSpatialObject(go);
                         objectId = SpatialInsert(Spat, ref so);
                         go.SpatialIndex = objectId;
+
+                        // The native ObjectCollection::insert() returns `MaxObjects++`
+                        // when its FreeIds list is empty, so each insert past the
+                        // snapshot taken above grows MaxObjects on the native side.
+                        // The pre-sized `objects` array can therefore overflow when
+                        // many SpatialIndex==-1 objects appear in one UpdateAll
+                        // (Combined Arms mod with thousands of churning ships).
+                        // Geometric growth amortizes the resize cost across inserts.
+                        if (objectId >= objects.Length)
+                        {
+                            int newSize = Math.Max(objects.Length * 2, objectId + 1);
+                            Array.Resize(ref objects, newSize);
+                        }
                     }
                     else // update existing
                     {

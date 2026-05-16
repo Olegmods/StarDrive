@@ -368,7 +368,11 @@ namespace Ship_Game
             Strength = (Strength - amount).Clamped(0, ActualStrengthMax);
             if (Strength < 1)
             {
-                planet.Troops.TryRemoveTroop(tile, this);
+                // quiet: another path (orbital bombing, allied troop sweep, prior combat in same
+                // tick) can pull this troop out of TroopsHere while Combat still holds a direct
+                // ref. The troop is genuinely dead — caller marks dead=true and the Combat cleans
+                // itself up — but TryRemoveTroop would otherwise spam Sentry on the second remove.
+                planet.Troops.TryRemoveTroop(tile, this, quiet: true);
                 dead = true;
             }
         }

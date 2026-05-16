@@ -91,18 +91,27 @@ namespace Ship_Game
 
                 var frustum = VisibleWorldRect;
 
+                // Sort by MilitaryScore (weaker first, stronger drawn on top). Skip the player
+                // inside the loop and render them last so the player's influence always sits over
+                // every AI — matches the minimap rule in DrawMinimapInfluenceNodes.
                 Empire[] empires = UState.Empires.Sorted(e => e.MilitaryScore);
                 foreach (Empire empire in empires)
                 {
-                    bool canShowBorders = Debug || empire == Player || Player.IsKnown(empire);
-                    if (!canShowBorders)
+                    if (empire == Player)
                         continue;
+                    if (!Debug && !Player.IsKnown(empire))
+                        continue;
+                    DrawEmpireInfluence(empire);
+                }
+                DrawEmpireInfluence(Player);
 
+                void DrawEmpireInfluence(Empire empire)
+                {
                     empire.BorderNodeCache.Update(empire);
 
                     Empire.InfluenceNode[] nodes = empire.BorderNodeCache.BorderNodes;
                     if (nodes.Length == 0)
-                        continue;
+                        return;
 
                     draw3d.Begin(ViewProjection);
 
@@ -114,7 +123,6 @@ namespace Ship_Game
                     // overlapping gradient edges into nice blobs
                     RenderStates.EnableSeparateAlphaBlend(graphics, BorderBlendSrc, BorderBlendDest);
                     RenderStates.EnableAlphaTest(graphics, CompareFunction.Greater);
-                    //RenderStates.DisableAlphaTest(graphics);
 
                     Color empireColor = empire.EmpireColor.Alpha(GlobalStats.InfluenceNodeAlpha);
                     for (int x = 0; x < nodes.Length; x++)
