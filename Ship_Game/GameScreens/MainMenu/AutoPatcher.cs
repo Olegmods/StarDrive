@@ -573,6 +573,15 @@ internal class AutoPatcher : PopupWindow
             FileInfo[] filesToAdd = Dir.GetFiles(patchFilesFolder);
             var skipped = new Array<string>();
             int currentAction = 0;
+            int lockedFiles = 0;
+            // Per-file retry budget for stash-aside in MoveAndCreateDirs. Starts at 3 attempts
+            // (100/200/300 ms escalating waits) — handles isolated AV scans. After 5 files have
+            // exhausted retries we conclude the lock is systemic (AV scanning the whole patch
+            // dir, OneDrive batch-syncing, etc.) and drop to a single attempt so we don't burn
+            // minutes waiting on locks that won't clear this run. Skipped files survive in the
+            // staging cache and the user re-runs the patcher to pick them up next round.
+            int maxRetries = 3;
+            const int systemicLockThreshold = 5;
             foreach (FileInfo toAdd in filesToAdd)
             {
                 string srcFile = toAdd.FullName;
@@ -594,7 +603,24 @@ internal class AutoPatcher : PopupWindow
                 }
 
                 Log.Write($"CopyFile: {relPath}");
-                SafeCopy(srcFile, dstFile, relPath, tempDir);
+                try
+                {
+                    SafeCopy(srcFile, dstFile, relPath, tempDir, maxRetries);
+                }
+                catch (IOException e)
+                {
+                    // Dst file is locked (AV scan, OneDrive sync, game holding the texture, etc.).
+                    // SafeCopy already restored the previous dst on failure, so the install is
+                    // intact for this file. Skip rather than aborting — staging cache survives,
+                    // user can re-run the patcher to pick up whatever was locked this round.
+                    Log.Warning($"CopyFile skipped (destination locked — AV or in-use?): {relPath}: {e.Message}");
+                    skipped.Add(relPath);
+                    if (++lockedFiles == systemicLockThreshold && maxRetries > 1)
+                    {
+                        Log.Warning($"AutoPatcher: {systemicLockThreshold} locked files — dropping retries to 1 for remaining files");
+                        maxRetries = 1;
+                    }
+                }
                 ap.SetProgress(ProgressBarElement.GetPercent(++currentAction, filesToAdd.Length));
             }
 
@@ -657,14 +683,14 @@ internal class AutoPatcher : PopupWindow
     /// Move, which destroyed each source on success and left a half-gutted cache
     /// on any failure (no recovery without re-downloading).
     /// </summary>
-    static void SafeCopy(string srcFile, string dstFile, string relPath, string tempDir)
+    static void SafeCopy(string srcFile, string dstFile, string relPath, string tempDir, int maxRetries = 3)
     {
         string tmpFile = null;
         try
         {
             if (File.Exists(dstFile))
             {
-                tmpFile = MoveToTempPath(tempDir, relPath, dstFile);
+                tmpFile = MoveToTempPath(tempDir, relPath, dstFile, maxRetries);
             }
             CopyAndCreateDirs(srcFile, dstFile);
         }
@@ -726,7 +752,7 @@ internal class AutoPatcher : PopupWindow
     /// Moves `theFile` into `tempPath`, returning full path to the temp file,
     /// so that it can be restored if necessary
     /// </summary>
-    static string MoveToTempPath(string tempPath, string relPath, string theFile)
+    static string MoveToTempPath(string tempPath, string relPath, string theFile, int maxRetries = 3)
     {
         string tmpFile = Path.Combine(tempPath, relPath);
         if (File.Exists(tmpFile))
@@ -743,7 +769,7 @@ internal class AutoPatcher : PopupWindow
             }
         }
 
-        MoveAndCreateDirs(theFile, tmpFile);
+        MoveAndCreateDirs(theFile, tmpFile, maxRetries);
         return tmpFile;
     }
 
@@ -751,16 +777,30 @@ internal class AutoPatcher : PopupWindow
     // Move is genuinely the right primitive — intra-volume, atomic, leaves no copy.
     // For the src(staging-cache) → dst(install) transfer, use CopyAndCreateDirs so
     // a mid-apply failure doesn't destroy the staging cache.
-    static void MoveAndCreateDirs(string sourceFile, string destinationFile)
+    static void MoveAndCreateDirs(string sourceFile, string destinationFile, int maxAttempts = 3)
     {
-        try
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
+
+        // Retry on transient sharing violations: AV/Defender often holds a handle on a
+        // freshly-touched file for ~100ms after scan start. Linear backoff (100/200/300 ms)
+        // covers the common single-file case. CopyNewFiles drops maxAttempts to 1 once it
+        // detects a systemic lock pattern (>5 files failed), to avoid burning minutes on a
+        // patch where AV is scanning the whole batch.
+        for (int attempt = 1; ; attempt++)
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(destinationFile)!);
-            File.Move(sourceFile, destinationFile);
-        }
-        catch (Exception e)
-        {
-            throw new IOException($"Move failed: {sourceFile} --> {destinationFile}", e);
+            try
+            {
+                File.Move(sourceFile, destinationFile);
+                return;
+            }
+            catch (Exception e) when ((e is IOException || e is UnauthorizedAccessException) && attempt < maxAttempts)
+            {
+                Thread.Sleep(100 * attempt);
+            }
+            catch (Exception e)
+            {
+                throw new IOException($"Move failed: {sourceFile} --> {destinationFile}", e);
+            }
         }
     }
 
