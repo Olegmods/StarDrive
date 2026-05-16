@@ -136,6 +136,10 @@ public static class GameAudio
     // this is called from Game1.Update() every frame
     public static void Update()
     {
+        // Devices is null when Initialize() failed (AudioEngineGood=false) or after Destroy()/DisableAudio(true).
+        if (Devices == null)
+            return;
+
         Devices.HandleEvents();
 
         if (Devices.ShouldReloadAudioDevice)
