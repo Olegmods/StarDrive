@@ -43,6 +43,17 @@ namespace Ship_Game.GameScreens
         // If TRUE, the video will always capture low-res video thumbnail
         public bool CaptureThumbnail;
 
+        // If TRUE, NAudio mixer output (music + sound effects) is muted while the video is
+        // actively playing and restored on any pause/stop/dispose/screen-deactivate transition.
+        // Opt-in so callers like DiplomacyScreen (which want their own racial music) are unaffected.
+        public bool MuteGameAudioWhilePlaying;
+        bool GameAudioMuted;
+
+        // Last Player.State observed by Update — needed to detect the Playing→Stopped
+        // transition (natural end-of-stream) without false-firing during the transient
+        // Stopped state right after our Resume()'s Stop+Play sequence.
+        MediaState LastSeenPlayerState = MediaState.Stopped;
+
         // Video play status changed
         public Action OnPlayStatusChange;
 
@@ -74,6 +85,27 @@ namespace Ship_Game.GameScreens
 
         ~ScreenMediaPlayer() { Dispose(false); }
 
+        void MuteGameAudioIfRequested()
+        {
+            if (MuteGameAudioWhilePlaying && !GameAudioMuted)
+            {
+                // Mixer-level mute: silences NAudio output before it reaches the WasapiOut
+                // device, so MediaFoundation video audio (which shares the per-process Windows
+                // audio session but bypasses this mixer) stays audible.
+                GameAudio.MuteMixerOutput();
+                GameAudioMuted = true;
+            }
+        }
+
+        void RestoreGameAudioIfMuted()
+        {
+            if (GameAudioMuted)
+            {
+                GameAudio.RestoreMixerOutput();
+                GameAudioMuted = false;
+            }
+        }
+
         void Dispose(bool disposing)
         {
             IsDisposed = true;
@@ -81,6 +113,7 @@ namespace Ship_Game.GameScreens
             Visible = false;
             OnPlayStatusChange = null;
             Frame = null;
+            RestoreGameAudioIfMuted();
 
             if (ExtraMusic is { IsPlaying: true })
             {
@@ -117,6 +150,11 @@ namespace Ship_Game.GameScreens
             if (IsPlaying || IsDisposed)
                 return; // video has already started
 
+            // Belt-and-suspenders: if a prior call left audio muted (e.g., caller is
+            // re-using this instance and the previous restore path never fired), clear it
+            // now so a new call with MuteGameAudioWhilePlaying=false can't leak the mute.
+            RestoreGameAudioIfMuted();
+
             try
             {
                 Video = ResourceManager.LoadVideo(Content, videoPath);
@@ -138,6 +176,11 @@ namespace Ship_Game.GameScreens
                         {
                             CaptureThumbnail = true;
                             Player.Pause();
+                        }
+                        else
+                        {
+                            // active playback begins immediately when not started paused
+                            MuteGameAudioIfRequested();
                         }
                         PlaybackSuccess = true;
                         OnPlayStatusChange?.Invoke();
@@ -187,6 +230,7 @@ namespace Ship_Game.GameScreens
                 return;
 
             Frame = null;
+            RestoreGameAudioIfMuted();
 
             if (!IsStopped)
             {
@@ -206,12 +250,27 @@ namespace Ship_Game.GameScreens
             if (IsDisposed)
                 return;
 
-            if (IsPaused)
+            // Stop+Play bypasses MediaSession.Resume E_POINTER after startPaused init
+            // (MonoGame 3.8.1.303). Restarts the video from t=0.
+            // Gate on "not currently playing" rather than IsPaused — the Play→Pause race
+            // on the BeginPlayTask worker can leave Player.State as Stopped, not Paused.
+            if (Video != null && Player.State != MediaState.Playing)
             {
-                Player.Resume();
-                OnPlayStatusChange?.Invoke();
+                try
+                {
+                    Player.Stop();
+                    Player.Play(Video);
+                    MuteGameAudioIfRequested();
+                    OnPlayStatusChange?.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"ScreenMediaPlayer.Resume Stop+Play failed for '{Name}': {ex.Message}");
+                    PlaybackFailed = true;
+                    RestoreGameAudioIfMuted();
+                }
             }
-            
+
             if (ExtraMusic.IsPaused)
             {
                 ExtraMusic.Resume();
@@ -227,9 +286,10 @@ namespace Ship_Game.GameScreens
             if (IsPlaying)
             {
                 Player.Pause();
+                RestoreGameAudioIfMuted();
                 OnPlayStatusChange?.Invoke();
             }
-            
+
             if (ExtraMusic.IsPlaying)
             {
                 ExtraMusic.Pause();
@@ -271,15 +331,33 @@ namespace Ship_Game.GameScreens
             if (!PlaybackSuccess || IsDisposed || PlaybackFailed)
                 return;
 
+            MediaState currentState = Player.State;
             try
             {
-                if (Video != null && Player.State != MediaState.Stopped)
+                if (Video != null && currentState != MediaState.Stopped)
                 {
                     // pause video when game screen goes inactive
-                    if (screen.IsActive && Player.State == MediaState.Paused)
+                    if (screen.IsActive && currentState == MediaState.Paused)
+                    {
                         Player.Resume();
-                    else if (!screen.IsActive && Player.State == MediaState.Playing)
+                        MuteGameAudioIfRequested();
+                    }
+                    else if (!screen.IsActive && currentState == MediaState.Playing)
+                    {
                         Player.Pause();
+                        RestoreGameAudioIfMuted();
+                    }
+                }
+                else if (Video != null
+                         && LastSeenPlayerState == MediaState.Playing
+                         && currentState == MediaState.Stopped)
+                {
+                    // Playing→Stopped transition = natural end of stream. Reached only when a
+                    // MuteGameAudioWhilePlaying caller also drives Update() (InGameWiki today
+                    // does not — left in place for future opt-in callers like DiplomacyScreen).
+                    // LastSeenPlayerState gate avoids false-firing during the transient Stopped
+                    // state right after Resume()'s Stop+Play sequence.
+                    RestoreGameAudioIfMuted();
                 }
 
                 if (!ExtraMusic.IsStopped)
@@ -299,6 +377,13 @@ namespace Ship_Game.GameScreens
                 // gate further PlayVideo calls on PlaybackFailed.
                 Log.Warning($"ScreenMediaPlayer.Update Pause/Resume failed for '{Name}': {ex.Message}");
                 PlaybackFailed = true;
+                RestoreGameAudioIfMuted();
+            }
+            finally
+            {
+                // Always advance — otherwise a thrown catch leaves LastSeenPlayerState stale
+                // and the next frame may misclassify the Playing→Stopped transition.
+                LastSeenPlayerState = currentState;
             }
         }
 
