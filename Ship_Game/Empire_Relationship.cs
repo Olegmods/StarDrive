@@ -521,9 +521,9 @@ namespace Ship_Game
                     switch (Personality)
                     {
                         case PersonalityType.Pacifist   when usToPlayer.StolenSystems.Count >= 4:
-                        case PersonalityType.Cunning:   usToPlayer.PrepareForWar(WarType.DefensiveWar, player);   break;
+                        case PersonalityType.Cunning:   usToPlayer.PrepareForWar(WarType.DefensiveWar, this);   break;
                         case PersonalityType.Aggressive:
-                        case PersonalityType.Ruthless:  usToPlayer.PrepareForWar(WarType.ImperialistWar, player); break;
+                        case PersonalityType.Ruthless:  usToPlayer.PrepareForWar(WarType.ImperialistWar, this); break;
                         case PersonalityType.Xenophobic:
                         case PersonalityType.Honorable: player.AddToDiplomacyContactView(this, "DECLAREWAR");     break;
                         case PersonalityType.Pacifist:  BreakAllTreatiesWith(player);                             break;
