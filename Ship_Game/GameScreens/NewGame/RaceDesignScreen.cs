@@ -234,12 +234,12 @@ namespace Ship_Game
                 .SetLocalPos(ChooseRaceList.Width / 2 - 10, ChooseRaceList.Height + containerMarginBottom);
 
             var pos = new Vector2(ScreenWidth / 2 - 84, traitsList.Y + traitsList.H + 10);
-            Traits.ButtonMedium(pos.X - 142, pos.Y, "Load Setup", OnLoadSetupClicked)
-                .SetLocalPos(Traits.Width / 2 + 98, Traits.Height + containerMarginBottom*3);
-            Traits.ButtonMedium(pos.X + 178, pos.Y, "Save Setup", OnSaveSetupClicked)
-                .SetLocalPos(Traits.Width / 2 - 200, Traits.Height + containerMarginBottom*3);
-            Traits.Button(ButtonStyle.MediumMenu, GameText.RuleOptions, click: OnRuleOptionsClicked)
-                .SetLocalPos(Traits.Width / 2 - 52, Traits.Height + containerMarginBottom*3);
+            Traits.ButtonBigDip(pos.X - 142, pos.Y, "Load Setup", OnLoadSetupClicked)
+                .SetLocalPos(Traits.Width / 2 + 94, Traits.Height + containerMarginBottom*3);
+            Traits.ButtonBigDip(pos.X + 178, pos.Y, "Save Setup", OnSaveSetupClicked)
+                .SetLocalPos(Traits.Width / 2 - 262, Traits.Height + containerMarginBottom*3);
+            Traits.Button(ButtonStyle.Default, GameText.RuleOptions, click: OnRuleOptionsClicked)
+                .SetLocalPos(Traits.Width / 2 - 84, Traits.Height + containerMarginBottom*3);
 
             ChooseRaceList.SlideInFromOffset(offset:new(-ChooseRaceList.Width, 0), TransitionOnTime);
             DescriptionTextList.SlideInFromOffset(offset:new(DescriptionTextList.Width, 0), TransitionOnTime);
