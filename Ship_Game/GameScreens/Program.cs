@@ -12,6 +12,7 @@ internal static class Program
     public const int SCREEN_UPDATE_FAILURE = -2;
     public const int UNHANDLED_EXCEPTION = -3;
     public const int NATIVE_DLL_LOAD_FAILURE = -4;
+    public const int WIN_VERSION_TOO_OLD = -5;
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "MessageBoxW")]
     static extern int Win32MessageBox(IntPtr hWnd, string text, string caption, uint type);
@@ -273,9 +274,46 @@ internal static class Program
             Log.Write("The game exited normally.");
             RunCleanupAndExit(0);
         }
+        catch (EntryPointNotFoundException ex) when (IsMissingDpiApi(ex))
+        {
+            HandleUnsupportedWindowsVersion(ex);
+        }
         catch (Exception ex)
         {
             Log.ErrorDialog(ex, "Game.Run() failed", GAME_RUN_FAILURE);
         }
+    }
+
+    // MonoGame 3.8 P/Invokes GetThreadDpiHostingBehavior unconditionally; the API
+    // was added in Windows 10 1803 (build 17134). Players on older builds crash
+    // inside WinFormsGameForm..ctor with EntryPointNotFoundException naming the
+    // missing entry point and USER32.dll.
+    static bool IsMissingDpiApi(EntryPointNotFoundException ex)
+    {
+        return ex.Message.Contains("GetThreadDpi", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("USER32", StringComparison.OrdinalIgnoreCase);
+    }
+
+    static void HandleUnsupportedWindowsVersion(EntryPointNotFoundException ex)
+    {
+        const uint MB_OK = 0x0;
+        const uint MB_ICONERROR = 0x10;
+        string message =
+            "StarDrive cannot start because your version of Windows is missing APIs the\n" +
+            "MonoGame 3.8 renderer requires.\n\n" +
+            "Minimum supported Windows version:\n" +
+            "  • Windows 10 version 1803 (April 2018 Update, build 17134) or later\n" +
+            "  • Windows 11 (any build)\n\n" +
+            "How to fix:\n" +
+            "  1. Open Settings -> Windows Update and install all available updates.\n" +
+            "  2. Restart and try launching the game again.\n\n" +
+            "Need help? Join our Discord (link is on the game release page).\n\n" +
+            "Technical details:\n" + ex.Message;
+
+        // Log once so we keep visibility on how many players this affects;
+        // Log.Error has built-in rate limiting so repeat crashes won't flood Sentry.
+        Log.Error($"Unsupported Windows version: {ex.Message}");
+        Win32MessageBox(IntPtr.Zero, message, "StarDrive — Windows version too old", MB_OK | MB_ICONERROR);
+        Environment.Exit(WIN_VERSION_TOO_OLD);
     }
 }

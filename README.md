@@ -10,6 +10,12 @@ Notice: We have StarDrive developer's [publicly and privately stated approval](h
 Do not use this for immoral or personal financial gain, donation requests are ok but can not be demanded or required.
 Do not attempt to circumvent game DRM. Be reasonably respectful of the dev and the original software and steam.
 
+# System Requirements
+
+* **OS**: Windows 10 version 1803 (April 2018 Update, build 17134) or later — including Windows 11. Older Windows 10 builds are missing per-thread DPI APIs that MonoGame 3.8 requires and the game will fail to start.
+* **Architecture**: 64-bit (x64)
+* **.NET runtime**: bundled with the installer (.NET 8)
+
 # Downloads
 
 The canonical distribution channel is **itch.io**:
