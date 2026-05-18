@@ -40,12 +40,25 @@ internal class NAudioPlaybackEngine : IDisposable
     }
 
     /// <summary>
-    /// Global volume of the mixer
+    /// Global volume of the OutputDevice. WARNING: WasapiOut shares the per-process Windows
+    /// audio session, so setting this also affects MediaFoundation (XNA VideoPlayer) audio.
+    /// For NAudio-only mute that leaves video audio audible, use <see cref="MixerMasterVolume"/>.
     /// </summary>
     public float Volume
     {
         get => OutputDevice.Volume;
         set => OutputDevice.Volume = value;
+    }
+
+    /// <summary>
+    /// Master volume applied to the NAudio mixer's output before it reaches the WasapiOut
+    /// device. Use this to silence in-game music/SFX without affecting MediaFoundation video.
+    /// Clamped to [0, 1] so a caller mistake can't polarity-invert or NaN-poison the buffer.
+    /// </summary>
+    public float MixerMasterVolume
+    {
+        get => Mixer.MasterVolume;
+        set => Mixer.MasterVolume = float.IsNaN(value) ? 1f : Math.Clamp(value, 0f, 1f);
     }
 
     /// <summary>

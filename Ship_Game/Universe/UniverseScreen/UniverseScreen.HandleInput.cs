@@ -516,23 +516,64 @@ namespace Ship_Game
 
         Ship FindClickedShip(InputState input)
         {
-            const float ClickRadius = 5f;
-            AABoundingBox2D clickRect = UnprojectToWorldRect(new(input.CursorPosition, ClickRadius));
-            SearchOptions opt = new(clickRect, GameObjectType.Ship)
+            // Workaround for #254 (Matrix.Invert precision loss at CamPos.Z in the millions).
+            // The old spatial-search approach built the world click rect by unprojecting the
+            // cursor pixel ± a screen-pixel radius. On epic maps Unproject diverges from Project
+            // by ~17 pixels / ~500 world units (float matrix invert amplifies error after
+            // perspective division), so the rect was offset from the ship's actual position and
+            // the spatial search returned 0 even when the cursor was visually on the icon.
+            // We instead project each candidate ship forward to screen and compare in pixel
+            // space — Project alone is fine, only the invert step loses precision.
+            //
+            // Per-ship click radius: take whichever is larger — the ship's actual on-screen
+            // radius (close zoom: many pixels) or the icon-mode floor (far zoom: ~12 px).
+            // Without this the click box is fixed at 12 px and you can only select close-up
+            // ships by clicking near their geometric center.
+            //
+            // No prefilter: iterating 5000 ships with a Vector2 distance check is sub-
+            // millisecond and avoids the same Unproject-precision trap on cursor→world.
+            // Also no InFrustum gate: a Project per candidate already validates on-screen
+            // position, and InFrustum can be momentarily stale in the camera-move window
+            // before UpdateVisibleObjects re-runs.
+            float iconHalfPx = (16f + GlobalStats.IconSize) * 0.5f;
+            const float MarginPx = 4f;
+            float iconClickRadiusPx = iconHalfPx + MarginPx;
+
+            Vector2 cursor = input.CursorPosition;
+            Ship best = null;
+            float bestDistPx = float.MaxValue;
+
+            Ship[] ships = UState.Ships;
+            for (int i = 0; i < ships.Length; i++)
             {
-                MaxResults = 32,
-                SortByDistance = true, // only care about closest results
-                FilterFunction = CanClickOnShip
-            };
-            return UState.Spatial.FindNearby(ref opt).FirstOrDefault() as Ship;
+                Ship ship = ships[i];
+                if (!ship.Active || !ship.InPlayerSensorRange)
+                    continue;
+                if (ship.IsSubspaceProjector && CamPos.Z > 1_200_000.0)
+                    continue;
+
+                ProjectToScreenCoords(ship.Position, ship.Radius,
+                                      out Vector2d shipScreen, out double shipScreenRadius);
+                float threshold = Math.Max(iconClickRadiusPx, (float)shipScreenRadius + MarginPx);
+                float distPx = cursor.Distance(shipScreen.ToVec2f());
+                if (distPx <= threshold && distPx < bestDistPx)
+                {
+                    best = ship;
+                    bestDistPx = distPx;
+                }
+            }
+            return best;
         }
 
         Planet FindPlanetUnderCursor()
         {
-            // because the visible size of the planet icon changes depending on the zoom level
-            // simply figure out a pixel based search radius
-            float searchRadius = UnprojectToWorldSize(sizeOnScreen: 16) - 500;
-            searchRadius = searchRadius.LowerBound(100);
+            // Mitigates #254 on the planet click path: a wider screen-pixel radius gives more
+            // forgiveness against the same Unproject precision drift that affected ships.
+            // Was: UnprojectToWorldSize(16) - 500, which subtracted a magic number that did
+            // nothing useful at large world coords (where the value is huge) and over-trimmed
+            // at small ones (forcing the LowerBound floor). Removed the subtraction and
+            // widened the source pixel size for click forgiveness on large maps.
+            float searchRadius = UnprojectToWorldSize(sizeOnScreen: 24).LowerBound(100);
 
             Vector3d worldPos = UnprojectToWorldPosition3D(Input.CursorPosition, ZPlane: 2500);
             Planet p = UState.FindPlanetAt(worldPos.ToVec2f(), searchRadius: searchRadius);
@@ -547,8 +588,17 @@ namespace Ship_Game
             float maxZ = 2_500_000f;
             float relZ = MathExt.LerpInverse((float)CamPos.Z, minZ, maxZ).Clamped(0, 1);
 
-            // and then convert the relative Z to a solar hit radius
+            // convert the relative Z to a solar hit radius
             float hitRadius = 5_000f.LerpTo(50_000f, relZ);
+
+            // Mitigates #254 on the sun click path. Large maps allow MaxCamHeight up to
+            // CAM_MAX (15M), well past maxZ. Without continued scaling the sun icon visually
+            // grows but the hit radius stops at 50_000, so clicks on the icon's edge miss.
+            // Scale linearly with CamPos.Z above maxZ to keep the hit zone in step with the
+            // icon size and absorb the Unproject precision drift at extreme zoom.
+            if (CamPos.Z > maxZ)
+                hitRadius *= (float)(CamPos.Z / maxZ);
+
             return UState.FindSolarSystemAt(CursorWorldPosition2D, hitRadius: hitRadius);
         }
 

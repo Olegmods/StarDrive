@@ -29,6 +29,36 @@ namespace Ship_Game
 
         Planet CurrentlyHoveredPlanet;
 
+        static Texture2D BackdropTex;
+
+        // Procedural anti-aliased filled-circle alpha texture, cached once.
+        // Drawn black-tinted under the orbital diagram so background star
+        // systems don't bleed through the overlay.
+        static Texture2D GetBackdropTexture(GraphicsDevice device)
+        {
+            if (BackdropTex != null && !BackdropTex.IsDisposed)
+                return BackdropTex;
+            const int Size = 128;
+            var pixels = new Color[Size * Size];
+            float center = (Size - 1) * 0.5f;
+            float radius = Size * 0.5f;
+            for (int y = 0; y < Size; y++)
+            {
+                for (int x = 0; x < Size; x++)
+                {
+                    float dx = x - center, dy = y - center;
+                    float d = (float)Math.Sqrt(dx * dx + dy * dy);
+                    float a = Math.Clamp(radius - d, 0f, 1f); // 1px AA edge
+                    byte b = (byte)(a * 255f);
+                    pixels[y * Size + x] = new Color(b, b, b, b);
+                }
+            }
+            var tex = new Texture2D(device, Size, Size);
+            tex.SetData(pixels);
+            BackdropTex = tex;
+            return tex;
+        }
+
         public SolarsystemOverlay(Rectangle r, ScreenManager sm, UniverseScreen universe)
         {
             Universe = universe;
@@ -52,6 +82,25 @@ namespace Ship_Game
             Vector2 radialPos = new(Sys.Position.X + 4500f, Sys.Position.Y);
             Vector2d insetRadialSS = Universe.ProjectToScreenPosition(radialPos.ToVec3());
             double pRadius = insetRadialSS.Distance(pPos).LowerBound(5);
+
+            // Backdrop: dim background star systems so they don't visually
+            // compete with the orbital overlay. Sized to cover the bracket
+            // (pRadius) plus the outermost orbit ring (40 + 40*i) plus a small
+            // icon pad, whichever is larger. Falls back to bracket-only for
+            // unexplored systems where planet count is unknown.
+            int planetCount = Sys.IsExploredBy(player) ? Sys.PlanetList.Count : 0;
+            float orbitRadius = 40f + 40f * planetCount + 20f;
+            float backdropRadius = Math.Max(orbitRadius, (float)pRadius + 12f);
+            float fadeIn = Math.Clamp(SelectionTimer / 0.4f, 0f, 1f);
+            byte backdropAlpha = (byte)(200f * fadeIn);
+            if (backdropAlpha > 0)
+            {
+                var backdrop = GetBackdropTexture(batch.GraphicsDevice);
+                var backdropRect = new RectF(
+                    (float)pPos.X - backdropRadius, (float)pPos.Y - backdropRadius,
+                    backdropRadius * 2f, backdropRadius * 2f);
+                batch.Draw(backdrop, backdropRect, new Color((byte)0, (byte)0, (byte)0, backdropAlpha));
+            }
 
             batch.BracketRectangle(pPos, pRadius, Color.White);
 

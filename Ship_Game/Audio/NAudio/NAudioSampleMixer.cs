@@ -41,6 +41,15 @@ internal class NAudioSampleMixer : ISampleProvider, IDisposable
     /// </summary>
     public bool ReadFully { get; set; }
 
+    /// <summary>
+    /// Master volume multiplier applied to the mixed output. 1.0 = pass-through, 0.0 = silent.
+    /// Used to mute NAudio output without affecting per-instance volumes or stopping samples
+    /// (which would trigger MainMenu music restart loops). Process-wide audio sessions
+    /// (MediaFoundation video, etc.) are unaffected since they don't go through this mixer.
+    /// `volatile` so the WASAPI render thread sees writes from the main thread promptly.
+    /// </summary>
+    public volatile float MasterVolume = 1.0f;
+
     public void Dispose()
     {
         lock (Sources)
@@ -123,6 +132,17 @@ internal class NAudioSampleMixer : ISampleProvider, IDisposable
                 buffer[outputIndex++] = 0;
             outputSamples = count;
         }
+
+        // apply master volume to the mixed output (used for video-playback NAudio mute).
+        // Snapshot once — main thread may flip MasterVolume between the gate and the loop.
+        float vol = MasterVolume;
+        if (vol != 1.0f)
+        {
+            int end = offset + outputSamples;
+            for (int i = offset; i < end; i++)
+                buffer[i] *= vol;
+        }
+
         return outputSamples;
     }
 }

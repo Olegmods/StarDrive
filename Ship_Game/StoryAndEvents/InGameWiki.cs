@@ -68,6 +68,7 @@ namespace Ship_Game
             Player = new(ContentManager)
             {
                 EnableInteraction = true,
+                MuteGameAudioWhilePlaying = true,
                 OnPlayStatusChange = OnPlayerStatusChanged
             };
 

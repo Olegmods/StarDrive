@@ -25,7 +25,7 @@ namespace Ship_Game.AI
         [StarData] public readonly Array<SpaceRoad> SpaceRoads = new();
         [StarData] public readonly Empire Owner;
 
-        public float ProgectorBridgeRadiusThreshold => Owner.GetProjectorRadius() * 0.6f;
+        public float ProjectorBridgeRadiusThreshold => Owner.GetProjectorRadius() * 0.6f;
 
         bool ShouldManageRoads => Owner.CanBuildPlatforms
                                   && (!Owner.isPlayer || Owner.isPlayer && Owner.AutoBuildSpaceRoads);
@@ -267,7 +267,8 @@ namespace Ship_Game.AI
                 {
                     // find where the ship was coming from and setup a projector bridge
                     Goal colonizationGoal = Owner.AI.FindGoal(g => g.FinishedShip == ship);
-                    if (colonizationGoal?.PlanetBuildingAt != null)
+                    if (colonizationGoal?.PlanetBuildingAt != null
+                        && !ProjectorAlreadyAtBridgeTarget(ship.System, colonizationGoal.PlanetBuildingAt.System.Position))
                     {
                         Owner.AI.AddGoal(new ProjectorBridge(ship.System,
                             colonizationGoal.PlanetBuildingAt.System.Position, Owner, endCondition));
@@ -281,7 +282,7 @@ namespace Ship_Game.AI
 
             void CheckBridgeNeededTradeOrConstruction()
             {
-                if ((ship.IsFreighter || ship.IsConstructor) 
+                if ((ship.IsFreighter || ship.IsConstructor)
                     && !Owner.AI.SpaceRoadsManager.InfluenceNodeExistsAt(ship.Position)
                     && !Owner.AI.AnyProjectorBridgeGoalTargetingSystem(ship.System, ship.Loyalty))
                 {
@@ -291,16 +292,31 @@ namespace Ship_Game.AI
                         ship.AI.OrderQueue.TryPeekFirst(out ShipGoal goal);
                         if (goal?.Trade != null)
                         {
-                            Owner.AI.AddGoalAndEvaluate(new ProjectorBridge(ship.System,
-                                goal.Trade.ExportFrom.System.Position, Owner, endCondition));
+                            if (!ProjectorAlreadyAtBridgeTarget(ship.System, goal.Trade.ExportFrom.System.Position))
+                            {
+                                Owner.AI.AddGoalAndEvaluate(new ProjectorBridge(ship.System,
+                                    goal.Trade.ExportFrom.System.Position, Owner, endCondition));
+                            }
 
                             return;
                         }
                     }
                     // fallback to ship position for bridge direction or if ship is a constructor
-                    Owner.AI.AddGoalAndEvaluate(new ProjectorBridge(ship.System, Owner.WeightedCenter, Owner, endCondition));
+                    if (!ProjectorAlreadyAtBridgeTarget(ship.System, Owner.WeightedCenter))
+                        Owner.AI.AddGoalAndEvaluate(new ProjectorBridge(ship.System, Owner.WeightedCenter, Owner, endCondition));
                 }
             }
+        }
+
+        // The outer InfluenceNodeExistsAt(ship.Position) guard checks where the ship *died*,
+        // but a ProjectorBridge actually builds at an offset from the system center — that
+        // offset can already be covered by an existing projector. Without this check, we
+        // schedule a redundant BuildConstructionShip and the constructor's "Build pos of
+        // projector is near ..." Log.Error fires.
+        bool ProjectorAlreadyAtBridgeTarget(SolarSystem targetSystem, Vector2 directionRefPos)
+        {
+            Vector2 plannedBuildPos = ProjectorBridge.GetBridgeBuildPosition(targetSystem, directionRefPos, Owner);
+            return Owner.FindProjectorAt(plannedBuildPos, 100, out _);
         }
     }
 }

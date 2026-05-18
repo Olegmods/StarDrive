@@ -177,6 +177,33 @@ public static class GameAudio
     public static void ResumeGenericMusic() { if (!IsMusicDisabled) Music.Resume(); }
     public static void MuteGenericMusic()   { if (!IsMusicDisabled) Music.Volume = 0f; }
     public static void UnMuteGenericMusic() { if (!IsMusicDisabled) Music.Volume = GlobalStats.MusicVolume; }
+
+    /// <summary>
+    /// Silences all NAudio mixer output (music + SFX) at the mixer level, before it reaches
+    /// the WasapiOut device. Per-instance and per-category volumes are untouched, so the
+    /// per-sample auto-Stop (which would cause ScreenManager.StartMusic to detect
+    /// Music.IsStopped and re-call ConfigureAudioSettings, undoing our mute) does NOT fire.
+    /// MonoGame VideoPlayer audio (MediaFoundation, not routed through this mixer) is
+    /// unaffected. Pair with RestoreMixerOutput().
+    /// <para>
+    /// NOTE: Mute is not reference counted — overlapping callers (e.g. two ScreenMediaPlayer
+    /// instances opting into MuteGameAudioWhilePlaying at once) are NOT supported. The first
+    /// one to stop will RestoreMixerOutput() and the second caller will hear game audio
+    /// despite still expecting silence. If a future feature needs concurrent mute requests,
+    /// add a counter here or store/restore per-caller volume.
+    /// </para>
+    /// </summary>
+    public static void MuteMixerOutput()
+    {
+        if (AudioEngineGood)
+            AudioEngine.MixerMasterVolume = 0f;
+    }
+
+    public static void RestoreMixerOutput()
+    {
+        if (AudioEngineGood)
+            AudioEngine.MixerMasterVolume = 1f;
+    }
     public static void MuteRacialMusic()    { if(!IsMusicDisabled) RacialMusic.Volume = 0f;}
     public static void UnMuteRacialMusic()  { if (!IsMusicDisabled) RacialMusic.Volume = GlobalStats.MusicVolume; }
 
