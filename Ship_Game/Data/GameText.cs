@@ -4523,10 +4523,6 @@ namespace Ship_Game
         DesignIssueConstructorCostProblem = 4447,
         /// <summary>Add Storage or lower the amount</summary>
         DesignIssueConstructorCostRemidiation = 4448,
-        /// <summary>Spiral Galaxy</summary>
-        SpiralGalaxyGame = 4526,
-        /// <summary>Each empire starts at a random place along the arms of a Spiral Galaxy</summary>
-        SpiralGalaxyGameTip = 4527,
         /// <summary>Processing Per Trun</summary>
         RefinningPerTurnStat = 4449,
         /// <summary>Most Exotic resources are processed at</summary>
@@ -4681,9 +4677,18 @@ namespace Ship_Game
         DisableScreenPanningOption = 4524,
         /// <summary>Mouse pointer cannot be used for edge screen movement</summary>
         DisableScreenPanningOptionTip = 4525,
-
-
-
+        /// <summary>2-Arm Spiral Galaxy</summary>
+        SpiralTwoArmGalaxyGame = 4526,
+        /// <summary>Each empire starts at a random place along the arms of a classic 2-arm grand-design spiral galaxy</summary>
+        SpiralTwoArmGalaxyGameTip = 4527,
+        /// <summary>4-Arm Spiral Galaxy</summary>
+        SpiralFourArmGalaxyGame = 4528,
+        /// <summary>Each empire starts at a random place along the arms of a 4-arm spiral galaxy</summary>
+        SpiralFourArmGalaxyGameTip = 4529,
+        /// <summary>Barred Spiral Galaxy</summary>
+        SpiralBarredGalaxyGame = 4530,
+        /// <summary>Each empire starts at a random place along the arms of a barred spiral galaxy</summary>
+        SpiralBarredGalaxyGameTip = 4531,
 
 
 

@@ -12437,12 +12437,24 @@ RingGalaxyGame:
  Id: 4383
  ENG: "Ring Galaxy"
  UKR: "Кільцева галактика"
-SpiralGalaxyGame:
+SpiralTwoArmGalaxyGame:
  Id: 4526
- ENG: "Spiral Galaxy"
-SpiralGalaxyGameTip:
+ ENG: "2-Arm Spiral Galaxy"
+SpiralTwoArmGalaxyGameTip:
  Id: 4527
- ENG: "Each empire starts at a random place along the arms of a Spiral Galaxy. The galaxy is shaped randomly per game as a 2-arm grand-design, a 4-arm tighter spiral, or a barred spiral, with a denser central bulge."
+ ENG: "Each empire starts at a random place along the arms of a classic 2-arm grand-design spiral galaxy with a dense central bulge."
+SpiralFourArmGalaxyGame:
+ Id: 4528
+ ENG: "4-Arm Spiral Galaxy"
+SpiralFourArmGalaxyGameTip:
+ Id: 4529
+ ENG: "Each empire starts at a random place along the arms of a 4-arm spiral galaxy: tighter winding, four distinct arms, thinner arm structure."
+SpiralBarredGalaxyGame:
+ Id: 4530
+ ENG: "Barred Spiral Galaxy"
+SpiralBarredGalaxyGameTip:
+ Id: 4531
+ ENG: "Each empire starts at a random place along the arms of a barred spiral galaxy, where a central elongated bar of stars feeds two trailing arms."
 FlatIncomePerTurn:
  Id: 4384
  ENG: "Flat Income Per Turn" 

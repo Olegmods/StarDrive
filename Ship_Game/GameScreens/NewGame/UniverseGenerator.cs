@@ -289,7 +289,9 @@ namespace Ship_Game.GameScreens.NewGame
                 case RaceDesignScreen.GameMode.BigClusters:   GenerateBigClusters(step);      break;
                 case RaceDesignScreen.GameMode.SmallClusters: GenerateSmallClusters(step);    break;
                 case RaceDesignScreen.GameMode.Ring:          GenerateRingMap(step);          break;
-                case RaceDesignScreen.GameMode.Spiral:        GenerateSpiralMap(step);        break;
+                case RaceDesignScreen.GameMode.SpiralTwoArm:  GenerateSpiralMap(step, SpiralVariant.TwoArm);  break;
+                case RaceDesignScreen.GameMode.SpiralFourArm: GenerateSpiralMap(step, SpiralVariant.FourArm); break;
+                case RaceDesignScreen.GameMode.SpiralBarred:  GenerateSpiralMap(step, SpiralVariant.Barred);  break;
                 case RaceDesignScreen.GameMode.Sandbox:       GenerateRandomMap(step, false); break;
                 default:                                      GenerateRandomMap(step, true);  break;
             }
@@ -494,36 +496,43 @@ namespace Ship_Game.GameScreens.NewGame
             SolarSystemSpacingRing(step);
         }
 
-        // Three flavors of spiral galaxy. The variant is rolled per-game (using the
-        // seeded universe RNG) so the same seed reproduces the same galaxy.
+        // Three flavors of spiral galaxy, each picked explicitly via GameMode.
         enum SpiralVariant { TwoArm, FourArm, Barred }
 
-        void GenerateSpiralMap(ProgressCounter step)
+        void GenerateSpiralMap(ProgressCounter step, SpiralVariant variant)
         {
             // Logarithmic spiral: r(t) = armStartR * exp(pitch * t), theta = t + armOffset + phase.
             // Stars are sampled by drawing a parameter t along the arm length, mapping to (r, theta),
             // then adding a perpendicular jitter to give the arms visible thickness.
-            SpiralVariant variant = (SpiralVariant)Random.InRange(3);
-
             int numArms;
             float bulgeFraction;
+            float bulgeRadius;   // bulge radial extent (fraction of uSize)
             float armThicknessFrac;
+            float armStartR;  // arm origin radius (fraction of uSize)
+            float armEndR;    // arm end radius (fraction of uSize)
+            float pitch;      // log-spiral pitch (radians per e-fold of r) -- smaller = tighter winding = more curves
+            float armFlareFactor;  // 0 = uniform-thickness arms; >0 flares the bar-tip end and tapers toward armEndR
             bool hasBar;
             switch (variant)
             {
                 case SpiralVariant.FourArm:
-                    numArms = 4; bulgeFraction = 0.15f; armThicknessFrac = 0.045f; hasBar = false; break;
+                    numArms = 4; bulgeFraction = 0.15f; bulgeRadius = 0.22f; armThicknessFrac = 0.045f;
+                    armStartR = 0.20f; armEndR = 0.92f; pitch = 0.45f; armFlareFactor = 0f; hasBar = false; break;
                 case SpiralVariant.Barred:
-                    numArms = 2; bulgeFraction = 0.22f; armThicknessFrac = 0.06f;  hasBar = true;  break;
-                default: // TwoArm
-                    numArms = 2; bulgeFraction = 0.18f; armThicknessFrac = 0.06f;  hasBar = false; break;
+                    // Target look: long bar (~72% of uSize each side) with two arms wrapping
+                    // ~180 each around the bar tips. Arms attach at bar tip (armStartR ==
+                    // barHalfLen) and span a wider radial band (0.72 -> 0.95) so they read
+                    // as a fat band rather than a perfect arc; pitch tuned for ~180 sweep
+                    // (maxT = ln(0.95/0.72)/0.088 ~ 3.1 rad). Flare factor 1.2 still puffs
+                    // the bar-tip end further.
+                    numArms = 2; bulgeFraction = 0.30f; bulgeRadius = 0.18f; armThicknessFrac = 0.06f;
+                    armStartR = 0.72f; armEndR = 0.95f; pitch = 0.088f; armFlareFactor = 4.0f; hasBar = true;  break;
+                default: // TwoArm -- tighter winding (more curves) than the other variants
+                    numArms = 2; bulgeFraction = 0.18f; bulgeRadius = 0.22f; armThicknessFrac = 0.075f;
+                    armStartR = 0.20f; armEndR = 0.92f; pitch = 0.25f; armFlareFactor = 0f; hasBar = false; break;
             }
 
-            const float armStartR    = 0.20f;  // arm origin radius (fraction of uSize)
-            const float armEndR      = 0.92f;  // arm end radius
-            const float pitch        = 0.45f;  // log-spiral pitch (radians per e-fold of r)
-            const float bulgeRadius  = 0.22f;  // bulge radial extent (fraction of uSize)
-            const float barHalfLen   = 0.30f;  // bar half-length along its long axis
+            const float barHalfLen   = 0.72f;  // bar half-length along its long axis (~72% of uSize each side)
             const float barHalfWid   = 0.06f;  // bar half-width perpendicular
 
             float uSize  = UState.Size;
@@ -531,15 +540,15 @@ namespace Ship_Game.GameScreens.NewGame
 
             Log.Info($"Spiral galaxy variant: {variant} (numArms={numArms}, bulge={bulgeFraction:P0})");
 
-            PlaceSpiralStartingSystems(numArms, phase, uSize, armStartR, armEndR, pitch, armThicknessFrac, step);
+            PlaceSpiralStartingSystems(numArms, phase, uSize, armStartR, armEndR, pitch, armThicknessFrac, armFlareFactor, step);
             PlaceSpiralBackgroundSystems(numArms, phase, uSize, armStartR, armEndR, pitch,
-                                          armThicknessFrac, bulgeFraction, bulgeRadius,
+                                          armThicknessFrac, armFlareFactor, bulgeFraction, bulgeRadius,
                                           hasBar, barHalfLen, barHalfWid, step);
         }
 
         void PlaceSpiralStartingSystems(int numArms, float phase, float uSize,
                                          float armStartR, float armEndR, float pitch,
-                                         float armThicknessFrac, ProgressCounter step)
+                                         float armThicknessFrac, float armFlareFactor, ProgressCounter step)
         {
             // Empires get random arm positions with a generous min-spacing so they don't
             // start on top of each other. Spacing relaxes per retry (same pattern as
@@ -550,14 +559,15 @@ namespace Ship_Game.GameScreens.NewGame
             foreach (SystemPlaceHolder sys in starting)
             {
                 sys.Position = SampleArmPos(numArms, phase, uSize, armStartR, armEndR, pitch,
-                                             armThicknessFrac, spacing);
+                                             armThicknessFrac, armFlareFactor, spacing);
                 step.Advance();
             }
         }
 
         void PlaceSpiralBackgroundSystems(int numArms, float phase, float uSize,
                                            float armStartR, float armEndR, float pitch,
-                                           float armThicknessFrac, float bulgeFraction, float bulgeRadius,
+                                           float armThicknessFrac, float armFlareFactor,
+                                           float bulgeFraction, float bulgeRadius,
                                            bool hasBar, float barHalfLen, float barHalfWid,
                                            ProgressCounter step)
         {
@@ -576,14 +586,14 @@ namespace Ship_Game.GameScreens.NewGame
                     sys.Position = SampleBulgePos(uSize, bulgeRadius);
                 else
                     sys.Position = SampleArmPos(numArms, phase, uSize, armStartR, armEndR, pitch,
-                                                 armThicknessFrac, 250000f);
+                                                 armThicknessFrac, armFlareFactor, 250000f);
                 step.Advance();
             }
         }
 
         Vector2 SampleArmPos(int numArms, float phase, float uSize,
                               float armStartR, float armEndR, float pitch,
-                              float armThicknessFrac, float spacing)
+                              float armThicknessFrac, float armFlareFactor, float spacing)
         {
             float maxT = (float)Math.Log(armEndR / armStartR) / pitch; // angular extent of one arm
             float jitterScale = uSize * armThicknessFrac;
@@ -598,9 +608,24 @@ namespace Ship_Game.GameScreens.NewGame
                 float r = armStartR * uSize * (float)Math.Exp(pitch * t);
                 float theta = t + arm * armSep + phase;
 
+                // Optional taper: arms flare at the base (near armStartR) and taper toward
+                // the outer end. flareFactor=0 keeps uniform thickness; >0 multiplies jitter
+                // by (1 + flareFactor) at t=0 and 1.0x at t=maxT. Used for Barred so the
+                // arms don't read as a thin line where they leave the bar tips.
+                float taperMult = 1f + armFlareFactor * (1f - t / maxT);
+
+                // Radial scatter (Barred only -- gated on flare): pushes stars off the perfect
+                // log-spiral path so the arms read as a 2D band rather than a 1D curve. Without
+                // this, even with perpendicular jitter the arms' centerline is a clean arc.
+                if (armFlareFactor > 0f)
+                {
+                    float rJitter = (Random.Float(-1f, 1f) + Random.Float(-1f, 1f)) * 0.5f * jitterScale * 0.4f * taperMult;
+                    r += rJitter;
+                }
+
                 // Triangular distribution (sum of two uniforms) approximates a Gaussian
                 // cheaply — most stars near the arm centerline, few at the edges.
-                float jitterMag = (Random.Float(-1f, 1f) + Random.Float(-1f, 1f)) * 0.5f * jitterScale;
+                float jitterMag = (Random.Float(-1f, 1f) + Random.Float(-1f, 1f)) * 0.5f * jitterScale * taperMult;
                 float perpAngle = theta + RadMath.HalfPI;
                 sysPos = new Vector2(r * RadMath.Cos(theta) + jitterMag * RadMath.Cos(perpAngle),
                                      r * RadMath.Sin(theta) + jitterMag * RadMath.Sin(perpAngle));
