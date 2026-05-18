@@ -50,10 +50,7 @@ namespace Ship_Game.Commands.Goals
         GoalStep AddShipToFleetAndMoveToPosition()
         {
             if (Fleet == null)
-            {
-                Log.Error($"FleetRequisition {Build.Template.Name} complete but Fleet is null!");
                 return GoalStep.GoalComplete;
-            }
             if (FinishedShip == null)
             {
                 Log.Error($"FleetRequisition {Build.Template.Name} failed: BuiltShip is null!");
