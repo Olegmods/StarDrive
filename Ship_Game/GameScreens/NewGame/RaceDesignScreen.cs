@@ -135,8 +135,14 @@ namespace Ship_Game
             TraitsList = Traits.List;
             TraitsList.EnableItemHighlight = true;
             TraitsList.OnClick = OnTraitsListItemClicked;
-            RectF traitsListBg = new(traitsList.X+60, traitsList.Y+90, traitsList.W, traitsList.H);
-            TraitsList.SetBackground(new Menu1(traitsListBg));
+            RectF traitsListBg = new(traitsList.X, traitsList.Y, traitsList.W, traitsList.H);
+            var traitsBg = new Menu1(traitsListBg);
+            TraitsList.SetBackground(traitsBg);
+            // Anchor at abs pos: SetBackground sets a wrong-sign LocalPos that
+            // would re-position the Menu1 on the next PerformLayout (triggered by
+            // SetItems when a trait tab is clicked). Pinning here makes
+            // UpdatePosAndSize no-op so the bg stays put.
+            traitsBg.SetAbsPos(traitsListBg.X, traitsListBg.Y);
 
             RectF chooseRace = new(5, (int)traitsList.Y, (int)traitsList.X - 10, (int)traitsList.H);
             ChooseRaceList = Add(new ScrollList<RaceArchetypeListItem>(chooseRace, 135));
