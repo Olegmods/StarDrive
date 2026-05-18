@@ -519,25 +519,24 @@ namespace Ship_Game
             Projectile[] projs = Empty<Projectile>.Array;
             Beam[] beams = Empty<Beam>.Array;
 
-            // No cap on visibility queries: the spatial system used to return at most
-            // 1024 ships / 2048 projs / 2048 beams per visible-rect query, which was
-            // fine for old battle sizes but Combined Arms megabattles routinely
-            // exceed 1024 ships in frame. Capped queries drop the far ones, flag
-            // them InFrustum=false even when they're geometrically on screen, and
-            // their SOs flip to Visibility.None — players see ships intermittently
-            // disappear while their projectiles keep firing. 32768 here just
-            // means "return whatever's actually in the rect"; the qtree walk cost
-            // is bounded by rect size, not by this number.
+            // Visible-rect query caps raised from 1024 ships / 2048 projs / 2048
+            // beams to 8192 each. The old caps were fine for vanilla battles but
+            // megabattles (Combined Arms) routinely exceed 1024 ships in frame —
+            // capped queries dropped the far ones, flagged them InFrustum=false
+            // even when geometrically on screen, and their SOs flipped to
+            // Visibility.None. Players saw ships intermittently disappear while
+            // their projectiles kept firing. 8192 covers any realistic battle;
+            // the qtree walk cost is bounded by rect size, not by this number.
             if (UState.IsPlanetViewOrCloser)
             {
-                projs = Spatial.FindNearby(GameObjectType.Proj, visibleWorld, 32768)
+                projs = Spatial.FindNearby(GameObjectType.Proj, visibleWorld, 8192)
                                .FastCast<SpatialObjectBase, Projectile>();
 
-                beams = Spatial.FindNearby(GameObjectType.Beam, visibleWorld, 32768)
+                beams = Spatial.FindNearby(GameObjectType.Beam, visibleWorld, 8192)
                                .FastCast<SpatialObjectBase, Beam>();
             }
 
-            Ship[] ships = Spatial.FindNearby(GameObjectType.Ship, visibleWorld, 32768)
+            Ship[] ships = Spatial.FindNearby(GameObjectType.Ship, visibleWorld, 8192)
                                   .FastCast<SpatialObjectBase, Ship>();
 
             // Reset frustum value for ship visible in previous frame
