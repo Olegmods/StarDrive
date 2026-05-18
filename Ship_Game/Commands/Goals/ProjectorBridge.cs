@@ -48,7 +48,7 @@ namespace Ship_Game.Commands.Goals
         // projector lands on; the build position itself is always offset from the system center.
         public static Vector2 GetBridgeBuildPosition(SolarSystem targetSystem, Vector2 directionRefPos, Empire owner)
         {
-            float distanceToDeploy = owner.AI.SpaceRoadsManager.ProgectorBridgeRadiusThreshold;
+            float distanceToDeploy = owner.AI.SpaceRoadsManager.ProjectorBridgeRadiusThreshold;
             Vector2 dir = targetSystem.Position.DirectionToTarget(directionRefPos);
             return targetSystem.Position + dir * distanceToDeploy;
         }

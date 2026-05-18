@@ -25,7 +25,7 @@ namespace Ship_Game.AI
         [StarData] public readonly Array<SpaceRoad> SpaceRoads = new();
         [StarData] public readonly Empire Owner;
 
-        public float ProgectorBridgeRadiusThreshold => Owner.GetProjectorRadius() * 0.6f;
+        public float ProjectorBridgeRadiusThreshold => Owner.GetProjectorRadius() * 0.6f;
 
         bool ShouldManageRoads => Owner.CanBuildPlatforms
                                   && (!Owner.isPlayer || Owner.isPlayer && Owner.AutoBuildSpaceRoads);

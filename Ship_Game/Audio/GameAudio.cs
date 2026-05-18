@@ -185,6 +185,13 @@ public static class GameAudio
     /// Music.IsStopped and re-call ConfigureAudioSettings, undoing our mute) does NOT fire.
     /// MonoGame VideoPlayer audio (MediaFoundation, not routed through this mixer) is
     /// unaffected. Pair with RestoreMixerOutput().
+    /// <para>
+    /// NOTE: Mute is not reference counted — overlapping callers (e.g. two ScreenMediaPlayer
+    /// instances opting into MuteGameAudioWhilePlaying at once) are NOT supported. The first
+    /// one to stop will RestoreMixerOutput() and the second caller will hear game audio
+    /// despite still expecting silence. If a future feature needs concurrent mute requests,
+    /// add a counter here or store/restore per-caller volume.
+    /// </para>
     /// </summary>
     public static void MuteMixerOutput()
     {

@@ -520,42 +520,36 @@ namespace Ship_Game
             // The old spatial-search approach built the world click rect by unprojecting the
             // cursor pixel ± a screen-pixel radius. On epic maps Unproject diverges from Project
             // by ~17 pixels / ~500 world units (float matrix invert amplifies error after
-            // perspective division), so the rect is offset from the ship's actual position and
-            // the spatial search returns 0 even when the cursor is visually on the icon.
+            // perspective division), so the rect was offset from the ship's actual position and
+            // the spatial search returned 0 even when the cursor was visually on the icon.
             // We instead project each candidate ship forward to screen and compare in pixel
-            // space — Project alone is fine, only the invert step loses precision. Cheap
-            // world-distance prefilter keeps 5000-ship epic maps well under a millisecond.
+            // space — Project alone is fine, only the invert step loses precision.
             //
             // Per-ship click radius: take whichever is larger — the ship's actual on-screen
             // radius (close zoom: many pixels) or the icon-mode floor (far zoom: ~12 px).
             // Without this the click box is fixed at 12 px and you can only select close-up
             // ships by clicking near their geometric center.
+            //
+            // No prefilter: iterating 5000 ships with a Vector2 distance check is sub-
+            // millisecond and avoids the same Unproject-precision trap on cursor→world.
+            // Also no InFrustum gate: a Project per candidate already validates on-screen
+            // position, and InFrustum can be momentarily stale in the camera-move window
+            // before UpdateVisibleObjects re-runs.
             float iconHalfPx = (16f + GlobalStats.IconSize) * 0.5f;
             const float MarginPx = 4f;
             float iconClickRadiusPx = iconHalfPx + MarginPx;
 
             Vector2 cursor = input.CursorPosition;
-            Vector2 cursorWorld = UnprojectToWorldPosition(cursor);
-            // Loose world-radius prefilter. At close zoom UnprojectToWorldSize(iconClick*4)
-            // is small but the largest ship's world radius dwarfs it — pad by a safe upper
-            // bound so we don't filter out a capital ship the cursor is on top of. Not a
-            // true cap; a future modded 5000-radius ship would silently lose clicks at
-            // extreme zoom — increase or derive from UState if that happens.
-            const float PrefilterPadWorldRadius = 4_000f;
-            float prefilterWorldRadius = UnprojectToWorldSize(iconClickRadiusPx * 4f)
-                                       + PrefilterPadWorldRadius;
-            float prefilterWorldRadiusSq = prefilterWorldRadius * prefilterWorldRadius;
-
             Ship best = null;
             float bestDistPx = float.MaxValue;
 
-            foreach (Ship ship in UState.Ships)
+            Ship[] ships = UState.Ships;
+            for (int i = 0; i < ships.Length; i++)
             {
-                if (!ship.Active || !ship.InFrustum || !ship.InPlayerSensorRange)
+                Ship ship = ships[i];
+                if (!ship.Active || !ship.InPlayerSensorRange)
                     continue;
                 if (ship.IsSubspaceProjector && CamPos.Z > 1_200_000.0)
-                    continue;
-                if (ship.Position.SqDist(cursorWorld) > prefilterWorldRadiusSq)
                     continue;
 
                 ProjectToScreenCoords(ship.Position, ship.Radius,

@@ -39,7 +39,7 @@ namespace Ship_Game
             if (BackdropTex != null && !BackdropTex.IsDisposed)
                 return BackdropTex;
             const int Size = 128;
-            var pixels = new Microsoft.Xna.Framework.Color[Size * Size];
+            var pixels = new Color[Size * Size];
             float center = (Size - 1) * 0.5f;
             float radius = Size * 0.5f;
             for (int y = 0; y < Size; y++)
@@ -50,7 +50,7 @@ namespace Ship_Game
                     float d = (float)Math.Sqrt(dx * dx + dy * dy);
                     float a = Math.Clamp(radius - d, 0f, 1f); // 1px AA edge
                     byte b = (byte)(a * 255f);
-                    pixels[y * Size + x] = new Microsoft.Xna.Framework.Color(b, b, b, b);
+                    pixels[y * Size + x] = new Color(b, b, b, b);
                 }
             }
             var tex = new Texture2D(device, Size, Size);
@@ -84,10 +84,13 @@ namespace Ship_Game
             double pRadius = insetRadialSS.Distance(pPos).LowerBound(5);
 
             // Backdrop: dim background star systems so they don't visually
-            // compete with the orbital overlay. Sized to the outermost orbit
-            // (40 + 40*i) plus a small pad for planet icons.
+            // compete with the orbital overlay. Sized to cover the bracket
+            // (pRadius) plus the outermost orbit ring (40 + 40*i) plus a small
+            // icon pad, whichever is larger. Falls back to bracket-only for
+            // unexplored systems where planet count is unknown.
             int planetCount = Sys.IsExploredBy(player) ? Sys.PlanetList.Count : 0;
-            float backdropRadius = 40f + 40f * planetCount + 20f;
+            float orbitRadius = 40f + 40f * planetCount + 20f;
+            float backdropRadius = Math.Max(orbitRadius, (float)pRadius + 12f);
             float fadeIn = Math.Clamp(SelectionTimer / 0.4f, 0f, 1f);
             byte backdropAlpha = (byte)(200f * fadeIn);
             if (backdropAlpha > 0)

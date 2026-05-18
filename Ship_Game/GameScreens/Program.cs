@@ -290,8 +290,11 @@ internal static class Program
     // missing entry point and USER32.dll.
     static bool IsMissingDpiApi(EntryPointNotFoundException ex)
     {
+        // AND-match: require both the DPI entry-point name AND the USER32 module
+        // so a future MonoGame upgrade missing some unrelated USER32 helper
+        // doesn't get misclassified as "Windows version too old".
         return ex.Message.Contains("GetThreadDpi", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("USER32", StringComparison.OrdinalIgnoreCase);
+            && ex.Message.Contains("USER32", StringComparison.OrdinalIgnoreCase);
     }
 
     static void HandleUnsupportedWindowsVersion(EntryPointNotFoundException ex)
