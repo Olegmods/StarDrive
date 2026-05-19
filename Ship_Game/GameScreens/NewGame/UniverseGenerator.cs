@@ -524,8 +524,9 @@ namespace Ship_Game.GameScreens.NewGame
                     // ~180 each around the bar tips. Arms attach at bar tip (armStartR ==
                     // barHalfLen) and span a wider radial band (0.72 -> 0.95) so they read
                     // as a fat band rather than a perfect arc; pitch tuned for ~180 sweep
-                    // (maxT = ln(0.95/0.72)/0.088 ~ 3.1 rad). Flare factor 1.2 still puffs
-                    // the bar-tip end further.
+                    // (maxT = ln(0.95/0.72)/0.088 ~ 3.1 rad). Flare factor 4.0 puffs the
+                    // bar-tip end (jitter is 5x at t=0 tapering to 1x at outer end) so the
+                    // arms read as a flared trumpet rather than uniform ribbons.
                     numArms = 2; bulgeFraction = 0.30f; bulgeRadius = 0.18f; armThicknessFrac = 0.06f;
                     armStartR = 0.72f; armEndR = 0.95f; pitch = 0.088f; armFlareFactor = 4.0f; hasBar = true;  break;
                 case SpiralVariant.Magellanic:

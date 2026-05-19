@@ -12448,7 +12448,7 @@ SpiralFourArmGalaxyGame:
  ENG: "4-Arm Spiral Galaxy"
 SpiralFourArmGalaxyGameTip:
  Id: 4529
- ENG: "Each empire starts at a random place along the arms of a 4-arm spiral galaxy: tighter winding, four distinct arms, thinner arm structure."
+ ENG: "Each empire starts at a random place along the arms of a 4-arm spiral galaxy."
 SpiralBarredGalaxyGame:
  Id: 4530
  ENG: "Barred Spiral Galaxy"
@@ -12460,7 +12460,7 @@ SpiralMagellanicGalaxyGame:
  ENG: "Magellanic Spiral Galaxy"
 SpiralMagellanicGalaxyGameTip:
  Id: 4533
- ENG: "Each empire starts along a single fat asymmetric arm wrapping around an off-center bulge. The galaxy is visibly lopsided and one arm carries every starting system."
+ ENG: "A visibly lopsided galaxy with a single fat asymmetric arm wrapping around an off-center bulge. Most empires start inside the dense central bulge; the rest spread along the arm."
 FlatIncomePerTurn:
  Id: 4384
  ENG: "Flat Income Per Turn" 
