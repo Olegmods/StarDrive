@@ -135,8 +135,14 @@ namespace Ship_Game
             TraitsList = Traits.List;
             TraitsList.EnableItemHighlight = true;
             TraitsList.OnClick = OnTraitsListItemClicked;
-            RectF traitsListBg = new(traitsList.X+60, traitsList.Y+90, traitsList.W, traitsList.H);
-            TraitsList.SetBackground(new Menu1(traitsListBg));
+            RectF traitsListBg = new(traitsList.X, traitsList.Y, traitsList.W, traitsList.H);
+            var traitsBg = new Menu1(traitsListBg);
+            TraitsList.SetBackground(traitsBg);
+            // Anchor at abs pos: SetBackground sets a wrong-sign LocalPos that
+            // would re-position the Menu1 on the next PerformLayout (triggered by
+            // SetItems when a trait tab is clicked). Pinning here makes
+            // UpdatePosAndSize no-op so the bg stays put.
+            traitsBg.SetAbsPos(traitsListBg.X, traitsListBg.Y);
 
             RectF chooseRace = new(5, (int)traitsList.Y, (int)traitsList.X - 10, (int)traitsList.H);
             ChooseRaceList = Add(new ScrollList<RaceArchetypeListItem>(chooseRace, 135));
@@ -234,12 +240,12 @@ namespace Ship_Game
                 .SetLocalPos(ChooseRaceList.Width / 2 - 10, ChooseRaceList.Height + containerMarginBottom);
 
             var pos = new Vector2(ScreenWidth / 2 - 84, traitsList.Y + traitsList.H + 10);
-            Traits.ButtonMedium(pos.X - 142, pos.Y, "Load Setup", OnLoadSetupClicked)
-                .SetLocalPos(Traits.Width / 2 + 98, Traits.Height + containerMarginBottom*3);
-            Traits.ButtonMedium(pos.X + 178, pos.Y, "Save Setup", OnSaveSetupClicked)
-                .SetLocalPos(Traits.Width / 2 - 200, Traits.Height + containerMarginBottom*3);
-            Traits.Button(ButtonStyle.MediumMenu, GameText.RuleOptions, click: OnRuleOptionsClicked)
-                .SetLocalPos(Traits.Width / 2 - 52, Traits.Height + containerMarginBottom*3);
+            Traits.ButtonBigDip(pos.X - 142, pos.Y, "Load Setup", OnLoadSetupClicked)
+                .SetLocalPos(Traits.Width / 2 + 94, Traits.Height + containerMarginBottom*3);
+            Traits.ButtonBigDip(pos.X + 178, pos.Y, "Save Setup", OnSaveSetupClicked)
+                .SetLocalPos(Traits.Width / 2 - 262, Traits.Height + containerMarginBottom*3);
+            Traits.Button(ButtonStyle.Default, GameText.RuleOptions, click: OnRuleOptionsClicked)
+                .SetLocalPos(Traits.Width / 2 - 84, Traits.Height + containerMarginBottom*3);
 
             ChooseRaceList.SlideInFromOffset(offset:new(-ChooseRaceList.Width, 0), TransitionOnTime);
             DescriptionTextList.SlideInFromOffset(offset:new(DescriptionTextList.Width, 0), TransitionOnTime);
@@ -405,8 +411,11 @@ namespace Ship_Game
                 case GameMode.Corners:       return GameText.Corners;
                 case GameMode.BigClusters:   return GameText.BigClustersGame;
                 case GameMode.SmallClusters: return GameText.SmallClustersGame;
-                case GameMode.Ring:          return GameText.RingGalaxyGame;
-                case GameMode.Spiral:        return GameText.SpiralGalaxyGame;
+                case GameMode.Ring:           return GameText.RingGalaxyGame;
+                case GameMode.SpiralTwoArm:     return GameText.SpiralTwoArmGalaxyGame;
+                case GameMode.SpiralFourArm:    return GameText.SpiralFourArmGalaxyGame;
+                case GameMode.SpiralBarred:     return GameText.SpiralBarredGalaxyGame;
+                case GameMode.SpiralMagellanic: return GameText.SpiralMagellanicGalaxyGame;
             }
         }
 
@@ -415,14 +424,17 @@ namespace Ship_Game
             switch (P.Mode)
             {
                 default:
-                case GameMode.Random:        return GameText.InRandomGameMode;
-                case GameMode.Sandbox:       return GameText.InTheSandboxGameMode;
-                case GameMode.Elimination:   return GameText.InTheCapitalEliminationGame;
-                case GameMode.Corners:       return GameText.CornersIsARaceMatch;
-                case GameMode.BigClusters:   return GameText.EachEmpireStartsInA;
-                case GameMode.SmallClusters: return GameText.TheGalaxyWillBeConsisted;
-                case GameMode.Ring:          return GameText.RingGalaxyGameTip;
-                case GameMode.Spiral:        return GameText.SpiralGalaxyGameTip;
+                case GameMode.Random:         return GameText.InRandomGameMode;
+                case GameMode.Sandbox:        return GameText.InTheSandboxGameMode;
+                case GameMode.Elimination:    return GameText.InTheCapitalEliminationGame;
+                case GameMode.Corners:        return GameText.CornersIsARaceMatch;
+                case GameMode.BigClusters:    return GameText.EachEmpireStartsInA;
+                case GameMode.SmallClusters:  return GameText.TheGalaxyWillBeConsisted;
+                case GameMode.Ring:           return GameText.RingGalaxyGameTip;
+                case GameMode.SpiralTwoArm:     return GameText.SpiralTwoArmGalaxyGameTip;
+                case GameMode.SpiralFourArm:    return GameText.SpiralFourArmGalaxyGameTip;
+                case GameMode.SpiralBarred:     return GameText.SpiralBarredGalaxyGameTip;
+                case GameMode.SpiralMagellanic: return GameText.SpiralMagellanicGalaxyGameTip;
             }
         }
 
@@ -698,7 +710,7 @@ namespace Ship_Game
         
         public enum GameMode
         {
-            Sandbox, Spiral, Random, Ring, SmallClusters, BigClusters, Elimination, Corners
+            Sandbox, SpiralTwoArm, SpiralFourArm, SpiralBarred, SpiralMagellanic, Random, Ring, SmallClusters, BigClusters, Elimination, Corners
         }
 
         public enum StarsAbundance

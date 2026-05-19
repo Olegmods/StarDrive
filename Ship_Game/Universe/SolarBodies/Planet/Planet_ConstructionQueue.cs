@@ -190,7 +190,7 @@ public partial class Planet
         bool TryGetQueueItemsFromRefitGoals(out Array<QueueItem> refitQueue)
         {
             refitQueue = new();
-            var refitGoals = Owner.AI.FindGoals(g => g.IsRefitGoalAtPlanet(this));
+            var refitGoals = Owner.AI.FindGoals(g => g?.IsRefitGoalAtPlanet(this) == true);
             if (refitGoals.Length == 0)
                 return false;
 
