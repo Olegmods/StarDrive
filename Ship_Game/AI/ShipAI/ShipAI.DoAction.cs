@@ -278,7 +278,7 @@ namespace Ship_Game.AI
             }
 
             ReverseThrustUntilStopped(timeStep);
-            Owner.Construction.AddConstructionEffects();
+            Owner.Construction.AddConstructionEffects(bg.TetherPlanet);
             if (!Owner.Construction.ConsturctionCompleted)
                 return;
 
@@ -354,7 +354,7 @@ namespace Ship_Game.AI
             }
 
             ReverseThrustUntilStopped(timeStep);
-            Owner.Construction.AddConstructionEffects();
+            Owner.Construction.AddConstructionEffects(bg.TetherPlanet);
             if (!Owner.Construction.ConsturctionCompleted)
                 return;
 
