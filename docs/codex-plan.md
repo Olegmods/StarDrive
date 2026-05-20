@@ -174,6 +174,25 @@ The script lives in `Ship_Game/Tools/Localization/CodexMigrationTool.cs`, invoke
   ```
   Used by Phase 3.
 
+### Candidate simplification — derive GameText NameIds from UID
+
+**Status:** open question; decide before Phase 5 (content authoring) starts so authors don't write under the heavier schema and have to redo it.
+
+`UID` + `TitleId` + `ShortDescId` + `TextId` carry overlapping information — they're all string identifiers for the same entry. If we adopt a convention (`TitleId = "Codex" + PascalCase(slug)`, `ShortDescId = TitleId + "Short"`, `TextId = TitleId + "Text"`), the three `*Id` fields can be dropped from `Codex.yaml`. Drops ~75% of authoring noise per entry. After:
+
+```yaml
+- UID: blackbox_updates
+- UID: blackbox_releases
+  Children:
+    - UID: blackbox_test_dl
+      Link: "https://github.com/TeamStarDrive/CombinedArms/releases"
+```
+
+Tradeoffs:
+- **Pro:** much terser yaml; fewer typos; one renaming touchpoint per entry; convention makes intent obvious.
+- **Con:** less explicit (NameIds become implicit); mods can no longer repoint a single text/short/title to a different token without changing the UID (and therefore every tooltip-hook that references it).
+- **Migration:** if adopted, regenerate `Codex.yaml` from the existing tree by stripping `*Id` fields; runtime `CodexEntry` keeps `TitleId/ShortDescId/TextId` properties but populates them via a `[OnLoaded]` hook that derives from `UID`.
+
 ### Acceptance criteria
 
 - Window visibly larger.
@@ -183,11 +202,11 @@ The script lives in `Ship_Game/Tools/Localization/CodexMigrationTool.cs`, invoke
 
 ---
 
-## Phase 4 — Styled markup (color, bold, url)
+## Phase 4 — Styled markup (color, bold, url, img)
 
-**Goal**: rich text in codex body. Three tag types. Parser + renderer.
+**Goal**: rich text in codex body. Four tag types. Parser + renderer.
 
-**Estimate**: 4–5 hours.
+**Estimate**: 5–6 hours.
 
 ### Tag spec
 
@@ -196,8 +215,16 @@ The script lives in `Ship_Game/Tools/Localization/CodexMigrationTool.cs`, invoke
 | `<color=Name>...</color>` | Color span. `Name` is a public field on `CodexStyles`. | `<color=Caption>Range</color>: weapon falloff distance.` |
 | `<b>...</b>` | Bold span (renders with bold font variant). | `<b>Warning:</b> overcharge depletes power.` |
 | `<url=https://...>display text</url>` | Clickable hyperlink. Renders in `CodexStyles.Url` color, underlined. Click → `Log.OpenURL`. | `See <url=https://wiki.example.com>Game Wiki</url> for full table.` |
+| `<img>path/to/texture</img>` | Inline image; tag body is a `ResourceManager.Texture` path (no extension). Auto-wraps to a new line **after the last image of a contiguous img group** — see flow rules below. | `Press <img>UI/icon_research</img> to open the research screen.` |
 
 Tags **must not nest** in v1 (parser bails on the second open before any close). Pre-existing line breaks (`\n`) and Localizer placeholder syntax (`{0}`, etc.) pass through unchanged.
+
+**`<img>` flow rules:**
+- An image renders at its texture's natural size and is an **atomic run** — the renderer never splits an image across lines.
+- Consecutive `<img>` tags (with only whitespace between them) flow horizontally on the same line, left-to-right, until they exhaust the line's remaining width. Overflow wraps the next image to a new line and the group continues there.
+- The renderer inserts a **forced line break after the last image of the contiguous group** so subsequent text starts on a fresh line. No break is inserted before the group — if you want text above the image, end the preceding text run with `\n`.
+- If an image's natural width exceeds `bounds.Width`, it still renders (clipped to the right edge) on its own line. Authors should size source textures to fit.
+- Missing texture (not resolvable via `ResourceManager.Texture`) → render the literal path string in `CodexStyles.Warning` color; log once at parse time. Non-fatal.
 
 ### CodexStyles class
 
@@ -236,10 +263,11 @@ namespace Ship_Game.Codex
 ```csharp
 public readonly struct StyledRun
 {
-    public readonly string Text;
+    public readonly string Text;       // null for image runs
     public readonly Color Color;
     public readonly bool Bold;
-    public readonly string Url;  // null if not a link
+    public readonly string Url;        // null if not a link
+    public readonly string ImagePath;  // non-null marks this as an image run; Text/Color/Bold/Url ignored
 }
 
 public static class StyledTextParser
@@ -248,7 +276,7 @@ public static class StyledTextParser
 }
 ```
 
-Recommended approach: simple state machine over the string. Track current color, current bold flag, current URL. On `<color=X>` push state, on `</color>` pop. Unknown tags pass through as literal text (defensive; doesn't crash on missing close tags). For unknown color name → fall back to `CodexStyles.Default`.
+Recommended approach: simple state machine over the string. Track current color, current bold flag, current URL. On `<color=X>` push state, on `</color>` pop. `<img>...</img>` emits a single atomic run (no state push — img can't wrap other markup and other markup can't wrap img). Unknown tags pass through as literal text (defensive; doesn't crash on missing close tags). For unknown color name → fall back to `CodexStyles.Default`.
 
 ### Renderer
 
@@ -267,14 +295,15 @@ public class StyledTextRenderer
 }
 ```
 
-Layout: walk runs, measure each word with its run's font, wrap on word boundaries within `bounds.Width`. Track per-line url rects for click testing. Underline url runs at draw time (`batch.DrawLine` under the text bounds).
+Layout: walk runs, measure each word with its run's font, wrap on word boundaries within `bounds.Width`. Track per-line url rects for click testing. Underline url runs at draw time (`batch.DrawLine` under the text bounds). Image runs are placed inline as atomic blocks (measure = texture size); the renderer inserts a forced newline after the last image in a contiguous img group (see flow rules above). Per-line height is `max(font line spacing, max image height on that line)`.
 
 This is the most subtle code in the plan. Risks:
 - Mixed-font line height (bold may have different metrics than regular)
 - Word-break inside a run vs across runs
 - Right-edge wrap when a run ends mid-word
+- Image-vs-text vertical alignment on mixed lines (images can be taller than text)
 
-Mitigation: hard-cap a single run at 200 chars during parse (split longer runs), use per-line max font height for line spacing, wrap on whitespace + explicit `\n`.
+Mitigation: hard-cap a single run at 200 chars during parse (split longer runs), use per-line max(font height, image height) for line spacing, wrap on whitespace + explicit `\n`. For mixed image/text lines, align the text baseline to the image's vertical center (or top) — pick one in v1 and document.
 
 ### Files
 
@@ -291,6 +320,9 @@ Mitigation: hard-cap a single run at 200 chars during parse (split longer runs),
 - A codex entry with `<color=Caption>Title:</color> body text` renders Title in gold, body in white.
 - `<b>Warning</b>` renders bold.
 - `<url=https://example.com>Click me</url>` renders blue + underlined; clicking opens the URL in the default browser.
+- A single `<img>UI/icon_research</img>` between text runs renders the icon inline and forces the following text onto a new line.
+- Three consecutive `<img>` tags render side-by-side on one line (assuming combined width fits), then a single line break before the next text run.
+- A missing image path (e.g., `<img>does_not_exist</img>`) renders the path string in warning color without crashing.
 - Long body text wraps correctly at the panel right edge.
 - Unknown tags don't crash — render as literal text.
 
