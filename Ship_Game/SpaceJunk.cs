@@ -22,9 +22,12 @@ namespace Ship_Game
         ParticleEmitter FlameTrail;
         ParticleEmitter ProjTrail;
         int ConstructionPartId;
-        Planet TetherPlanet;       // anchors construction junk to a moving planet
-        Vector3 ConstructionOffset; // offset from TetherPlanet at spawn
+        Planet TetherPlanet;        // anchors construction junk to a moving planet
+        Vector2 TetherPointOffset;  // build point relative to planet center (stable)
+        Vector3 ConstructionOffset; // junk position relative to tether point (grows during fade)
+        bool IsFading;              // true once TryReset fires; render scale shrinks with remaining Duration
         const float ConstructionPartDuration = 10;
+        const float FadeOutwardRate = 0.2f; // ~e^(0.2*5) = 2.7x outward growth over the 5s fade
 
         public SpaceJunk()
         {
@@ -43,8 +46,12 @@ namespace Ship_Game
                 if (tetherPlanet != null)
                 {
                     TetherPlanet = tetherPlanet;
-                    ConstructionOffset = new Vector3(Position.X - tetherPlanet.Position.X,
-                                                     Position.Y - tetherPlanet.Position.Y,
+                    // Build point relative to planet center: stable, follows planet orbit
+                    TetherPointOffset = new Vector2(parentPos.X - tetherPlanet.Position.X,
+                                                    parentPos.Y - tetherPlanet.Position.Y);
+                    // Junk's spread around the build point: this is what grows during fade
+                    ConstructionOffset = new Vector3(Position.X - parentPos.X,
+                                                     Position.Y - parentPos.Y,
                                                      Position.Z);
                 }
                 CreateSceneObjectConstruction(parentPos, maxSize, constructorId);
@@ -142,7 +149,7 @@ namespace Ship_Game
 
             int junkIndex = Universe.Random.InRange(ResourceManager.NumJunkModels);
             var model = ResourceManager.GetJunkModel(junkIndex);
-            float meshDiameter = 3f * ResourceManager.GetJunkModelRadius(junkIndex);
+            float meshDiameter = 2f * ResourceManager.GetJunkModelRadius(junkIndex);
 
             // set lower bound to max size, otherwise we can't even see the junk
             float maxAllowedSize = maxSize.LowerBound(8f);
@@ -195,7 +202,8 @@ namespace Ship_Game
             {
                 lock (this)
                 {
-                    Duration -= ConstructionPartDuration - 5;
+                    Duration = MaxDuration = ConstructionPartDuration * 0.5f;
+                    IsFading = true;
                 }
             }
         }
@@ -215,8 +223,17 @@ namespace Ship_Game
 
             if (TetherPlanet != null)
             {
-                Position.X = TetherPlanet.Position.X + ConstructionOffset.X;
-                Position.Y = TetherPlanet.Position.Y + ConstructionOffset.Y;
+                if (IsFading)
+                {
+                    // Push outward from the tether point (build position), not planet center.
+                    // Exponential so rate scales with current distance and the cluster visibly
+                    // expands rather than rigidly translating.
+                    float growth = 1f + (FadeOutwardRate * timeStep.FixedTime);
+                    ConstructionOffset.X *= growth;
+                    ConstructionOffset.Y *= growth;
+                }
+                Position.X = TetherPlanet.Position.X + TetherPointOffset.X + ConstructionOffset.X;
+                Position.Y = TetherPlanet.Position.Y + TetherPointOffset.Y + ConstructionOffset.Y;
                 Position.Z = ConstructionOffset.Z;
             }
             else
@@ -224,7 +241,8 @@ namespace Ship_Game
                 Position += Velocity * timeStep.FixedTime;
             }
             RotationRadians += Spin * timeStep.FixedTime;
-            So.AffineTransform(Position, RotationRadians, Scale);
+            float renderScale = IsFading ? Scale * (Duration / MaxDuration) : Scale;
+            So.AffineTransform(Position, RotationRadians, renderScale);
 
             FlameTrail?.Update(timeStep.FixedTime, Position);
             ProjTrail?.Update(timeStep.FixedTime, Position);
