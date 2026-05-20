@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Microsoft.Xna.Framework.Graphics;
+using Ship_Game.Codex;
 using Color = Microsoft.Xna.Framework.Color;
 using Vector2 = SDGraphics.Vector2;
 
@@ -11,23 +7,36 @@ namespace Ship_Game
 {
     public class WikiHelpCategoryListItem : ScrollListItem<WikiHelpCategoryListItem>
     {
-        public HelpTopic Topic;
-        public WikiHelpCategoryListItem(string headerText) : base(headerText) { }
-        public WikiHelpCategoryListItem(HelpTopic topic) { Topic = topic; }
+        public CodexEntry Entry;
+
+        public WikiHelpCategoryListItem(CodexEntry entry)
+        {
+            Entry = entry;
+            // Categories (entries with children) act as expandable headers; the base
+            // class requires IsHeader=true before AddSubItem will accept children.
+            if (entry?.Children != null && entry.Children.Count > 0)
+            {
+                IsHeader = true;
+                HeaderText = Localizer.Token(entry.TitleId);
+            }
+        }
 
         public override void Draw(SpriteBatch batch, DrawTimes elapsed)
         {
             base.Draw(batch, elapsed);
-            if (Topic != null)
-            {
-                Vector2 cursor = Pos;
-                cursor.X += 15f;
-                batch.DrawString(Fonts.Arial12Bold,
-                    Topic.Title, cursor, (Hovered ? Color.Orange : Color.White));
+            if (Entry == null || IsHeader)
+                return; // header text is drawn by ScrollListItem<T>.base.Draw via HeaderText
 
+            Vector2 cursor = Pos;
+            cursor.X += 15f;
+            batch.DrawString(Fonts.Arial12Bold,
+                Localizer.Token(Entry.TitleId), cursor, Hovered ? Color.Orange : Color.White);
+
+            if (!string.IsNullOrEmpty(Entry.ShortDescId))
+            {
                 cursor.Y += Fonts.Arial12Bold.LineSpacing;
                 batch.DrawString(Fonts.Arial12,
-                    Topic.ShortDescription, cursor, (Hovered ? Color.White : Color.Orange));
+                    Localizer.Token(Entry.ShortDescId), cursor, Hovered ? Color.White : Color.Orange);
             }
         }
     }

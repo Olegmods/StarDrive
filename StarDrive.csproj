@@ -97,6 +97,7 @@
     <Compile Include="Ship_Game\AI\ThreatMatrix_ClustersGenerator.cs" />
     <Compile Include="Ship_Game\AI\ThreatMatrix_Update.cs" />
     <Compile Include="Ship_Game\ChoosePatrolPlanWindow.cs" />
+    <Compile Include="Ship_Game\Codex\CodexEntry.cs" />
     <Compile Include="Ship_Game\Commands\Goals\RemnantHelpEmpire.cs" />
     <Compile Include="Ship_Game\Debug\Page\EspionageDebug.cs" />
     <Compile Include="Ship_Game\Debug\Page\MiningOpsDebug.cs" />
@@ -807,8 +808,6 @@
     <Compile Include="Ship_Game\Universe\SolarBodies\UnownedPlanetScreen.cs" />
     <Compile Include="Ship_Game\ExplosionManager.cs" />
     <Compile Include="Ship_Game\Gameplay\TraitEntry.cs" />
-    <Compile Include="Ship_Game\HelpTopics.cs" />
-    <Compile Include="Ship_Game\HelpTopic.cs" />
     <Compile Include="Ship_Game\StoryAndEvents\EncounterPopup.cs" />
     <Compile Include="Ship_Game\StoryAndEvents\AnomalyManager.cs" />
     <Compile Include="Ship_Game\StoryAndEvents\Anomaly.cs" />

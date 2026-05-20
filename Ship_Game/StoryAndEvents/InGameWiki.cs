@@ -1,10 +1,10 @@
 using Microsoft.Xna.Framework.Graphics;
 using Color = Microsoft.Xna.Framework.Color;
-using System.Collections.Generic;
-using System.Diagnostics;
 using SDGraphics;
 using SDUtils;
 using Ship_Game.Audio;
+using Ship_Game.Codex;
+using Ship_Game.Data.Yaml;
 using Ship_Game.GameScreens;
 using Ship_Game.Utils;
 using Vector2 = SDGraphics.Vector2;
@@ -14,7 +14,7 @@ namespace Ship_Game
 {
     public sealed class InGameWiki : PopupWindow
     {
-        readonly HelpTopics HelpTopics;
+        readonly Array<CodexEntry> Codex;
         ScrollList<WikiHelpCategoryListItem> HelpCategories;
         RectF TextRect;
         Vector2 TitlePosition;
@@ -23,16 +23,21 @@ namespace Ship_Game
         ScreenMediaPlayer Player;
         RectF SmallViewer;
         RectF BigViewer;
-        HelpTopic ActiveTopic;
+        CodexEntry ActiveEntry;
+        string ActiveTitle = "";
+        string ActiveText = "";
 
         public InGameWiki(GameScreen parent) : base(parent, 750, 600)
         {
             IsPopup           = true;
             TransitionOnTime  = 0.25f;
             TransitionOffTime = 0.25f;
-            var help = ResourceManager.GatherFilesModOrVanilla("HelpTopics/" + GlobalStats.Language,"xml");
-            if (help.Length  != 0)
-                HelpTopics    = help[0].Deserialize<HelpTopics>();
+
+            // Codex.yaml is a flat array of root categories; each may have nested Children.
+            var file = ResourceManager.GetModOrVanillaFile("Codex.yaml");
+            Codex = file != null && file.Exists
+                ? YamlParser.DeserializeArray<CodexEntry>(file)
+                : new Array<CodexEntry>();
 
             TitleText  = Localizer.Token(GameText.StardriveHelp2);
             MiddleText = Localizer.Token(GameText.ThisHelpMenuContainsInformation);
@@ -48,11 +53,9 @@ namespace Ship_Game
                 MiddleText = $"Mod Loaded: {GlobalStats.ModName} Ver: {GlobalStats.ActiveMod.Mod.Version}";
             }
 
-            ActiveTopic = new HelpTopic
-            {
-                Title = Localizer.Token(GameText.StardriveHelp),
-                Text  = Localizer.Token(GameText.SelectATopicOnThe)
-            };
+            ActiveEntry = null;
+            ActiveTitle = Localizer.Token(GameText.StardriveHelp);
+            ActiveText  = Localizer.Token(GameText.SelectATopicOnThe);
 
             RectF CategoriesRect = new(Rect.X + 25, MidSepBot.Y + 10, 330, 430);
             HelpCategories = Add(new ScrollList<WikiHelpCategoryListItem>(CategoriesRect));
@@ -72,30 +75,32 @@ namespace Ship_Game
                 OnPlayStatusChange = OnPlayerStatusChanged
             };
 
-            var categories = new HashSet<string>();
-            foreach (HelpTopic topic in HelpTopics.HelpTopicsList)
+            // Phase 1: render the top-level categories as ScrollList headers with their
+            // direct children as sub-items. Arbitrary nesting is Phase 2.
+            foreach (CodexEntry cat in Codex)
             {
-                if (categories.Add(topic.Category))
+                WikiHelpCategoryListItem header = HelpCategories.AddItem(new WikiHelpCategoryListItem(cat));
+                if (cat.Children != null)
                 {
-                    WikiHelpCategoryListItem cat = HelpCategories.AddItem(
-                        new WikiHelpCategoryListItem(topic.Category)
-                    );
-                    cat.AddSubItem(new WikiHelpCategoryListItem(topic));
+                    foreach (CodexEntry child in cat.Children)
+                        header.AddSubItem(new WikiHelpCategoryListItem(child));
                 }
             }
             HelpCategories.OnClick = OnHelpCategoryClicked;
         }
-        
+
         void ResetActiveTopic()
         {
-            HelpEntries.SetLines(ActiveTopic.Text, Fonts.Arial12Bold, Color.White);
-            float titleW = Fonts.Arial20Bold.TextWidth(ActiveTopic.Title);
+            HelpEntries.SetLines(ActiveText, Fonts.Arial12Bold, Color.White);
+            float titleW = Fonts.Arial20Bold.TextWidth(ActiveTitle);
             TitlePosition = new(TextRect.CenterX - titleW / 2f - 15f, TextRect.Y + 10);
         }
 
         void OnHelpCategoryClicked(WikiHelpCategoryListItem item)
         {
-            if (item.Topic == null)
+            // A bare category header has children but no body of its own — clear video
+            // and leave the previous selection intact (matches the legacy behavior).
+            if (item.IsHeader)
             {
                 Player.Stop();
                 Player.Visible = false;
@@ -103,19 +108,21 @@ namespace Ship_Game
             }
 
             HelpEntries.Clear();
-            ActiveTopic = item.Topic;
+            ActiveEntry = item.Entry;
+            ActiveTitle = ActiveEntry != null && !string.IsNullOrEmpty(ActiveEntry.TitleId)
+                ? Localizer.Token(ActiveEntry.TitleId)
+                : "";
+            ActiveText  = ActiveEntry != null && !string.IsNullOrEmpty(ActiveEntry.TextId)
+                ? Localizer.Token(ActiveEntry.TextId)
+                : "";
 
-            if (ActiveTopic.Text != null)
-            {
+            if (!string.IsNullOrEmpty(ActiveText))
                 ResetActiveTopic();
-            }
 
-            if (ActiveTopic.Link.NotEmpty())
-            {
-                Log.OpenURL(ActiveTopic.Link);
-            }
+            if (ActiveEntry != null && !string.IsNullOrEmpty(ActiveEntry.Link))
+                Log.OpenURL(ActiveEntry.Link);
 
-            if (ActiveTopic.VideoPath == null)
+            if (ActiveEntry == null || string.IsNullOrEmpty(ActiveEntry.VideoPath))
             {
                 Player.Stop();
                 Player.Visible = false;
@@ -123,7 +130,7 @@ namespace Ship_Game
             else
             {
                 HelpEntries.Clear();
-                Player.PlayVideo(ActiveTopic.VideoPath, looping: false, startPaused: true);
+                Player.PlayVideo(ActiveEntry.VideoPath, looping: false, startPaused: true);
                 Player.Visible = true;
             }
         }
@@ -159,7 +166,7 @@ namespace Ship_Game
             if (Player.IsPaused)
             {
                 batch.DrawRectangleGlow(Player.Rect);
-                batch.DrawString(Fonts.Arial20Bold, ActiveTopic.Title, TitlePosition, Color.Orange);
+                batch.DrawString(Fonts.Arial20Bold, ActiveTitle, TitlePosition, Color.Orange);
             }
 
             batch.SafeEnd();
