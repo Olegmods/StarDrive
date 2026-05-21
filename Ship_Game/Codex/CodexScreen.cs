@@ -16,6 +16,7 @@ namespace Ship_Game.Codex
         // UID → ScrollList item, populated as the tree is built; powers OpenAt(uid).
         readonly Map<string, CodexCategoryListItem> ItemByUid = new();
         RectF TextRect;
+        RectF TitleSeparator;
         Vector2 TitlePosition;
         StyledTextRenderer EntryBody;
 
@@ -51,8 +52,7 @@ namespace Ship_Game.Codex
             foreach (CodexEntry root in Roots)
                 root.ResolveDefaults();
 
-            TitleText  = Localizer.Token("CodexTitle");
-            MiddleText = Localizer.Token(GameText.ThisHelpMenuContainsInformation);
+            TitleText = Localizer.Token("CodexTitle");
         }
 
         public override void LoadContent()
@@ -60,10 +60,6 @@ namespace Ship_Game.Codex
             base.LoadContent();
 
             TitleText += $" {GlobalStats.ExtendedVersion}";
-            if (GlobalStats.HasMod)
-            {
-                MiddleText = $"Mod Loaded: {GlobalStats.ModName} Ver: {GlobalStats.ActiveMod.Mod.Version}";
-            }
 
             ActiveEntry = null;
             ActiveTitle = Localizer.Token("CodexTitle");
@@ -83,9 +79,12 @@ namespace Ship_Game.Codex
             CategoryList = Add(new ScrollList<CodexCategoryListItem>(categoriesRect));
 
             TextRect = new(categoriesRect.X + catW + gap, top, bodyW, usableH);
-            // Body text region: small top margin so the centered title doesn't overlap
-            // the first line of body content.
-            EntryBody = new StyledTextRenderer(new RectF(TextRect.X, TextRect.Y + 40, TextRect.W, TextRect.H - 40));
+            // Top margin leaves room for the title plus a comfortable gap before
+            // the first body line — the title font scales to Arial20Bold at ≥1920,
+            // so this needs to clear the larger glyph height.
+            const float titleStripH = 55f;
+            EntryBody = new StyledTextRenderer(new RectF(TextRect.X, TextRect.Y + titleStripH, TextRect.W, TextRect.H - titleStripH));
+            TitleSeparator = new(TextRect.X, TextRect.Y + titleStripH - 13, TextRect.W, 2);
 
             ResetActiveTopic();
 
@@ -264,6 +263,8 @@ namespace Ship_Game.Codex
             batch.SafeBegin();
 
             EntryBody?.Draw(batch);
+
+            batch.Draw(ResourceManager.Texture("Popup/popup_separator"), TitleSeparator, Color.White);
 
             // Title is drawn above the body text for every entry; the original
             // wiki only showed it during paused video, which hid the topic name

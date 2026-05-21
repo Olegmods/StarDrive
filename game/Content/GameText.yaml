@@ -18359,8 +18359,8 @@ Tech_Terraforming3_Desc:
 # Screen-level tokens use the 100200-block; entry content starts at 100000.
 CodexTitle:
  Id: 100200
- ENG: "Codex"
- RUS: "Кодекс"
+ ENG: "BlackBox Codex"
+ RUS: "Кодекс BlackBox"
 CodexPressF1ForDetails:
  Id: 100201
  ENG: "Press F1 for details"
