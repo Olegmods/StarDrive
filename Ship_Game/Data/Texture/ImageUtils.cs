@@ -114,18 +114,54 @@ namespace Ship_Game.Data.Texture
             int pixelCount = dds.Width * dds.Height;
             if (dds.DecodedImage.Length < pixelCount)
                 throw new Exception($"Load DDS {filename} failed: decoded {dds.DecodedImage.Length} pixels, need {pixelCount}");
-            // Pre-multiply RGB by alpha. DxtReader produces non-premultiplied data, but
-            // MonoGame's SpriteBatch default (BlendState.AlphaBlend) is premultiplied.
-            // Without this, A=0 pixels keep their RGB and the AlphaBlend blend formula
-            // (result.rgb = src.rgb + dest.rgb*(1-src.a)) saturates to white wherever
-            // the source is bright-and-transparent (e.g. Bridge.dds viewport area, which
-            // is R=255 G=255 B=255 A=0 in the source DDS). XNA 3.1's Texture2D.FromFile
-            // / MonoGame's Texture2D.FromStream both pre-multiply on PNG load; this
-            // function (added in §2.3) needs to match that contract.
-            PremultiplyAlpha(dds.DecodedImage, pixelCount);
+            // Broken alpha-plane detection: scan for the legacy XNA-3.1 mesh-
+            // exporter trap where the FBX writer stuffed TransparencyFactor
+            // directly into the texture's alpha plane without inversion (see
+            // SunBurnStubs.SetTransparencyModeAndMap). Result: a DXT5 with
+            // alpha=0 everywhere but valid RGB. PremultiplyAlpha would zero
+            // the RGB; the hull then renders pure black with only the
+            // additive glow pass visible. If every pixel has alpha=0 but
+            // some pixel has non-zero RGB, treat as opaque — a texture with
+            // alpha=0 everywhere can't be a legitimate alpha-blend source
+            // (it would render fully transparent), so there's no false-
+            // positive risk.
+            if (HasBrokenAlphaPlane(dds.DecodedImage, pixelCount))
+            {
+                for (int i = 0; i < pixelCount; ++i)
+                    dds.DecodedImage[i].A = 255;
+                Log.Warning($"LoadDds '{filename}': broken alpha plane (A=0 everywhere); forcing opaque");
+            }
+            else
+            {
+                // Pre-multiply RGB by alpha. DxtReader produces non-premultiplied
+                // data, but MonoGame's SpriteBatch default (BlendState.AlphaBlend)
+                // is premultiplied. Without this, A=0 pixels keep their RGB and
+                // the AlphaBlend blend formula (result.rgb = src.rgb +
+                // dest.rgb*(1-src.a)) saturates to white wherever the source is
+                // bright-and-transparent (e.g. Bridge.dds viewport area, which is
+                // R=255 G=255 B=255 A=0 in the source DDS). XNA 3.1's
+                // Texture2D.FromFile / MonoGame's Texture2D.FromStream both
+                // pre-multiply on PNG load; this function (added in §2.3) needs
+                // to match that contract.
+                PremultiplyAlpha(dds.DecodedImage, pixelCount);
+            }
             var tex = new Texture2D(device, dds.Width, dds.Height, false, SurfaceFormat.Color);
             tex.SetData(dds.DecodedImage, 0, pixelCount);
             return tex;
+        }
+
+        // Detect the broken-plane signature: every pixel A=0 but at least one
+        // pixel has non-zero RGB.
+        static bool HasBrokenAlphaPlane(Color[] pixels, int count)
+        {
+            bool anyRgb = false;
+            for (int i = 0; i < count; ++i)
+            {
+                Color c = pixels[i];
+                if (c.A != 0) return false; // legitimate alpha somewhere → not broken
+                if ((c.R | c.G | c.B) != 0) anyRgb = true;
+            }
+            return anyRgb;
         }
 
         // Idempotent in-place premultiply.

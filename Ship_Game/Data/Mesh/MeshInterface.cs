@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Xna.Framework.Graphics;
 using SynapseGaming.LightingSystem.Core;
@@ -572,23 +573,46 @@ namespace Ship_Game.Data.Mesh
             fx.MaterialName          = mat->Name.AsString;
             fx.MaterialFile          = materialFile;
             fx.ProjectFile           = "Ship_Game/Data/RawContentLoader.cs";
-            fx.DiffuseMapFile        = mat->DiffusePath.AsString;
-            fx.EmissiveMapFile       = mat->EmissivePath.AsString;
-            fx.NormalMapFile         = mat->NormalPath.AsString;
-            fx.SpecularColorMapFile  = mat->SpecularPath.AsString;
+            // Mod corpus from the bulk legacy XNA-3.1 mesh-exporter run baked
+            // absolute author-machine paths into the FBX material texture refs
+            // (e.g. "C:\Development\...\Car_Hideki-cl.dds"). The content loader
+            // expects paths relative to game/Content (with mod-folder fallback),
+            // so absolute paths never resolve and the diffuse texture comes back
+            // null — hull renders black. Rebase each texture ref onto the model's
+            // directory so the loader finds the sibling .dds.
+            string modelDir = ModelDirectory(materialFile);
+            string rawDiffuse  = mat->DiffusePath.AsString;
+            string rawEmissive = mat->EmissivePath.AsString;
+            string rawNormal   = mat->NormalPath.AsString;
+            string rawSpecular = mat->SpecularPath.AsString;
+            fx.DiffuseMapFile        = RebaseAbsolute(rawDiffuse,  modelDir);
+            fx.EmissiveMapFile       = RebaseAbsolute(rawEmissive, modelDir);
+            fx.NormalMapFile         = RebaseAbsolute(rawNormal,   modelDir);
+            fx.SpecularColorMapFile  = RebaseAbsolute(rawSpecular, modelDir);
             //fx.DiffuseAmbientMapFile = "";
             //fx.ParallaxMapFile       = "";
             fx.DiffuseMapTexture = TryLoadTexture(content, fx.DiffuseMapFile);
             fx.EmissiveMapTexture = TryLoadTexture(content, fx.EmissiveMapFile);
             fx.NormalMapTexture = TryLoadTexture(content, fx.NormalMapFile);
             fx.SpecularColorMapTexture = TryLoadTexture(content, fx.SpecularColorMapFile);
+            // Diagnostic: print one line per loaded material with raw vs. rebased
+            // texture paths and whether each load actually returned a texture.
+            // Helps catch mod FBXs whose absolute paths point outside the model's
+            // directory, or whose textures fail to load for other reasons.
+            Log.Info($"MeshImporter '{materialFile}' mat='{fx.MaterialName}' " +
+                     $"alpha={mat->Alpha:F2} dif={mat->DiffuseColor} spec={mat->Specular:F3} " +
+                     $"| dif:{TexState(rawDiffuse,  fx.DiffuseMapFile,        fx.DiffuseMapTexture)} " +
+                     $"| emi:{TexState(rawEmissive, fx.EmissiveMapFile,       fx.EmissiveMapTexture)} " +
+                     $"| nrm:{TexState(rawNormal,   fx.NormalMapFile,         fx.NormalMapTexture)} " +
+                     $"| spc:{TexState(rawSpecular, fx.SpecularColorMapFile,  fx.SpecularColorMapTexture)}");
             //if (fx.DiffuseAmbientMapFile.NotEmpty()) fx.DiffuseAmbientMapTexture = content.Load<Texture2D>(fx.DiffuseAmbientMapFile);
             //if (fx.ParallaxMapFile.NotEmpty())       fx.ParallaxMapTexture       = CoreUtils.ConvertToLuminance8(device, content.Load<Texture2D>(fx.ParallaxMapFile));
             fx.Skinned         = isSkinned;
             fx.DoubleSided     = false;
 
-            Texture2D alphaMap = mat->AlphaPath.NotEmpty
-                ? content.Load<Texture2D>(mat->AlphaPath.AsString)
+            string alphaPath = RebaseAbsolute(mat->AlphaPath.AsString, modelDir);
+            Texture2D alphaMap = alphaPath.NotEmpty()
+                ? content.Load<Texture2D>(alphaPath)
                 : fx.DiffuseMapTexture;
 
             fx.SetTransparencyModeAndMap(TransparencyMode.None, mat->Alpha, alphaMap);
@@ -634,7 +658,51 @@ namespace Ship_Game.Data.Mesh
         {
             if (texturePath.IsEmpty())
                 return null;
-            return content.Load<Texture2D>(texturePath);
+            try
+            {
+                return content.Load<Texture2D>(texturePath);
+            }
+            catch (Exception e)
+            {
+                Log.Warning($"MeshImporter.TryLoadTexture('{texturePath}') failed: {e.Message}");
+                return null;
+            }
+        }
+
+        // Format a single texture slot's diagnostic state. Output forms:
+        //   "<empty>"                                — FBX didn't reference this slot
+        //   "<path>" + " ok"                         — raw path == rebased path, load OK
+        //   "<rebased> [from <abs>]" + " ok|null"    — absolute path was rebased
+        //   "<path>" + " null"                       — load returned null / threw
+        static string TexState(string rawPath, string usedPath, Texture2D tex)
+        {
+            if (rawPath.IsEmpty()) return "<empty>";
+            string state = tex != null ? "ok" : "null";
+            return rawPath == usedPath
+                ? $"{usedPath} {state}"
+                : $"{usedPath} [from {rawPath}] {state}";
+        }
+
+        // "mod Model/Cardassia/Car_Hideki" → "mod Model/Cardassia/"
+        // The model name passed to CreateMaterialEffect is a content-relative
+        // logical path (no extension); take its directory as the search root for
+        // sibling textures referenced via absolute paths inside the FBX.
+        static string ModelDirectory(string modelName)
+        {
+            if (modelName.IsEmpty()) return "";
+            string dir = Path.GetDirectoryName(modelName) ?? "";
+            return dir.Replace('\\', '/');
+        }
+
+        // If `texturePath` is absolute (an author-machine path baked into the
+        // FBX), rebase it onto `modelDir` using only the filename. Relative
+        // paths pass through unchanged.
+        static string RebaseAbsolute(string texturePath, string modelDir)
+        {
+            if (texturePath.IsEmpty() || !Path.IsPathRooted(texturePath))
+                return texturePath;
+            string fileName = Path.GetFileName(texturePath);
+            return modelDir.IsEmpty() ? fileName : modelDir + "/" + fileName;
         }
     }
 }

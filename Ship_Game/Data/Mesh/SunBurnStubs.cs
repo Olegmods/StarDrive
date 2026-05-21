@@ -1151,9 +1151,17 @@ namespace SynapseGaming.LightingSystem.Effects.Forward
 
         // Phase 2.8 carryover: SunBurn material reader call-site that maps
         // (TransparencyMode + alpha + texture) onto our Alpha + Texture state.
+        // Force Alpha=1 when the call site declares the material opaque
+        // (TransparencyMode.None): the bulk legacy XNA-3.1 mesh exporter run
+        // baked Alpha=0 into the TransparencyFactor of every mod FBX exported
+        // before the Mesh_Fbx.cpp write-path inversion fix (migration-plan-
+        // phase3.md §3.D). Without this guard those ships render fully
+        // transparent — only their additive glow pass survives, producing the
+        // "only glow visible" symptom on STSA Cardassian ships and similar mod
+        // corpus that never got a re-export.
         public void SetTransparencyModeAndMap(TransparencyMode mode, float alpha, Texture2D map)
         {
-            Alpha = alpha;
+            Alpha = (mode == TransparencyMode.None) ? 1.0f : alpha;
             if (map != null)
             {
                 Texture = map;
