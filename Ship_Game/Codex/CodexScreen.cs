@@ -30,7 +30,13 @@ namespace Ship_Game.Codex
         // after the tree is built.
         string PendingUid;
 
-        public CodexScreen(GameScreen parent) : base(parent, 1100, 750)
+        // Codex sizes to 60% of the screen on monitors big enough that 60%
+        // width stays above 1024px; smaller screens get a fullscreen popup
+        // so the layout (480px categories + body + margins) still fits.
+        static int CodexSize(int dim) => (int)(GameBase.ScreenWidth * 0.6f) < 1024 ? dim : (int)(dim * 0.6f);
+
+        public CodexScreen(GameScreen parent)
+            : base(parent, CodexSize(GameBase.ScreenWidth), CodexSize(GameBase.ScreenHeight))
         {
             IsPopup           = true;
             TransitionOnTime  = 0.25f;
@@ -132,7 +138,7 @@ namespace Ship_Game.Codex
         void ResetActiveTopic()
         {
             EntryBody.SetText(StyledTextParser.Parse(ActiveText));
-            float titleW = Fonts.Arial20Bold.TextWidth(ActiveTitle);
+            float titleW = CodexStyles.CaptionFont.TextWidth(ActiveTitle);
             TitlePosition = new(TextRect.CenterX - titleW / 2f - 15f, TextRect.Y + 10);
         }
 
@@ -262,7 +268,7 @@ namespace Ship_Game.Codex
             // Title is drawn above the body text for every entry; the original
             // wiki only showed it during paused video, which hid the topic name
             // for plain-text entries.
-            batch.DrawString(Fonts.Arial20Bold, ActiveTitle, TitlePosition, Color.Orange);
+            batch.DrawString(CodexStyles.CaptionFont, ActiveTitle, TitlePosition, Color.White);
 
             Player?.Draw(batch);
             if (Player != null && Player.IsPaused)

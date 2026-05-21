@@ -38,6 +38,11 @@ namespace Ship_Game.Codex
         public float ScrollY { get; private set; }
         public float ContentHeight { get; private set; }
 
+        // Right-edge reservation for the scrollbar thumb. Text wraps against
+        // (Bounds.Right - ScrollBarWidth) so it never runs under the bar.
+        const float ScrollBarWidth = 12f;
+        float WrapRight => Bounds.Right - ScrollBarWidth;
+
         public StyledTextRenderer(RectF bounds)
         {
             Bounds = bounds;
@@ -102,7 +107,7 @@ namespace Ship_Game.Codex
 
                     float w = tex.Width;
                     float h = tex.Height;
-                    if (x + w > Bounds.Right && x > Bounds.X)
+                    if (x + w > WrapRight && x > Bounds.X)
                         CommitLine();
 
                     Tokens.Add(new Token
@@ -151,7 +156,7 @@ namespace Ship_Game.Codex
             // Wrap only when this token genuinely overflows AND there's already
             // something on the line — otherwise a single overflowing word would
             // loop forever on empty lines.
-            if (x + w > Bounds.Right && x > Bounds.X)
+            if (x + w > WrapRight && x > Bounds.X)
             {
                 // Suppress leading whitespace on a wrapped line so we don't show
                 // an awkward leading gap where the wrap occurred.
@@ -237,6 +242,32 @@ namespace Ship_Game.Codex
             batch.SafeEnd();
             RenderStates.DisableScissorTest(batch.GraphicsDevice);
             batch.SafeBegin();
+
+            DrawScrollBar(batch);
+        }
+
+        // Reuses NewUI ScrollListStyleTextures so the bar matches the left
+        // category list visually.
+        void DrawScrollBar(SpriteBatch batch)
+        {
+            float overflow = ContentHeight - Bounds.H;
+            if (overflow <= 0f)
+                return;
+
+            ScrollListStyleTextures s = ScrollListStyleTextures.Get(ListStyle.Default);
+            float thumbH = Math.Max(20f, Bounds.H * (Bounds.H / ContentHeight));
+            float thumbY = Bounds.Y + (ScrollY / overflow) * (Bounds.H - thumbH);
+            float midH  = s.ScrollBarMid.Normal.Height;
+            float capH  = Math.Max(0f, (thumbH - midH) / 2f);
+
+            var thumbX = Bounds.Right - ScrollBarWidth;
+            var up  = new RectF(thumbX, thumbY,                ScrollBarWidth, capH);
+            var mid = new RectF(thumbX, thumbY + capH,         ScrollBarWidth, midH);
+            var bot = new RectF(thumbX, thumbY + capH + midH,  ScrollBarWidth, capH);
+
+            s.ScrollBarUpDown.Draw(batch, up,  parentHovered: false, controlItemHovered: false);
+            s.ScrollBarMid   .Draw(batch, mid, parentHovered: false, controlItemHovered: false);
+            s.ScrollBarUpDown.Draw(batch, bot, parentHovered: false, controlItemHovered: false);
         }
 
         // Returns true if the click landed on a url token, opening that URL.

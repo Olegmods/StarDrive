@@ -29,13 +29,13 @@ namespace Ship_Game.Codex
             Vector2 cursor = Pos;
             cursor.X += 15f;
             batch.DrawString(Fonts.Arial12Bold,
-                Localizer.Token(Entry.TitleId), cursor, Hovered ? Color.Orange : Color.White);
+                Localizer.Token(Entry.TitleId), cursor, Hovered ? CodexStyles.Url : Color.White);
 
             if (!string.IsNullOrEmpty(Entry.ShortDescId))
             {
                 cursor.Y += Fonts.Arial12Bold.LineSpacing;
                 batch.DrawString(Fonts.Arial12,
-                    Localizer.Token(Entry.ShortDescId), cursor, Hovered ? Color.White : Color.Orange);
+                    Localizer.Token(Entry.ShortDescId), cursor, Color.Orange);
             }
         }
     }
