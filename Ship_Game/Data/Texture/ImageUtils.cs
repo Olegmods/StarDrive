@@ -125,7 +125,12 @@ namespace Ship_Game.Data.Texture
             // alpha=0 everywhere can't be a legitimate alpha-blend source
             // (it would render fully transparent), so there's no false-
             // positive risk.
-            if (HasBrokenAlphaPlane(dds.DecodedImage, pixelCount))
+            // Gated on DXT5: DXT1's 1-bit-alpha mode legitimately decodes
+            // "transparent black" placeholder pixels with A=0 (e.g. the
+            // 4x4 blank.dds stub) — those don't need rescuing, and forcing
+            // them opaque would change their semantics.
+            if (dds.Format == DxtReader.PixelFormat.DXT5
+                && HasBrokenAlphaPlane(dds.DecodedImage, pixelCount))
             {
                 for (int i = 0; i < pixelCount; ++i)
                     dds.DecodedImage[i].A = 255;
