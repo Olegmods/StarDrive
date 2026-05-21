@@ -15,34 +15,13 @@
   UID: blackbox
   Children:
     -
-      UID: blackbox_updates
+      UID: blackbox_what_is
     -
-      UID: blackbox_test_download_link
-      Link: "https://github.com/TeamStarDrive/CombinedArms/releases"
+      UID: blackbox_current_version
     -
-      UID: blackbox_release_download_link
-      Link: "http://www.moddb.com/mods/deveks-mod/downloads/blackbox-radicalelements-release"
+      UID: blackbox_links
     -
-      UID: blackbox_discord_link
-      Link: "https://discord.gg/dfvnfH4"
-    -
-      UID: blackbox_steam_discussion
-      Link: "http://steamcommunity.com/app/220660/discussions/0/41973821037067053/"
-    -
-      UID: blackbox_facebook
-      Link: "https://www.facebook.com/SDBlackBox/"
-    -
-      UID: blackbox_twitter
-      Link: "https://twitter.com/StardriveBBMod"
-    -
-      UID: blackbox_report_an_issue
-      Link: "https://github.com/TeamStarDrive/CombinedArms/issues/new"
-    -
-      UID: blackbox_known_issues
-      Link: "http://www.moddb.com/mods/deveks-mod/forum/board/issue-fixes"
-    -
-      UID: blackbox_want_to_help
-      Link: "https://github.com/TeamStarDrive/StarDrive"
+      UID: blackbox_support
 -
   UID: tutorials
   Children:

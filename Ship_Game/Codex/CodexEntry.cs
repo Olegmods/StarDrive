@@ -18,9 +18,9 @@ namespace Ship_Game.Codex
         // Derive GameText NameIds from UID by convention when they aren't set
         // explicitly. Caller must invoke after YamlParser.DeserializeArray since
         // the yaml deserializer doesn't fire [StarDataDeserialized] hooks.
-        // Mapping: "blackbox_updates" → TitleId "CodexBlackboxUpdates",
-        //                                ShortDescId "CodexBlackboxUpdatesShort",
-        //                                TextId "CodexBlackboxUpdatesText".
+        // Mapping: "blackbox_what_is" → TitleId "CodexBlackboxWhatIs",
+        //                                ShortDescId "CodexBlackboxWhatIsShort",
+        //                                TextId "CodexBlackboxWhatIsText".
         public void ResolveDefaults()
         {
             if (!string.IsNullOrEmpty(UID))

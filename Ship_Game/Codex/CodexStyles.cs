@@ -10,7 +10,7 @@ namespace Ship_Game.Codex
     {
         public static Color Default   = Color.Wheat;
         public static Color Caption   = Color.Gold;
-        public static Color Highlight = Color.Cyan;
+        public static Color Highlight = Color.Orange;
         public static Color Warning   = Color.Orange;
         public static Color Lore      = new(180, 180, 200);
         public static Color Url       = new(120, 180, 255);

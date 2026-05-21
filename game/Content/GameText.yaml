@@ -18368,96 +18368,42 @@ CodexPressF1ForDetails:
 CodexBlackbox:
  Id: 100000
  ENG: "BlackBox"
-CodexBlackboxUpdates:
+CodexBlackboxWhatIs:
  Id: 100001
- ENG: "Updates"
-CodexBlackboxUpdatesShort:
+ ENG: "What is BlackBox"
+CodexBlackboxWhatIsShort:
  Id: 100002
- ENG: "How to Check For Updates"
-CodexBlackboxUpdatesText:
+ ENG: "History and origin"
+CodexBlackboxWhatIsText:
  Id: 100003
- ENG: "<color=Caption>Checking for Updates</color>Black Version can be seen in the bottom left corner of the main screen, or from the <b>top</b> of this wiki. Long body text should wrap at the right edge of the body region rather than running off the panel — this paragraph is intentionally long so the wrap behavior is visible. \n \n Click the <url=https://github.com/TeamStarDrive/CombinedArms/releases>downloads page</url> for the latest build. \n \n <color=Caption>Markup demo</color>Image flow: <img>NewUI/Checkmark10x</img><img>NewUI/Checkmark10x</img><img>NewUI/Checkmark10x</img> three images, single break, then more text. \n \n Missing texture: <img>does_not_exist</img> renders as the red X."
-CodexBlackboxTestDownloadLink:
+ ENG: "<color=Caption>What is BlackBox</color>StarDrive BlackBox is a community-driven revival of <b>StarDrive</b> (2013), the 4X space strategy game by Zero Sum Games.\n\nAfter the original game's commercial run wound down, a small team of community modders continued building on the codebase with permission from the original developer. Over the years the project grew from a content mod into a near-total overhaul — touching simulation, AI, performance, and content alike.\n\nPermission from the original developer:\n<url=http://steamcommunity.com/app/252450/discussions/0/385428458177062745/#c365163686048069513>View the original Steam discussion thread</url>"
+CodexBlackboxCurrentVersion:
  Id: 100004
- ENG: "Test DownLoad Link"
-CodexBlackboxTestDownloadLinkShort:
+ ENG: "Current Version"
+CodexBlackboxCurrentVersionShort:
  Id: 100005
- ENG: "Link to Github Downloads"
-CodexBlackboxTestDownloadLinkText:
+ ENG: "Jupiter 1.60 — 64-bit edition"
+CodexBlackboxCurrentVersionText:
  Id: 100006
- ENG: "Check the downloads for a version newer than yours"
-CodexBlackboxReleaseDownloadLink:
+ ENG: "<color=Caption>Jupiter 1.60</color>The current major release is <b>Jupiter</b>, the first fully 64-bit edition of StarDrive BlackBox.\n\nHighlights:\n<b>•</b> Native 64-bit runtime — no more 4 GB address-space ceiling on large galaxies.\n<b>•</b> .NET 8 + MonoGame 3.8 — modern runtime with faster startup and lower memory pressure.\n<b>•</b> Offline FBX content pipeline — every ship and asteroid re-exported through a deterministic toolchain.\n<b>•</b> Hundreds of simulation, AI, and UX fixes accumulated across the migration.\n\nDownloads:\n<url=https://stardriveteam.itch.io/jupiter-160>Get the latest Jupiter build on itch.io</url>"
+CodexBlackboxLinks:
  Id: 100007
- ENG: "Release DownLoad Link"
-CodexBlackboxReleaseDownloadLinkShort:
+ ENG: "Links"
+CodexBlackboxLinksShort:
  Id: 100008
- ENG: "Link to Github Downloads"
-CodexBlackboxReleaseDownloadLinkText:
+ ENG: "GitHub, Discord, Facebook"
+CodexBlackboxLinksText:
  Id: 100009
- ENG: "Check the file name for the release version"
-CodexBlackboxDiscordLink:
+ ENG: "<color=Caption>Community Links</color>Source code:\n<url=https://github.com/TeamStarDrive/StarDrive>github.com/TeamStarDrive/StarDrive</url>\n\nChat with the team:\n<url=https://discord.gg/dfvnfH4>discord.gg/dfvnfH4</url>\n\nFollow on social:\n<url=https://www.facebook.com/SDBlackBox>facebook.com/SDBlackBox</url>"
+CodexBlackboxSupport:
  Id: 100010
- ENG: "Discord Link"
-CodexBlackboxDiscordLinkShort:
+ ENG: "Support BlackBox"
+CodexBlackboxSupportShort:
  Id: 100011
- ENG: "Link To BlackBox Chat"
-CodexBlackboxDiscordLinkText:
+ ENG: "Help keep the lights on"
+CodexBlackboxSupportText:
  Id: 100012
- ENG: "Drop in and tell us how things are going or ask a question. This is by far the fastest way to contact us."
-CodexBlackboxSteamDiscussion:
- Id: 100013
- ENG: "Steam Discussion"
-CodexBlackboxSteamDiscussionShort:
- Id: 100014
- ENG: "Link To Steam Forums"
-CodexBlackboxSteamDiscussionText:
- Id: 100015
- ENG: "Post a steam message to ask a question"
-CodexBlackboxFacebook:
- Id: 100016
- ENG: "FaceBook"
-CodexBlackboxFacebookShort:
- Id: 100017
- ENG: "Link To FaceBook"
-CodexBlackboxFacebookText:
- Id: 100018
- ENG: "FaceBook can help keep up to date"
-CodexBlackboxTwitter:
- Id: 100019
- ENG: "Twitter"
-CodexBlackboxTwitterShort:
- Id: 100020
- ENG: "Link To Twitter"
-CodexBlackboxTwitterText:
- Id: 100021
- ENG: "If possible we will tweet new releases here"
-CodexBlackboxReportAnIssue:
- Id: 100022
- ENG: "Report An Issue"
-CodexBlackboxReportAnIssueShort:
- Id: 100023
- ENG: "Github Issue"
-CodexBlackboxReportAnIssueText:
- Id: 100024
- ENG: "https://github.com/TeamStarDrive/CombinedArms/issues/new"
-CodexBlackboxKnownIssues:
- Id: 100025
- ENG: "Known Issues"
-CodexBlackboxKnownIssuesShort:
- Id: 100026
- ENG: "Issues And Work Arounds"
-CodexBlackboxKnownIssuesText:
- Id: 100027
- ENG: "Short List of issues and known workarounds if available"
-CodexBlackboxWantToHelp:
- Id: 100028
- ENG: "Want To Help?"
-CodexBlackboxWantToHelpShort:
- Id: 100029
- ENG: "Github link"
-CodexBlackboxWantToHelpText:
- Id: 100030
- ENG: "https://github.com/TeamStarDrive/StarDrive"
+ ENG: "<color=Caption>Support BlackBox</color>StarDrive BlackBox is built and maintained by a small volunteer team in their spare time.\n\nIf you've enjoyed playing and want to support continued development, you can contribute via Ko-fi. Every bit helps keep the lights on.\n\nDonate via Ko-fi:\n<url=https://ko-fi.com/teamstardrive>ko-fi.com/teamstardrive</url>"
 CodexTutorials:
  Id: 100031
  ENG: "Tutorials"

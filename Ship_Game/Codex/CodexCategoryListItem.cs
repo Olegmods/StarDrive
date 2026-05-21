@@ -29,7 +29,7 @@ namespace Ship_Game.Codex
             Vector2 cursor = Pos;
             cursor.X += 15f;
             batch.DrawString(Fonts.Arial12Bold,
-                Localizer.Token(Entry.TitleId), cursor, Hovered ? CodexStyles.Url : Color.White);
+                Localizer.Token(Entry.TitleId), cursor, Hovered ? CodexStyles.Caption : Color.White);
 
             if (!string.IsNullOrEmpty(Entry.ShortDescId))
             {
