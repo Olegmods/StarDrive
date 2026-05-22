@@ -232,7 +232,7 @@ namespace Ship_Game.Ships
                         if (slot.IsExternal && slot.Active)
                         {
                             double smallerSize = Math.Min(w, h);
-                            sc.DrawTextureSized(symbolFighter, posOnScreen, slotRotation, smallerSize, smallerSize, new Color(0, 0, 255, 120));
+                            sc.DrawTextureSized(symbolFighter, posOnScreen, slotRotation, smallerSize, smallerSize, new Color(0, 0, 255, 120).Premultiplied());
                         }
 
                         // draw the module restriction info

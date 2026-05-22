@@ -191,10 +191,28 @@ public static class MathExt
 
     /// <summary>
     /// Example: Color halfOpaqueBlack = Color.Black.Alpha(0.5f);
+    /// Premultiplies RGB by `newAlpha` so the resulting Color is correct under
+    /// MonoGame's default SpriteBatch AlphaBlend (premultiplied) state. XNA 3.1's
+    /// `new Color(c, alpha)` was non-premul; post-migration the SpriteBatch shader
+    /// does `pixel = texel * vertexColor` and a non-premul vertex color renders as
+    /// additive RGB (bright blob) instead of a faded tint. Callers that need a
+    /// raw alpha-channel set should use `Premultiplied()` or the byte-form ctor.
     /// </summary>
-    /// <returns>Copy of this Color with a new alpha value</returns>
+    /// <returns>Premultiplied copy of this Color with the given alpha</returns>
     public static Color Alpha(this Color color, float newAlpha)
-        => new Color(color, newAlpha);
+        => new Color((byte)(color.R * newAlpha), (byte)(color.G * newAlpha), (byte)(color.B * newAlpha), (byte)(newAlpha * 255));
+
+    /// <summary>
+    /// Premultiplies RGB by the existing alpha channel. Use this when you have a
+    /// `new Color(R, G, B, A)` literal with A &lt; 255 that needs to render under
+    /// the default AlphaBlend (premul) SpriteBatch state.
+    /// </summary>
+    /// <returns>Copy of this Color with RGB multiplied by alpha</returns>
+    public static Color Premultiplied(this Color color)
+    {
+        float a = color.A / 255f;
+        return new Color((byte)(color.R * a), (byte)(color.G * a), (byte)(color.B * a), color.A);
+    }
 
     // Rotates an existing direction vector by another direction vector
     // For this we convert to radians, yielding:

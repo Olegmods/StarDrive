@@ -42,7 +42,7 @@ namespace Ship_Game
 			Vector2 vector2 = pos;
 			if (Hover)
 			{
-				color = new Color(255, 255, 255, 150);
+				color = new Color(255, 255, 255, 150).Premultiplied();
 			}
 			else
 			{
@@ -63,7 +63,7 @@ namespace Ship_Game
 			Vector2 vector2 = pos;
 			if (Hover)
 			{
-				color = new Color(255, 255, 255, 150);
+				color = new Color(255, 255, 255, 150).Premultiplied();
 			}
 			else
 			{
