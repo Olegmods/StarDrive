@@ -18,6 +18,13 @@ namespace Ship_Game.Data.Texture
         public Color[] DecodedImage { get; private set; } = new Color[0];
         public int Width { get; private set; }
         public int Height { get; private set; }
+        // Source compression format from the FourCC, exposed so callers (e.g.
+        // ImageUtils.LoadDds's broken-alpha-plane heuristic) can gate
+        // format-specific quirks. DXT1 has no real alpha channel — its 1-bit-
+        // alpha mode decodes "transparent black" placeholder pixels with A=0
+        // even when they're intentionally empty, which would otherwise false-
+        // positive the broken-plane fallback.
+        public PixelFormat Format { get; private set; } = PixelFormat.UNKNOWN;
 
         public DxtReader(byte[] ddsImage)
         {
@@ -62,6 +69,7 @@ namespace Ship_Game.Data.Texture
             PixelFormat format = GetFormat(header, out uint _);
             if (format == PixelFormat.UNKNOWN)
                 throw new InvalidFileHeaderException();
+            Format = format;
 
             byte[] data = ReadData(reader, header);
             if (data != null)

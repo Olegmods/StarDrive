@@ -261,7 +261,7 @@ namespace Ship_Game.GameScreens
 
             void DrawDefenseSlider()
             {
-                InfiltrationDefense.Draw(batch, elapsed);
+                InfiltrationDefense?.Draw(batch, elapsed);
                 LimitLevel?.Draw(batch, elapsed);
                 if (Empire.isPlayer)
                 {

@@ -210,7 +210,7 @@ namespace Ship_Game
 
             if (!LockedByUser && !IsAIGovernor)
             {
-                Color color = LockHover ? new Color(255, 255, 255, 150) : new Color(255, 255, 255, 50);
+                Color color = (LockHover ? new Color(255, 255, 255, 150) : new Color(255, 255, 255, 50)).Premultiplied();
                 batch.Draw(Lock, LockRect, color);
             }
             else

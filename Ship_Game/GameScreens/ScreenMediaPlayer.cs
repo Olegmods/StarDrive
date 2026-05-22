@@ -446,7 +446,7 @@ namespace Ship_Game.GameScreens
                 if (IsHovered && Player.State != MediaState.Playing)
                 {
                     var playIcon = new Rectangle(rect.CenterX() - 64, rect.CenterY() - 64, 128, 128);
-                    batch.Draw(ResourceManager.Texture("icon_play"), playIcon, new Color(255, 255, 255, 200));
+                    batch.Draw(ResourceManager.Texture("icon_play"), playIcon, new Color(255, 255, 255, 200).Premultiplied());
                 }
             }
         }

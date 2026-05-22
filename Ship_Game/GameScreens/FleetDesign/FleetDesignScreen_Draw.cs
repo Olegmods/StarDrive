@@ -245,7 +245,7 @@ namespace Ship_Game
             batch.FillRectangle(new(pPos.X - 3, pPos.Y - 3, 6, 6), new(255, 255, 255, 80));
 
             float textW = Fonts.Arial12Bold.TextWidth("Fleet Center");
-            batch.DrawString(Fonts.Arial12Bold, "Fleet Center", new(pPos.X - textW / 2f, pPos.Y + 5f), new Color(255, 255, 255, 70));
+            batch.DrawString(Fonts.Arial12Bold, "Fleet Center", new(pPos.X - textW / 2f, pPos.Y + 5f), new Color(255, 255, 255, 70).Premultiplied());
 
             // draw squad node markers
             float squadTextW = Fonts.Arial10.TextWidth("Squad");

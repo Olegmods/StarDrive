@@ -80,8 +80,8 @@ namespace Ship_Game
                 {
                     default:
                     case ButtonStyle.DanButton:
-                        HoverTextColor = new Color(255, 255, 255, 150);
-                        PressTextColor = new Color(255, 255, 255, 150);
+                        HoverTextColor = new Color(255, 255, 255, 150).Premultiplied();
+                        PressTextColor = new Color(255, 255, 255, 150).Premultiplied();
                         break;
                     case ButtonStyle.DanButtonBlue:
                         DefaultTextColor = new Color(205, 229, 255);

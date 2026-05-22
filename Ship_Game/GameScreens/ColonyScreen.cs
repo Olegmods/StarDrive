@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using SDGraphics;
 using Ship_Game.AI;
 using Ship_Game.Commands.Goals;
 using Ship_Game.Ships;
@@ -255,7 +256,7 @@ namespace Ship_Game
                 else if (pgs.QItem != null)
                 {
                     Rectangle destinationRectangle2 = new Rectangle(pgs.ClickRect.X + pgs.ClickRect.Width / 2 - 32, pgs.ClickRect.Y + pgs.ClickRect.Height / 2 - 32, 64, 64);
-                    batch.Draw(ResourceManager.Texture("Buildings/icon_" + pgs.QItem.Building.Icon + "_64x64"), destinationRectangle2, new Color(255, 255, 255, 128));
+                    batch.Draw(ResourceManager.Texture("Buildings/icon_" + pgs.QItem.Building.Icon + "_64x64"), destinationRectangle2, new Color(255, 255, 255, 128).Premultiplied());
                 }
                 DrawPGSIcons(pgs);
             }

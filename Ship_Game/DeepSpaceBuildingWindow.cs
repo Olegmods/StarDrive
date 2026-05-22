@@ -242,7 +242,7 @@ namespace Ship_Game
                 {
                     float radius = 2500f * planet.Scale;
                     Screen.DrawCircleProjected(planet.Position, radius, new Color(255, 165, 0, 100), 2f,
-                                               nodeTex, new Color(0, 0, 255, 100));
+                                               nodeTex, new Color(0, 0, 255, 100).Premultiplied());
                 }
             }
 
@@ -253,12 +253,12 @@ namespace Ship_Game
                     if (ShipToBuild?.IsResearchStation == true)
                     {
                         Screen.DrawCircleProjected(system.Position, system.Radius * 0.3f, new Color(255, 165, 0, 100), 2f,
-                            nodeTex, new Color(0, 0, 255, 100));
+                            nodeTex, new Color(0, 0, 255, 100).Premultiplied());
                     }
                 }
 
                 Screen.DrawCircleProjected(system.Position, system.SunDangerRadius.LowerBound(MinimumBuildDistanceFromSun),
-                    new Color(255, 0, 0, 100), 2f, nodeTex, new Color(255, 0, 0, 50));
+                    new Color(255, 0, 0, 100), 2f, nodeTex, new Color(255, 0, 0, 50).Premultiplied());
             }
 
             base.Draw(batch, elapsed);
@@ -340,7 +340,7 @@ namespace Ship_Game
 
                     float scale = Ship.ScaleIconSize((float)size, 0.2f, 0.4f);
                     Screen.DrawTextureSized(platform, posOnScreen, 0.0f, platform.Width * scale,
-                                            platform.Height * scale, new Color(0, 255, 0, 100));
+                                            platform.Height * scale, new Color(0, 255, 0, 100).Premultiplied());
 
                     float borderRadius = buildTemplate.IsSubspaceProjector ? Player.GetProjectorRadius() 
                                                                            : buildTemplate.SensorRange;
