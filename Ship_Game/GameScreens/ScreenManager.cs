@@ -101,7 +101,59 @@ namespace Ship_Game
 
         void GraphicsDevice_DeviceLost(object sender, EventArgs e)
         {
-            Log.Write(ConsoleColor.Green, "GraphicsDevice Lost");
+            string reason = TryGetDeviceRemovedReason(GraphicsDevice);
+            Log.Write(ConsoleColor.Green, reason != null
+                ? $"GraphicsDevice Lost [DeviceRemovedReason: {reason}]"
+                : "GraphicsDevice Lost");
+        }
+
+        // DXGI device-removed diagnostic. Reflectively pulls the MonoGame WindowsDX
+        // backend's internal SharpDX D3D11 device and queries DeviceRemovedReason,
+        // which is the call MS explicitly directs us to in the
+        // "GPU device instance has been suspended" message. Returns null if any
+        // step fails so callers can fall back to the original message.
+        static string TryGetDeviceRemovedReason(GraphicsDevice gd)
+        {
+            try
+            {
+                var fld = typeof(GraphicsDevice).GetField("_d3dDevice",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                object d3dDevice = fld?.GetValue(gd);
+                if (d3dDevice == null) return null;
+                object result = d3dDevice.GetType().GetProperty("DeviceRemovedReason")?.GetValue(d3dDevice);
+                if (result == null) return null;
+                object codeObj = result.GetType().GetProperty("Code")?.GetValue(result);
+                if (codeObj is not int code) return result.ToString();
+                return $"{DecodeDxgiHResult(code)} (0x{code:X8})";
+            }
+            catch (Exception ex)
+            {
+                return $"(query failed: {ex.GetType().Name})";
+            }
+        }
+
+        static string DecodeDxgiHResult(int hr) => (uint)hr switch
+        {
+            0x00000000 => "S_OK",
+            0x887A0001 => "DXGI_ERROR_INVALID_CALL",
+            0x887A0002 => "DXGI_ERROR_NOT_FOUND",
+            0x887A0005 => "DXGI_ERROR_DEVICE_REMOVED",
+            0x887A0006 => "DXGI_ERROR_DEVICE_HUNG",
+            0x887A0007 => "DXGI_ERROR_DEVICE_RESET",
+            0x887A000A => "DXGI_ERROR_WAS_STILL_DRAWING",
+            0x887A0020 => "DXGI_ERROR_DRIVER_INTERNAL_ERROR",
+            0x887A0026 => "DXGI_ERROR_ACCESS_LOST",
+            0x887A0027 => "DXGI_ERROR_ACCESS_DENIED",
+            0x80070057 => "E_INVALIDARG",
+            0x8007000E => "E_OUTOFMEMORY",
+            _ => "UNKNOWN_HRESULT"
+        };
+
+        static bool IsDxgiDeviceRemovedHResult(int hr)
+        {
+            uint u = (uint)hr;
+            return u == 0x887A0005 || u == 0x887A0006 || u == 0x887A0007
+                || u == 0x887A0020 || u == 0x887A0026 || u == 0x887A0027;
         }
 
         void GraphicsDevice_Disposing(object sender, EventArgs e)
@@ -401,10 +453,13 @@ namespace Ship_Game
                     }
                     catch (Exception e)
                     {
-                        Log.Error(e, $"Draw Screen failed: {screen.GetType().GetTypeName()}");
+                        string extra = IsDxgiDeviceRemovedHResult(e.HResult)
+                            ? $" [DeviceRemovedReason: {TryGetDeviceRemovedReason(GraphicsDevice) ?? "(unavailable)"}]"
+                            : "";
+                        Log.Error(e, $"Draw Screen failed: {screen.GetType().GetTypeName()}{extra}");
                         if (!batch.SafeEnd())
                         {
-                            Log.Error("Draw Screen fatal error: batch end failed"); 
+                            Log.Error("Draw Screen fatal error: batch end failed");
                             screen.Dispose();
                             GameScreens.Remove(screen);
                         }
