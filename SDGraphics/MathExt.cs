@@ -200,7 +200,11 @@ public static class MathExt
     /// </summary>
     /// <returns>Premultiplied copy of this Color with the given alpha</returns>
     public static Color Alpha(this Color color, float newAlpha)
-        => new Color((byte)(color.R * newAlpha), (byte)(color.G * newAlpha), (byte)(color.B * newAlpha), (byte)(newAlpha * 255));
+    {
+        if (newAlpha < 0f) newAlpha = 0f;
+        else if (newAlpha > 1f) newAlpha = 1f;
+        return new Color((byte)(color.R * newAlpha), (byte)(color.G * newAlpha), (byte)(color.B * newAlpha), (byte)(newAlpha * 255));
+    }
 
     /// <summary>
     /// Premultiplies RGB by the existing alpha channel. Use this when you have a
