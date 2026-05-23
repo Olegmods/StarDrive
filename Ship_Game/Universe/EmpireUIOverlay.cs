@@ -232,20 +232,13 @@ namespace Ship_Game
                 }
             }
 
-            int money = (int)Player.Money;
+            string money = Player.Money.GetNumberString();
             float damoney = Player.EstimateNetIncomeAtTaxRate(Player.data.TaxRate);
-            if (damoney <= 0f)
-            {
-                textCursor.X = res4.X + res2.Width - 30 - Fonts.Arial12Bold.MeasureString(string.Concat(money.ToString(), " (", damoney.ToString("#.0"), ")")).X;
-                textCursor.Y = res2.Height / 2 - Fonts.Arial12Bold.LineSpacing / 2;
-                batch.DrawString(Fonts.Arial12Bold, string.Concat(money.ToString(), " (", damoney.String(), ")"), textCursor, new Color(255, 240, 189));
-            }
-            else
-            {
-                textCursor.X = res4.X + res2.Width - 30 - Fonts.Arial12Bold.MeasureString(string.Concat(money.ToString(), " (+", damoney.ToString("#.0"), ")")).X;
-                textCursor.Y = res2.Height / 2 - Fonts.Arial12Bold.LineSpacing / 2;
-                batch.DrawString(Fonts.Arial12Bold, string.Concat(money.ToString(), " (+", damoney.String(), ")"), textCursor, new Color(255, 240, 189));
-            }
+            string sign = damoney > 0f ? "+" : "";
+            string moneyText = $"{money} ({sign}{damoney.String(1)})";
+            textCursor.X = res4.X + res2.Width - 30 - Fonts.Arial12Bold.MeasureString(moneyText).X;
+            textCursor.Y = res2.Height / 2 - Fonts.Arial12Bold.LineSpacing / 2;
+            batch.DrawString(Fonts.Arial12Bold, moneyText, textCursor, new Color(255, 240, 189));
 
             var starDatePos = new Vector2(res5.X + 75, textCursor.Y);
             string starDateText = LowRes ? Universe.StarDateString : "StarDate: " + Universe.StarDateString;
