@@ -198,13 +198,12 @@ namespace Ship_Game
                     // target without try/finally cleanup. If any of them throws or skips its
                     // SetRenderTarget(null), MonoGame crashes Present with
                     // "Cannot call Present when a render target is active." Restore the back
-                    // buffer unconditionally as a safety net. The underlying leak should still
-                    // be tracked and fixed; this just stops it from taking the game down.
-                    // Inner try/catch: if the original draw threw because the device was lost or
-                    // disposed, this cleanup call can throw too — swallow it so we don't mask the
-                    // real exception bubbling out of the outer try.
-                    try { ScreenManager?.GraphicsDevice?.SetRenderTarget(null); }
-                    catch { /* device lost/disposed; let the original exception propagate */ }
+                    // buffer unconditionally as a safety net. Use Game.GraphicsDevice (live),
+                    // not ScreenManager's cached field which can be a disposed device after
+                    // reset. Catch swallows cleanup throws so the original exception (if any)
+                    // propagates instead of being masked.
+                    try { GraphicsDevice?.SetRenderTarget(null); }
+                    catch { }
                 }
                 string topScreen = ScreenManager.NumScreens > 0
                     ? ScreenManager.Current?.GetType().Name ?? ""

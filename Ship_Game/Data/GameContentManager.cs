@@ -750,7 +750,7 @@ namespace Ship_Game.Data
             return shader;
         }
 
-        public StaticMesh LoadStaticMesh(string meshName, bool animated = false)
+        public StaticMesh LoadStaticMesh(string meshName, bool animated = false, bool extractVertexPositions = false)
         {
             AssetName asset = new(meshName);
             if (TryGetAsset(asset.RelPathWithExt, out StaticMesh mesh))
@@ -783,7 +783,7 @@ namespace Ship_Game.Data
 
             if (RawContentLoader.IsSupportedMesh(loadPath))
             {
-                mesh = RawContent.LoadStaticMesh(loadPath);
+                mesh = RawContent.LoadStaticMesh(loadPath, extractVertexPositions);
             }
             else
             {

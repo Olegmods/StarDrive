@@ -61,7 +61,7 @@ namespace Ship_Game.Spatial
         {
             var target = Ship.CreateShipAtPoint(null, name, loyalty, pos);
             target.Rotation = dir.Normalized().ToRadians();
-            target.UpdateModulePositions(new FixedSimTime(0.01f), true, forceUpdate: true);
+            target.UpdateModulePositions(new FixedSimTime(0.01f), forceUpdate: true);
             return target;
         }
 

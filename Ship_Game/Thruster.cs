@@ -133,9 +133,15 @@ namespace Ship_Game
         {
             Vector2 dir2d = fwd.ToVec2();
             Vector2 right = dir2d.RightVector();
-            float zPos = thrusterPos.Z + (float)Math.Sin(yRotation) * -thrusterPos.X;
-            Vector2 pos = center - dir2d*thrusterPos.Y + right*thrusterPos.X;
-            return new Vector3(pos, zPos+deltaZ);
+            // Full RotateY(yRotation) on (X, _, Z) — matches the ship mesh
+            // transform in Ship_Update.cs. Without the Z*sin cross-term, back-
+            // of-deck thrusters (Z>0) drift the wrong way during bank turns.
+            float cosY = (float)Math.Cos(yRotation);
+            float sinY = (float)Math.Sin(yRotation);
+            float bankedX = thrusterPos.X*cosY + thrusterPos.Z*sinY;
+            float bankedZ = thrusterPos.Z*cosY - thrusterPos.X*sinY;
+            Vector2 pos = center - dir2d*thrusterPos.Y + right*bankedX;
+            return new Vector3(pos, bankedZ+deltaZ);
         }
 
         // 3D position calc is a bit different

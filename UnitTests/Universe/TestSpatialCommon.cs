@@ -235,7 +235,7 @@ namespace UnitTests.Universe
                 foreach (Ship ship in AllObjects)
                 {
                     ship.Position.X += 10f;
-                    ship.UpdateModulePositions(TestSimStep, true, forceUpdate: true);
+                    ship.UpdateModulePositions(TestSimStep, forceUpdate: true);
                 }
                 var t = new PerfTimer();
                 tree.UpdateAll(AllObjects);
@@ -306,7 +306,7 @@ namespace UnitTests.Universe
                         if (allObjects[i] is Ship ship)
                         {
                             ship.Position.X += 10f;
-                            ship.UpdateModulePositions(TestSimStep, true, forceUpdate: true);
+                            ship.UpdateModulePositions(TestSimStep, forceUpdate: true);
 
                             if (rand.RollDice(percent:10) && !spawned.Contains(ship))
                             {
@@ -410,7 +410,7 @@ namespace UnitTests.Universe
                     if (go is Ship s)
                     {
                         s.UpdateVelocityAndPosition(TestSimStep.FixedTime, Vector2.Zero, isZeroAcc:true);
-                        s.UpdateModulePositions(TestSimStep, true);
+                        s.UpdateModulePositions(TestSimStep);
                     }
                     else if (go is Projectile p)
                     {

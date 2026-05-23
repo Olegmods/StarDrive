@@ -1201,7 +1201,7 @@ namespace Ship_Game.Ships
             AI.ScanForTargets(timeStep);
         }
 
-        public void UpdateModulePositions(FixedSimTime timeStep, bool isSystemView, bool forceUpdate = false)
+        public void UpdateModulePositions(FixedSimTime timeStep, bool forceUpdate = false)
         {
             bool visible = IsVisibleToPlayer;
             if (Active && (AI.BadGuysNear || visible || forceUpdate))
@@ -1211,8 +1211,6 @@ namespace Ship_Game.Ships
                     TimeStep = timeStep,
                     ParentX = Position.X,
                     ParentY = Position.Y,
-                    // TODO: Figure out a more accurate, yet FAST way to approximate hull height
-                    ParentZ = BaseHull.ModelZ.Clamped(0, 200) * -1f,
                     ParentRotation = Rotation,
                     ParentScale = PlanetCrash?.Scale ?? 1f,
                     Cos = RadMath.Cos(Rotation),
@@ -1223,16 +1221,20 @@ namespace Ship_Game.Ships
                 if (Active)
                 {
                     bool enableVisualizeDamage = PlanetCrash == null;
+                    bool visibleForVisuals = visible && Universe.IsPlanetViewOrCloser;
                     for (int i = 0; i < ModuleSlotList.Length; ++i)
                     {
                         ShipModule m = ModuleSlotList[i];
                         m.UpdateEveryFrame(a);
                         if (enableVisualizeDamage && m.CanVisualizeDamage)
-                            m.UpdateDamageVisualization(timeStep, a.ParentScale, visible);
-
-                        if (visible && IsMiningStation)
-                            Carrier.MiningBays.UpdateMiningVisuals(timeStep);
+                            m.UpdateDamageVisualization(timeStep, a.ParentScale, visibleForVisuals);
                     }
+
+                    // Mining visuals are per-ship, not per-module — UpdateMiningVisuals
+                    // iterates every bay internally, so calling it inside the module loop
+                    // made it O(modules × bays).
+                    if (visibleForVisuals && IsMiningStation)
+                        Carrier.MiningBays.UpdateMiningVisuals(timeStep);
                 }
                 else
                 {

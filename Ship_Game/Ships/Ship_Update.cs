@@ -54,12 +54,34 @@ namespace Ship_Game.Ships
             if (!ShipData.LoadModel(out ShipSO, Universe.Screen.ContentManager))
                 return; // loading Ship SO failed
 
+            // Modules installed before the mesh loaded got a SurfaceLift fallback;
+            // snap each to its real hull-Z on first SO creation. Skip on later
+            // re-creates (ships re-enter the frustum after the 15s timer pruned
+            // their SO — values are already cached).
+            if (!HullSurfaceZRefreshed)
+            {
+                RefreshHullSurfaceZ();
+                HullSurfaceZRefreshed = true;
+            }
+
             if (!IsLaunching) // launch update will create the SO to avoid flickering
                 ShipSO.World = Matrix.CreateTranslation(new(Position + ShipData.BaseHull.MeshOffset, 0f));
 
             NotVisibleToPlayerTimer = 0;
             UpdateVisibilityToPlayer(FixedSimTime.Zero, forceVisible: true);
             ScreenManager.Instance.AddObject(ShipSO);
+        }
+
+        bool HullSurfaceZRefreshed;
+
+        void RefreshHullSurfaceZ()
+        {
+            ShipHull hull = ShipData.BaseHull;
+            for (int i = 0; i < ModuleSlotList.Length; ++i)
+            {
+                ShipModule m = ModuleSlotList[i];
+                m.HullSurfaceZ = hull.SampleSurfaceZ(m.Pos, m.XSize, m.YSize);
+            }
         }
 
         public void RemoveSceneObject()

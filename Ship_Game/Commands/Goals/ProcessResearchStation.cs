@@ -253,7 +253,10 @@ namespace Ship_Game.Commands.Goals
 
             string bestRefit = Owner.isPlayer && !Owner.AutoPickBestResearchStation
                 ? Owner.data.CurrentResearchStation
-                : Owner.BestResearchStationWeCanBuild.Name;
+                : Owner.BestResearchStationWeCanBuild?.Name;
+
+            if (bestRefit == null)
+                return false;
 
             if (ResearchStation.Name != bestRefit && !Owner.AI.HasGoal(g => g is RefitOrbital && g.OldShip == ResearchStation))
                 betterStation = ResourceManager.Ships.GetDesign(bestRefit);

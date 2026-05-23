@@ -14,6 +14,7 @@ using Vector2 = SDGraphics.Vector2;
 using Vector3 = SDGraphics.Vector3;
 using Point = SDGraphics.Point;
 using Vector4 = SDGraphics.Vector4;
+using XnaVector3 = Microsoft.Xna.Framework.Vector3;
 
 namespace Ship_Game.Ships
 {
@@ -66,6 +67,15 @@ namespace Ship_Game.Ships
         public HullBonus Bonuses { get; private set; }
         public bool IsValidForCurrentMod => GlobalStats.IsValidForCurrentMod(ModName);
 
+        // Per-grid-cell most-negative mesh Z (the hull surface facing the
+        // camera). NaN cells = no vertex sampled. Populated lazily on first
+        // LoadModel; null until the mesh is in memory.
+        float[,] SurfaceMap;
+
+        // Lift VFX slightly toward the camera so emitters sit just above the
+        // deck instead of co-planar with the mesh surface.
+        const float SurfaceLift = -2f;
+
         public override string ToString() => $"ShipHull={HullName} Source={Source?.FullName} Model={ModelPath}";
 
         public struct ThrusterZone
@@ -106,8 +116,10 @@ namespace Ship_Game.Ships
             shipSO = null;
             lock (HullSlots)
             {
-                // The mesh is cached by content manager
-                StaticMesh mesh = StaticMesh.LoadMesh(content, ModelPath, Animated);
+                // The mesh is cached by content manager. extractVertexPositions
+                // only pays the per-vertex copy on hull loads — planets / asteroids /
+                // projectile meshes skip it.
+                StaticMesh mesh = StaticMesh.LoadMesh(content, ModelPath, Animated, extractVertexPositions: true);
                 if (mesh == null)
                     return false;
 
@@ -121,8 +133,73 @@ namespace Ship_Game.Ships
                     Volume = new Vector3(mesh.Bounds.Max - mesh.Bounds.Min);
                     ModelZ = Volume.Z;
                 }
+
+                if (SurfaceMap == null)
+                {
+                    // Claim the positions array into a local before any other thread
+                    // that shares this cached StaticMesh can null it — protects
+                    // BuildSurfaceMap's read from racing the post-build cleanup.
+                    var positions = mesh.VertexPositions;
+                    mesh.VertexPositions = null;
+                    if (positions != null)
+                        BuildSurfaceMap(positions);
+                }
                 return true;
             }
+        }
+
+        // Bins mesh vertices into module-grid cells, keeping the most-negative
+        // Z (camera-facing surface) per cell. Mapping: a vertex at object-space
+        // (vx, vy, vz) sits at world XY (vx+MeshOffset.X, vy+MeshOffset.Y) when
+        // the ship is at origin, and ShipModule.LocalCenter recenters world XY
+        // on hull.GridCenter at 16 units per cell.
+        void BuildSurfaceMap(XnaVector3[] positions)
+        {
+            if (positions.Length == 0 || Size.X <= 0 || Size.Y <= 0)
+                return;
+
+            int w = Size.X, h = Size.Y;
+            var map = new float[w, h];
+            for (int y = 0; y < h; ++y)
+                for (int x = 0; x < w; ++x)
+                    map[x, y] = float.NaN;
+
+            for (int i = 0; i < positions.Length; ++i)
+            {
+                var v = positions[i];
+                int gx = (int)Math.Floor((v.X + MeshOffset.X) / 16f) + GridCenter.X;
+                int gy = (int)Math.Floor((v.Y + MeshOffset.Y) / 16f) + GridCenter.Y;
+                if ((uint)gx >= (uint)w || (uint)gy >= (uint)h)
+                    continue;
+
+                float current = map[gx, gy];
+                if (float.IsNaN(current) || v.Z < current)
+                    map[gx, gy] = v.Z;
+            }
+
+            SurfaceMap = map;
+        }
+
+        // Most-negative Z under the module's footprint, plus SurfaceLift. Falls
+        // back to 0 (play-plane) for empty cells and for hulls whose mesh hasn't
+        // loaded yet — SurfaceLift is applied either way for consistency.
+        public float SampleSurfaceZ(Point pos, int xSize, int ySize)
+        {
+            float[,] map = SurfaceMap;
+            if (map == null) return SurfaceLift;
+
+            int w = map.GetLength(0), h = map.GetLength(1);
+            float best = float.NaN;
+            for (int dy = 0; dy < ySize; ++dy)
+                for (int dx = 0; dx < xSize; ++dx)
+                {
+                    int gx = pos.X + dx, gy = pos.Y + dy;
+                    if ((uint)gx >= (uint)w || (uint)gy >= (uint)h) continue;
+                    float z = map[gx, gy];
+                    if (!float.IsNaN(z) && (float.IsNaN(best) || z < best))
+                        best = z;
+                }
+            return (float.IsNaN(best) ? 0f : best) + SurfaceLift;
         }
 
         public ShipHull()

@@ -127,7 +127,7 @@ namespace UnitTests.Ships
             AssertEqual(4, ship.GridWidth);
             
             ship.RotationDegrees = -90; // facing towards left
-            ship.UpdateModulePositions(TestSimStep, true, forceUpdate:true);
+            ship.UpdateModulePositions(TestSimStep, forceUpdate:true);
 
             // pick a 1x1 module which should be at [0,2]
             AssertEqual(Pos(1,1), ship.GetModuleAt(0,2).GetSize());
@@ -165,7 +165,7 @@ namespace UnitTests.Ships
             AssertEqual(4, ship.GridWidth);
 
             ship.RotationDegrees = 180; // facing towards down
-            ship.UpdateModulePositions(TestSimStep, true, forceUpdate:true);
+            ship.UpdateModulePositions(TestSimStep, forceUpdate:true);
 
             // pick a 1x1 module which should be at [0,2]
             AssertEqual(Pos(1,1), ship.GetModuleAt(0,2).GetSize());
