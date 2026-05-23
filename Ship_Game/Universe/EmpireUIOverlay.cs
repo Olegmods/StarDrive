@@ -264,17 +264,15 @@ namespace Ship_Game
                 gradientSourceRect.X = 159 - xOffset;
                 Universe.ScreenManager.SpriteBatch.Draw(ResourceManager.Texture("EmpireTopBar/empiretopbar_res2_gradient"), new Rectangle(res2.X, res2.Y, res2.Width, res2.Height), gradientSourceRect, Color.White);
                 Universe.ScreenManager.SpriteBatch.Draw(ResourceManager.Texture("EmpireTopBar/empiretopbar_res2_over"), res2, Color.White);
-                int research = (int)Player.Research.Current.Progress;
-                int resCost = (int)Player.Research.Current.TechCost;
+                string research = Player.Research.Current.Progress.GetNumberString();
+                string resCost = Player.Research.Current.TechCost.GetNumberString();
                 float plusRes = Player.Research.NetResearch;
                 float x = res2.X + res2.Width - 30;
                 Graphics.Font arial12Bold = Fonts.Arial12Bold;
-                object[] str = { research, "/", resCost, " (+", plusRes.String(1), ")" };
-                textCursor.X = x - arial12Bold.MeasureString(string.Concat(str)).X;
+                string text = $"{research}/{resCost} (+{plusRes.String(1)})";
+                textCursor.X = x - arial12Bold.MeasureString(text).X;
                 textCursor.Y = res2.Height / 2 - Fonts.Arial12Bold.LineSpacing / 2;
-                Graphics.Font spriteFont = Fonts.Arial12Bold;
-                object[] objArray = { research, "/", resCost, " (+", plusRes.String(1), ")" };
-                batch.DrawString(spriteFont, string.Concat(objArray), textCursor, new Color(255, 240, 189));
+                batch.DrawString(arial12Bold, text, textCursor, new Color(255, 240, 189));
             }
         }
 
