@@ -59,6 +59,11 @@ namespace Ship_Game.Ships
         float ZPos;
         public Vector3 Center3D => new(Position, ZPos);
 
+        // Sampled from the hull's mesh-surface map at InstallModule time and
+        // refreshed once after the mesh actually loads (Ship.RefreshHullSurfaceZ).
+        // Includes ShipHull.SurfaceLift so the runtime formula stays a single sub.
+        public float HullSurfaceZ;
+
         public int Area => XSize * YSize;
 
         public bool CanVisualizeDamage;
@@ -505,6 +510,10 @@ namespace Ship_Game.Ships
                 Position = LocalCenter;
                 if (parent != null)
                     Position += parent.Position;
+
+                // Returns SurfaceLift until the mesh loads; Ship.RefreshHullSurfaceZ
+                // overwrites with the real sample once the surface map exists.
+                HullSurfaceZ = hull.SampleSurfaceZ(gridPos, XSize, YSize);
             }
 
             if (IsWeaponOrBomb)
@@ -629,7 +638,6 @@ namespace Ship_Game.Ships
             public FixedSimTime TimeStep;
             public float ParentX;
             public float ParentY;
-            public float ParentZ;
             public float ParentRotation;
             public float ParentScale;
             public float Cos;
@@ -645,7 +653,7 @@ namespace Ship_Game.Ships
             float cy = a.ParentY + offset.X * a.Sin + offset.Y * a.Cos;
             Position.X = cx;
             Position.Y = cy;
-            ZPos = a.ParentZ - a.Tan * offset.X;
+            ZPos = HullSurfaceZ - a.Tan * offset.X;
             Rotation = a.ParentRotation; // assume parent rotation is already normalized
         }
 
