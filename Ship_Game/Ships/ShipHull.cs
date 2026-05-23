@@ -14,6 +14,7 @@ using Vector2 = SDGraphics.Vector2;
 using Vector3 = SDGraphics.Vector3;
 using Point = SDGraphics.Point;
 using Vector4 = SDGraphics.Vector4;
+using XnaVector3 = Microsoft.Xna.Framework.Vector3;
 
 namespace Ship_Game.Ships
 {
@@ -115,8 +116,10 @@ namespace Ship_Game.Ships
             shipSO = null;
             lock (HullSlots)
             {
-                // The mesh is cached by content manager
-                StaticMesh mesh = StaticMesh.LoadMesh(content, ModelPath, Animated);
+                // The mesh is cached by content manager. extractVertexPositions
+                // only pays the per-vertex copy on hull loads — planets / asteroids /
+                // projectile meshes skip it.
+                StaticMesh mesh = StaticMesh.LoadMesh(content, ModelPath, Animated, extractVertexPositions: true);
                 if (mesh == null)
                     return false;
 
@@ -132,7 +135,15 @@ namespace Ship_Game.Ships
                 }
 
                 if (SurfaceMap == null)
-                    BuildSurfaceMap(mesh);
+                {
+                    // Claim the positions array into a local before any other thread
+                    // that shares this cached StaticMesh can null it — protects
+                    // BuildSurfaceMap's read from racing the post-build cleanup.
+                    var positions = mesh.VertexPositions;
+                    mesh.VertexPositions = null;
+                    if (positions != null)
+                        BuildSurfaceMap(positions);
+                }
                 return true;
             }
         }
@@ -142,10 +153,9 @@ namespace Ship_Game.Ships
         // (vx, vy, vz) sits at world XY (vx+MeshOffset.X, vy+MeshOffset.Y) when
         // the ship is at origin, and ShipModule.LocalCenter recenters world XY
         // on hull.GridCenter at 16 units per cell.
-        void BuildSurfaceMap(StaticMesh mesh)
+        void BuildSurfaceMap(XnaVector3[] positions)
         {
-            var positions = mesh.VertexPositions;
-            if (positions == null || positions.Length == 0 || Size.X <= 0 || Size.Y <= 0)
+            if (positions.Length == 0 || Size.X <= 0 || Size.Y <= 0)
                 return;
 
             int w = Size.X, h = Size.Y;

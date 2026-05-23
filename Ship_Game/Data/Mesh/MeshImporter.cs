@@ -24,7 +24,7 @@ namespace Ship_Game.Data.Mesh
         {
         }
 
-        public unsafe StaticMesh ImportStaticMesh(string meshPath, string meshName)
+        public unsafe StaticMesh ImportStaticMesh(string meshPath, string meshName, bool extractVertexPositions = false)
         {
             SdMesh* mesh = null;
             try
@@ -41,7 +41,7 @@ namespace Ship_Game.Data.Mesh
 
                 Log.Info(ConsoleColor.Green,
                     $"StaticMesh {mesh->Name.AsString} | faces:{mesh->NumFaces} | groups:{mesh->NumGroups}");
-                StaticMesh sm = LoadMeshGroups(mesh, meshName);
+                StaticMesh sm = LoadMeshGroups(mesh, meshName, extractVertexPositions);
                 LoadSkinnedAndAnimData(mesh, sm);
                 return sm;
             }
@@ -66,7 +66,7 @@ namespace Ship_Game.Data.Mesh
             return null;
         }
 
-        unsafe StaticMesh LoadMeshGroups(SdMesh* mesh, string modelName)
+        unsafe StaticMesh LoadMeshGroups(SdMesh* mesh, string modelName, bool extractVertexPositions)
         {
             // Phase 3.10.B.6: detect skinning at the mesh level so every group's
             // material effect lands as SkinnedLightingEffect (skin VS) rather
@@ -76,7 +76,7 @@ namespace Ship_Game.Data.Mesh
             Map<long, LightingEffect> materials = GetMaterials(mesh, modelName, isSkinned);
 
             var rawMeshes = new Array<MeshData>();
-            var positions = new Array<Vector3>();
+            var positions = extractVertexPositions ? new Array<Vector3>() : null;
             XnaBoundingBox bounds = default;
 
             for (int i = 0; i < mesh->NumGroups; ++i)
@@ -105,7 +105,8 @@ namespace Ship_Game.Data.Mesh
                     MeshToObject = g->Transform,
                 });
 
-                ExtractObjectSpacePositions(data, g->Transform, positions);
+                if (positions != null)
+                    ExtractObjectSpacePositions(data, g->Transform, positions);
 
                 var bb = XnaBoundingBox.CreateFromSphere(g->Bounds);
                 if (g->Transform != Matrix.Identity)
@@ -119,7 +120,7 @@ namespace Ship_Game.Data.Mesh
             return new StaticMesh(mesh->Name.AsString, bounds)
             {
                 RawMeshes = rawMeshes,
-                VertexPositions = positions.ToArray(),
+                VertexPositions = positions?.ToArray(),
             };
         }
 

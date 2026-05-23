@@ -120,10 +120,10 @@ namespace Ship_Game.Data
 
         ///////////////////////////////////////////////////
 
-        public StaticMesh LoadStaticMesh(string meshName)
+        public StaticMesh LoadStaticMesh(string meshName, bool extractVertexPositions = false)
         {
             string meshPath = GetContentPath(meshName);
-            return MeshImport.ImportStaticMesh(meshPath, meshName);
+            return MeshImport.ImportStaticMesh(meshPath, meshName, extractVertexPositions);
         }
 
         public Model LoadModel(string meshName)

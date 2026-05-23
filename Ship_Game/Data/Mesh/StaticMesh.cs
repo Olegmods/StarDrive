@@ -74,12 +74,12 @@ public sealed class StaticMesh : IDisposable
     /// Loads a cached StaticMesh from GameContentManager.
     /// </summary>
     /// <returns>`null` on failure, otherwise a valid StaticMesh</returns>
-    public static StaticMesh LoadMesh(GameContentManager content, string modelName, bool animated = false)
+    public static StaticMesh LoadMesh(GameContentManager content, string modelName, bool animated = false, bool extractVertexPositions = false)
     {
         try
         {
             var c = content ?? ResourceManager.RootContent;
-            return c.LoadStaticMesh(modelName, animated);
+            return c.LoadStaticMesh(modelName, animated, extractVertexPositions);
         }
         catch (Exception e)
         {
