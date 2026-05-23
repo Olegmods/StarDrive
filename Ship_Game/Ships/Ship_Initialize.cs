@@ -452,7 +452,7 @@ namespace Ship_Game.Ships
                 InitializeStatus(fromSave: false);
             }
 
-            UpdateModulePositions(FixedSimTime.Zero, isSystemView: false, forceUpdate: true);
+            UpdateModulePositions(FixedSimTime.Zero, forceUpdate: true);
         }
 
         void InitDefendingTroopStrength()

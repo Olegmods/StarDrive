@@ -377,7 +377,6 @@ namespace Ship_Game
         {
             ShipsPerf.Start();
 
-            bool isSystemView = UState.IsSystemViewOrCloser;
             Ship[] allShips = Ships.GetItems();
 
             void UpdateShips(int start, int end)
@@ -387,7 +386,7 @@ namespace Ship_Game
                 {
                     Ship ship = allShips[i];
                     ship.Update(timeStep);
-                    ship.UpdateModulePositions(timeStep, isSystemView);
+                    ship.UpdateModulePositions(timeStep);
                     // make sure dying ships can be seen. and show all ships in DEBUG
                     if ((ship.Loyalty.AlliedWithPlayer ||
                         ship.Dying && ship.KnownByEmpires.KnownByPlayer(UState))

@@ -1201,7 +1201,7 @@ namespace Ship_Game.Ships
             AI.ScanForTargets(timeStep);
         }
 
-        public void UpdateModulePositions(FixedSimTime timeStep, bool isSystemView, bool forceUpdate = false)
+        public void UpdateModulePositions(FixedSimTime timeStep, bool forceUpdate = false)
         {
             bool visible = IsVisibleToPlayer;
             if (Active && (AI.BadGuysNear || visible || forceUpdate))
@@ -1221,14 +1221,15 @@ namespace Ship_Game.Ships
                 if (Active)
                 {
                     bool enableVisualizeDamage = PlanetCrash == null;
+                    bool visibleForVisuals = visible && Universe.IsPlanetViewOrCloser;
                     for (int i = 0; i < ModuleSlotList.Length; ++i)
                     {
                         ShipModule m = ModuleSlotList[i];
                         m.UpdateEveryFrame(a);
                         if (enableVisualizeDamage && m.CanVisualizeDamage)
-                            m.UpdateDamageVisualization(timeStep, a.ParentScale, visible);
+                            m.UpdateDamageVisualization(timeStep, a.ParentScale, visibleForVisuals);
 
-                        if (visible && IsMiningStation)
+                        if (visibleForVisuals && IsMiningStation)
                             Carrier.MiningBays.UpdateMiningVisuals(timeStep);
                     }
                 }

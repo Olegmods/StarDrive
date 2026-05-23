@@ -99,7 +99,7 @@ class SpatialVisualization : CommonVisualization
                 if (go is Ship ship)
                 {
                     ship.IntegratePosVelocityVerlet(fixedDeltaTime, Vector2.Zero);
-                    ship.UpdateModulePositions(simTime, true);
+                    ship.UpdateModulePositions(simTime);
                 }
                 else if (go is Projectile p && p.Active)
                 {
