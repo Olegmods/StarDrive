@@ -708,11 +708,25 @@ namespace Ship_Game
             {
                 if (HotLoadTargets.TryGetValue(targetKey, out Hotloadable hot))
                 {
-                    var info = new FileInfo(hot.File);
-                    if (info.LastWriteTimeUtc != hot.LastModified)
+                    DateTime lastWrite;
+                    string name;
+                    FileInfo info;
+                    try
                     {
-                        Log.Write(ConsoleColor.Magenta, $"HotLoading content: {info.Name}...");
-                        hot.LastModified = info.LastWriteTimeUtc; // update
+                        info = new FileInfo(hot.File);
+                        lastWrite = info.LastWriteTimeUtc;
+                        name = info.Name;
+                    }
+                    catch (IOException ex)
+                    {
+                        Log.WarningVerbose($"HotLoad stat failed for {hot.File}: {ex.Message}");
+                        continue; // retry on next hot-load interval
+                    }
+
+                    if (lastWrite != hot.LastModified)
+                    {
+                        Log.Write(ConsoleColor.Magenta, $"HotLoading content: {name}...");
+                        hot.LastModified = lastWrite; // update
                         hot.OnModified?.Invoke(info);
                         hot.Screen?.ReloadContent();
                         return;
