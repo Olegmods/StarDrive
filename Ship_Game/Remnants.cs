@@ -1286,9 +1286,9 @@ namespace Ship_Game
             float roll = Random.RollDie(100);
             if (roll <= 10)  return RemnantStory.AncientPeaceKeepers;
             if (roll <= 20)  return RemnantStory.AncientWarMongers;
-            if (roll <= 40)  return RemnantStory.AncientExterminators;
-            if (roll <= 60)  return RemnantStory.AncientRaidersRandom;
-            if (roll <= 70)  return RemnantStory.AncientHelpers;
+            if (roll <= 30)  return RemnantStory.AncientExterminators;
+            if (roll <= 50)  return RemnantStory.AncientRaidersRandom;
+            if (roll <= 60)  return RemnantStory.AncientHelpers;
 
             return RemnantStory.AncientBalancers;
         }
