@@ -190,16 +190,34 @@ namespace Ship_Game.AI
             TasksToRemove.Clear();
         }
 
+        static bool LoggedNullGoalSlot;
+
         public void RemoveTaskFromGoals(MilitaryTask task)
         {
+            if (GoalsList == null) return;
             foreach (Goal goal in Goals)
+            {
+                if (goal == null) { WarnNullGoalSlot(nameof(RemoveTaskFromGoals)); continue; }
                 goal.RemoveTask(task);
+            }
         }
 
         public void RemoveFleetFromGoals(Fleet fleet)
         {
+            if (GoalsList == null) return;
             foreach (Goal goal in Goals)
+            {
+                if (goal == null) { WarnNullGoalSlot(nameof(RemoveFleetFromGoals)); continue; }
                 goal.RemoveFleet(fleet);
+            }
+        }
+
+        void WarnNullGoalSlot(string from)
+        {
+            if (LoggedNullGoalSlot) return;
+            LoggedNullGoalSlot = true;
+            Log.Warning($"Null Goal slot in {OwnerEmpire.Name}.GoalsList from {from}; " +
+                        "defensive guard skipping. Likely mod-defined goal type that didn't deserialize.");
         }
 
         public void DebugRunResearchPlanner()
