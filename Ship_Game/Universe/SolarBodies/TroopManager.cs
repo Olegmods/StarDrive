@@ -33,10 +33,22 @@ namespace Ship_Game
         // TODO: refactor these getters
         public bool WeAreInvadingHere(Empire us) => Ground.Owner != us && WeHaveTroopsHere(us);
         public bool MightBeAWarZone(Empire us) => RecentCombat || Ground.SpaceCombatNearPlanet || ForeignTroopHere(us);
-        public float OwnerTroopStrength => TroopsHere.Sum(troop => troop.Loyalty == Owner ? troop.Strength : 0);
+        public float OwnerTroopStrength
+        {
+            get
+            {
+                lock (TroopsHere)
+                    return TroopsHere.Sum(troop => troop.Loyalty == Owner ? troop.Strength : 0);
+            }
+        }
 
         public int NumDefendingTroopCount => NumTroopsHere(Owner);
-        public int NumTroopsCanLaunchFor(Empire empire) => TroopsHere.Count(t => t.Loyalty == empire && t.CanLaunch);
+
+        public int NumTroopsCanLaunchFor(Empire empire)
+        {
+            lock (TroopsHere)
+                return TroopsHere.Count(t => t.Loyalty == empire && t.CanLaunch);
+        }
         public int NumTroopsCanMoveFor(Empire empire) => GetTroopsOf(empire).Count(t => t.CanMove);
 
         float DecisionTimer;
@@ -522,7 +534,8 @@ namespace Ship_Game
             if (Owner == empire)
                 strength += Ground.SumBuildings(BuildingCombatStrength);
 
-            strength += TroopsHere.Sum(t => t.Loyalty == empire ? t.ActualStrengthMax : 0);
+            lock (TroopsHere)
+                strength += TroopsHere.Sum(t => t.Loyalty == empire ? t.ActualStrengthMax : 0);
             return strength;
         }
 
@@ -539,7 +552,9 @@ namespace Ship_Game
 
         public float GroundStrengthOther(Empire allButThisEmpire)
         {
-            float enemyTroopStrength = TroopsHere.Sum(t => t.Loyalty != allButThisEmpire ? t.ActualStrengthMax : 0);
+            float enemyTroopStrength;
+            lock (TroopsHere)
+                enemyTroopStrength = TroopsHere.Sum(t => t.Loyalty != allButThisEmpire ? t.ActualStrengthMax : 0);
 
             if (Owner == allButThisEmpire)
                 return enemyTroopStrength; // The planet is ours, so no need to check from buildings
@@ -566,15 +581,21 @@ namespace Ship_Game
         public int NumTroopsHere(Empire empire)
         {
             int count = 0;
-            for (int i = 0; i < TroopsHere.Count; ++i) // using loop for perf
-                if (TroopsHere[i].Loyalty == empire) ++count;
+            lock (TroopsHere)
+            {
+                for (int i = 0; i < TroopsHere.Count; ++i) // using loop for perf
+                    if (TroopsHere[i].Loyalty == empire) ++count;
+            }
             return count;
         }
 
         public bool WeHaveTroopsHereUncached(Empire empire)
         {
-            for (int i = 0; i < TroopsHere.Count; ++i) // using loop for perf
-                if (TroopsHere[i].Loyalty == empire) return true;
+            lock (TroopsHere)
+            {
+                for (int i = 0; i < TroopsHere.Count; ++i) // using loop for perf
+                    if (TroopsHere[i].Loyalty == empire) return true;
+            }
             return false;
         }
 
@@ -594,9 +615,12 @@ namespace Ship_Game
 
         public bool TroopsHereAreEnemies(Empire empire)
         {
-            foreach (Troop t in TroopsHere)
-                if (t.Loyalty != empire && empire.IsAtWarWith(t.Loyalty))
-                    return true;
+            lock (TroopsHere)
+            {
+                foreach (Troop t in TroopsHere)
+                    if (t.Loyalty != empire && empire.IsAtWarWith(t.Loyalty))
+                        return true;
+            }
             return false;
         }
 
@@ -607,7 +631,9 @@ namespace Ship_Game
 
         public int GetEnemyAssets(Empire empire)
         {
-            int numTroops = TroopsHere.Count(t => t.Loyalty != empire);
+            int numTroops;
+            lock (TroopsHere)
+                numTroops = TroopsHere.Count(t => t.Loyalty != empire);
             int numCombatBuildings = Owner != empire ? Ground.CountBuildings(b => b.IsAttackable) : 0;
 
             return numTroops + numCombatBuildings;
