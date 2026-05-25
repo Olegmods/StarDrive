@@ -244,6 +244,17 @@ namespace Ship_Game
             if (File.Exists(Log.OldLogFilePath))
                 File.Copy(Log.OldLogFilePath, $"{tmpDir}/blackbox.old.log", overwrite:true);
 
+            // include the user's colony blueprints for the current mod/BBplus context
+            string modScope = BlueprintsTemplate.CurrentModName;
+            string blueprintsSrc = Dir.StarDriveAppData + "/Colony Blueprints/" + modScope;
+            if (Directory.Exists(blueprintsSrc))
+            {
+                string blueprintsDest = $"{tmpDir}/blueprints/{modScope}";
+                Directory.CreateDirectory(blueprintsDest);
+                foreach (FileInfo bp in Dir.GetFiles(blueprintsSrc, "yaml"))
+                    bp.CopyTo($"{blueprintsDest}/{bp.Name}", overwrite:true);
+            }
+
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string outZip = $"{GetDebugVersionString()}_{fileName}.zip";
             HelperFunctions.CompressDir(dirInfo, $"{desktop}/{outZip}");
