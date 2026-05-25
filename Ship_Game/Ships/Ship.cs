@@ -1385,7 +1385,7 @@ namespace Ship_Game.Ships
 
             float newShipCost = newShip.GetCost(Loyalty);
             int cost          = Math.Max((int)(newShipCost - oldShipCost), 0);
-            return cost + (int)(10 * Universe.ProductionPace); // extra refit cost: accord for GamePace;
+            return cost + (int)(newShipCost * 0.1f); // 10% of new ship cost as refit overhead (already paced via GetCost)
         }
 
         public bool IsTethered => TetheredTo != null;
