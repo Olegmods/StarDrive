@@ -1060,7 +1060,7 @@ namespace Ship_Game
                 {
                     Vector2d screenPos = DrawLineProjected(start, ship.AI.ColonizeTarget.Position, color, 2500f, 0);
                     string text = $"Colonize\nSystem : {ship.AI.ColonizeTarget.System.Name}\nPlanet : {ship.AI.ColonizeTarget.Name}";
-                    DrawPointerWithText(screenPos.ToVec2f(), ResourceManager.Texture("UI/planetNamePointer"), color, text, new Color(ship.Loyalty.EmpireColor, alpha));
+                    DrawPointerWithText(screenPos.ToVec2f(), ResourceManager.Texture("UI/planetNamePointer"), color, text, new Color(ship.Loyalty.EmpireColor, alpha).Premultiplied());
                     return;
                 }
                 if (ship.AI.State == AIState.Orbit && ship.AI.OrbitTarget != null)
@@ -1119,7 +1119,7 @@ namespace Ship_Game
                     DrawLineToPlanet(start, planet.Position, Colors.Error(alpha));
                     ToolTip.PlanetLandingSpotsTip($"{planet.Name}: Critical!", spots);
                 }
-                DrawWayPointLines(ship, new Color(Color.Lime, alpha));
+                DrawWayPointLines(ship, new Color(Color.Lime, alpha).Premultiplied());
                 return;
             }
 

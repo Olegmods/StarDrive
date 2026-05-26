@@ -199,7 +199,7 @@ namespace Ship_Game
                 var sel = new Selector(Rect, new Color(Color.Black, (byte)alpha),  alpha);
                 sel.Draw(batch, elapsed);
 
-                var textColor = new Color((byte)102, (byte)178, (byte)255, (byte)alpha);
+                var textColor = new Color((byte)102, (byte)178, (byte)255, (byte)alpha).Premultiplied();
                 if (HotKey.NotEmpty())
                 {
                     string title = Localizer.Token(GameText.Hotkey) + ": ";
@@ -209,7 +209,7 @@ namespace Ship_Game
                     Vector2 hotKey = textPos;
                     hotKey.X += TipFont.MeasureString(title).X;
 
-                    batch.DrawString(TipFont, HotKey, hotKey, new Color(Color.Gold, (byte)alpha));
+                    batch.DrawString(TipFont, HotKey, hotKey, new Color(Color.Gold, (byte)alpha).Premultiplied());
                     textPos.Y += TipFont.LineSpacing * 2;
                 }
 
