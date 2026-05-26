@@ -88,15 +88,18 @@ namespace Ship_Game
             RefitShipList.EnableItemHighlight = true;
             RefitShipList.OnClick = OnRefitShipItemClicked;
 
-            foreach (IShipDesign design in ShipToRefit.Loyalty.ShipsWeCanBuildSnapshot)
+            if (!ShipToRefit.IsSubspaceProjector)
             {
-                if ((design.Hull == ShipToRefit.ShipData.Hull || ShipToRefit.IsResearchStation || ShipToRefit.IsMiningStation) 
-                    && design != ShipToRefit.ShipData 
-                    && !design.ShipRole.Protected
-                    && ShipToRefit.IsResearchStation == design.IsResearchStation
-                    && ShipToRefit.IsMiningStation == design.IsMiningStation)
+                foreach (IShipDesign design in ShipToRefit.Loyalty.ShipsWeCanBuildSnapshot)
                 {
-                    RefitShipList.AddItem(new RefitShipListItem(this, design));
+                    if ((design.Hull == ShipToRefit.ShipData.Hull || ShipToRefit.IsResearchStation || ShipToRefit.IsMiningStation)
+                        && design != ShipToRefit.ShipData
+                        && !design.ShipRole.Protected
+                        && ShipToRefit.IsResearchStation == design.IsResearchStation
+                        && ShipToRefit.IsMiningStation == design.IsMiningStation)
+                    {
+                        RefitShipList.AddItem(new RefitShipListItem(this, design));
+                    }
                 }
             }
 

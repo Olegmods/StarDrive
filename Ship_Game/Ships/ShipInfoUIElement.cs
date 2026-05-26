@@ -689,7 +689,7 @@ namespace Ship_Game.Ships
             }
             if (s.CanBeScrapped)
             {
-                if (!s.IsConstructor)
+                if (!s.IsConstructor && !s.IsSubspaceProjector)
                 {
                     var rf = new OrdersButton(s, OrderType.Refit, GameText.OrderShipRefit)
                     {
