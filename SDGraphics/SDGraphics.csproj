@@ -68,6 +68,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SDUtils\SDUtils.csproj" />
+    <!-- Compile-time only: SD0001 fails build on non-premultiplied
+         `new Color(R,G,B,A<255)` literals fed to SpriteBatch draws.
+         Not copied into game/ output. -->
+    <ProjectReference Include="..\SDAnalyzers\SDAnalyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>
