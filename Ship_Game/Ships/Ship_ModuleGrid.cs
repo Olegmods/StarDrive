@@ -470,9 +470,25 @@ namespace Ship_Game.Ships
         public ShipModule FindClosestModule(Vector2 worldPos)
         {
             if (!Active) return null;
-            foreach (ModuleQuadrant mq in EnumModulesQuadrants(worldPos, Radius, checkShields:false))
-                return mq.Module;
-            return null;
+
+            // The search rect in EnumModulesQuadrants is worldPos +/- searchRadius;
+            // it must reach the ship's grid (centered at Position, extent Radius)
+            // even when worldPos is far outside the hull, otherwise the overlap
+            // check short-circuits and we get null.
+            float searchRadius = worldPos.Distance(Position) + Radius;
+
+            ShipModule closest = null;
+            float bestDistSq = float.MaxValue;
+            foreach (ModuleQuadrant mq in EnumModulesQuadrants(worldPos, searchRadius, checkShields: false))
+            {
+                float distSq = mq.Module.Position.SqDist(worldPos);
+                if (distSq < bestDistSq)
+                {
+                    bestDistSq = distSq;
+                    closest = mq.Module;
+                }
+            }
+            return closest;
         }
 
         // find the first module that falls under the hit radius at given position

@@ -231,11 +231,24 @@ namespace Ship_Game.Gameplay
             // find any nearby ship -- even allies
             SpatialObjectBase[] nearby = FindNearby(GameObjectType.Ship, thisShip, damageRadius + 64, maxResults:32);
 
-            for (int i = 0; i < nearby.Length && damageAmount > 0f; ++i)
+            for (int i = 0; i < nearby.Length; ++i)
             {
                 var otherShip = (Ship)nearby[i];
-                // FB: Ships will be lucky to not get caught in the explosion, based on their level as well
-                if (thisShip.Loyalty.Random.RollDice(otherShip.ExplosionEvadeBaseChance() + otherShip.Level))
+
+                ShipModule nearest = otherShip.FindClosestModule(explosionCenter);
+                if (nearest == null)
+                    continue;
+
+                float distToNearest = explosionCenter.Distance(nearest.Position);
+                float reducedRadius = damageRadius - distToNearest;
+                float evadeChance = otherShip.ExplosionEvadeBaseChance(distToNearest < thisShip.Radius);
+                if (reducedRadius < 0f || thisShip.Loyalty.Random.RollDice(evadeChance))
+                    continue;
+
+                // Per-target damage: each ship gets the full damage scaled by its own falloff.
+                float falloff = ShipModule.DamageFalloff(explosionCenter, nearest.Position, damageRadius, nearest.Radius);
+                float localDamage = damageAmount * falloff;
+                if (localDamage <= 0f)
                     continue;
 
                 // First damage all shields covering the explosion center
@@ -243,27 +256,17 @@ namespace Ship_Game.Gameplay
                 {
                     ShipModule shield = otherShip.HitTestShields(explosionCenter, 16f);
                     if (shield == null) break;
-                    shield.DamageShield(damageAmount, null, out damageAmount);
-                    if (damageAmount <= 0f)
-                        return;
+                    shield.DamageShield(localDamage, null, out localDamage);
+                    if (localDamage <= 0f)
+                        break;
                 }
 
-                ShipModule nearest = otherShip.FindClosestModule(explosionCenter);
-                if (nearest == null)
-                    continue;
-
-                float reducedRadius = damageRadius - explosionCenter.Distance(nearest.Position);
-                if (reducedRadius <= 0f)
-                    continue;
-
-                float falloff = ShipModule.DamageFalloff(explosionCenter, nearest.Position, damageRadius, nearest.Radius);
-                damageAmount *= falloff;
-                if (damageAmount <= 0f)
-                    return;
+                if (localDamage <= 0f)
+                    continue; // shields absorbed everything for this ship
 
                 // Then explode at the module if any excess damage left
                 // Ignoring shields because we already checked shields above
-                otherShip.DamageExplosive(thisShip, damageAmount, nearest.Position, reducedRadius, true);
+                otherShip.DamageExplosive(thisShip, localDamage, nearest.Position, reducedRadius, true);
 
                 if (!otherShip.Dying)
                 {
@@ -273,7 +276,7 @@ namespace Ship_Game.Gameplay
                 }
 
                 // apply some impulse from the explosion
-                Vector2 impulse = 3f * (otherShip.Position - explosionCenter);
+                Vector2 impulse = 10f * (otherShip.Position - explosionCenter);
                 if (impulse.Length() > 200f)
                     impulse = impulse.Normalized() * 200f;
 
