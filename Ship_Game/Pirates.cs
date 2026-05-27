@@ -833,9 +833,9 @@ namespace Ship_Game
             {
                 if (ShipsWeCanSpawn.Contains(ship.Name))
                     ship.QueueTotalRemoval();
-                else if (ship.AI.State != AIState.Orbit 
-                         || ship.AI.State != AIState.Escort 
-                         || ship.AI.State != AIState.Resupply)
+                else if (ship.AI.State != AIState.Orbit
+                         && ship.AI.State != AIState.Escort
+                         && ship.AI.State != AIState.Resupply)
                 {
                     // We might use this ship for defense or future attacks
                     ship.AI.AddEscortGoal(pirateBase);
@@ -854,8 +854,8 @@ namespace Ship_Game
                 return false;
 
             return ship.ShipData.HullRole != RoleName.capital
-                   || ship.ShipData.HullRole != RoleName.battleship
-                   || ship.ShipData.HullRole != RoleName.cruiser;
+                   && ship.ShipData.HullRole != RoleName.battleship
+                   && ship.ShipData.HullRole != RoleName.cruiser;
         }
 
         void PopulateDefaultBasicShips(bool fromSave)
