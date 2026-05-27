@@ -65,7 +65,7 @@ namespace Ship_Game
             if (HandleSingleNodeSelection(input, input.CursorPosition))
                 return false;
 
-            if (SelectedNodeList.Count > 1)
+            if (ShowTargetingPanels && SelectedNodeList.Count > 1)
             {
                 SliderDps.HandleInput(input);
                 SliderVulture.HandleInput(input);
@@ -334,6 +334,9 @@ namespace Ship_Game
         bool HandleSingleNodeSelection(InputState input, Vector2 mousePos)
         {
             if (SelectedNodeList.Count != 1)
+                return false;
+
+            if (!ShowTargetingPanels)
                 return false;
 
             var node = SelectedNodeList[0];
