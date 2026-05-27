@@ -100,7 +100,11 @@ jobs:
         run: nuget restore StarDrive.sln
 
       - name: Build solution (Release|x64)
-        run: msbuild StarDrive.sln /m /verbosity:minimal /p:Configuration=Release /p:Platform=x64
+        # `/restore` covers SDK-style projects (e.g. SDAnalyzers — PackageReference,
+        # netstandard2.0) that the prior `nuget restore` step misses. nuget.exe's SLN
+        # restore only generates project.assets.json for packages.config projects;
+        # without /restore, the build fails NETSDK1004.
+        run: msbuild StarDrive.sln /m /verbosity:minimal /restore /p:Configuration=Release /p:Platform=x64
 
       - name: Pre-seed StarDrive.user.config (workaround for GlobalStats NRE)
         # GlobalStats.OpenUserConfiguration() at line 460 NREs in fresh testhost
