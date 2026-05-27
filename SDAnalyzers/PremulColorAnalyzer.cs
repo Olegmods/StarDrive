@@ -6,11 +6,16 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace SDAnalyzers;
 
 /// <summary>
-/// Flags non-premultiplied <c>new Color(R, G, B, A &lt; 255)</c> literals fed to SpriteBatch
-/// draws. The default MonoGame SpriteBatch BlendState is AlphaBlend (premultiplied), so a
-/// raw non-premul vertex Color with low alpha renders as additive RGB instead of as a faded
-/// tint. Append <c>.Premultiplied()</c> to the literal, or use <c>Color.Alpha(float)</c>
-/// (which premultiplies as of commit c966860fe).
+/// Flags non-premultiplied <c>new Color(R, G, B, A &lt; 255)</c> and
+/// <c>new Color(Color, A &lt; 255)</c> literals regardless of how they're consumed.
+/// The default MonoGame SpriteBatch BlendState is AlphaBlend (premultiplied), so a raw
+/// non-premul vertex Color with low alpha renders as additive RGB instead of as a faded
+/// tint. The flag is broad on purpose: a low-alpha Color literal is almost never what you
+/// want under premul rendering, and erring toward false positives is cheaper than missing
+/// new sites. Append <c>.Premultiplied()</c> to the literal, or use <c>Color.Alpha(float)</c>
+/// (which premultiplies as of commit c966860fe). The trivial no-op cases — pure-black RGB,
+/// RGB == alpha (already in premul form), and <c>Color.Black</c> base in the 2-arg form —
+/// are skipped.
 /// </summary>
 [DiagnosticAnalyzer(Microsoft.CodeAnalysis.LanguageNames.CSharp)]
 public class PremulColorAnalyzer : DiagnosticAnalyzer
@@ -79,7 +84,7 @@ public class PremulColorAnalyzer : DiagnosticAnalyzer
         if (args.Count == 2)
         {
             // Skip if the first arg is Color.Black — pure black, premul is a no-op
-            if (IsColorBlackReference(args[0].Expression))
+            if (IsColorBlackReference(args[0].Expression, context.SemanticModel, context.CancellationToken))
                 return;
 
             if (TryGetLiteralIntValue(args[1].Expression, out int alphaByte))
@@ -100,12 +105,22 @@ public class PremulColorAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    /// <summary>Returns true if the expression is a reference to Color.Black (e.g. <c>Color.Black</c>).</summary>
-    static bool IsColorBlackReference(ExpressionSyntax expr)
+    /// <summary>
+    /// Returns true if the expression resolves to the field
+    /// <c>Microsoft.Xna.Framework.Color.Black</c> specifically. Syntactic name matching
+    /// alone is not enough — any unrelated <c>X.Black</c> would otherwise suppress SD0001.
+    /// </summary>
+    static bool IsColorBlackReference(ExpressionSyntax expr, SemanticModel semanticModel, System.Threading.CancellationToken ct)
     {
-        if (expr is MemberAccessExpressionSyntax member)
-            return member.Name.Identifier.ValueText == "Black";
-        return false;
+        if (expr is not MemberAccessExpressionSyntax member)
+            return false;
+        if (member.Name.Identifier.ValueText != "Black")
+            return false;
+
+        var symbol = semanticModel.GetSymbolInfo(member, ct).Symbol;
+        return symbol is (IFieldSymbol or IPropertySymbol)
+            && symbol.Name == "Black"
+            && symbol.ContainingType?.ToDisplayString() == "Microsoft.Xna.Framework.Color";
     }
 
     /// <summary>
