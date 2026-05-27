@@ -66,8 +66,6 @@ namespace Ship_Game
         int PaymentPeriodTurns                 => (int)(Owner.data.PiratePaymentPeriodTurns * Owner.Universe.ProductionPace);
         public bool PaidBy(Empire victim)      => !Owner.IsAtWarWith(victim);
 
-        float PirateBaseDetectionChance => Level * 4 + ((Owner.Universe.StarDate - 1000) * 0.025f);
-
         public void AddGoalDirectorPayment(Empire victim) => 
             AddGoal(victim, GoalType.PirateDirectorPayment, null);
 
@@ -914,7 +912,7 @@ namespace Ship_Game
             if (currentAssaultGoals >= maxAssaultGoals || victim.data.TaxRate > 0.8f) 
                 return;
 
-            if (FoundClosestKnownUntargetedPirateBase(victim, out Ship pirateBase) || Random.RollDice(PirateBaseDetectionChance))
+            if (FoundClosestKnownUntargetedPirateBase(victim, out Ship pirateBase) || Random.RollDice(Level))
             {
                 Goal goal = new AssaultPirateBase(victim, Owner, pirateBase);
                 victim.AI.AddGoal(goal);
