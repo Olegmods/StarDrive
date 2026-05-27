@@ -93,7 +93,7 @@ namespace Ship_Game
             AddGoal(victim, GoalType.PirateDefendBase, baseToDefend);
 
         public void AddGoalProtection(Empire victim, Ship shipToDefend) =>
-            AddGoal(victim, GoalType.PirateDefendBase, shipToDefend);
+            AddGoal(victim, GoalType.PirateProtection, shipToDefend);
 
         void AddGoal(Empire victim, GoalType type, Ship ship, string systemName = "")
         {
@@ -897,7 +897,7 @@ namespace Ship_Game
                     int executeChance = faction.Pirates.Level * 3;
                     if (Random.RollDice(executeChance))
                     {
-                        AddGoalProtection(victim, shipToDefend);
+                        faction.Pirates.AddGoalProtection(victim, shipToDefend);
                         return;
                     }
                 }
