@@ -122,10 +122,10 @@ namespace Ship_Game
                 {
                     Ship s = (Ship)button.ReferenceObject;
                     if (s.HealthPercent < 0.75f)
-                        button.UpdateBackGroundTexColor(new Color(Color.Yellow, alpha));
+                        button.UpdateBackGroundTexColor(new Color(Color.Yellow, alpha).Premultiplied());
 
                     if (s.InternalSlotsHealthPercent < 0.75f)
-                        button.UpdateBackGroundTexColor(new Color(Color.Red, alpha));
+                        button.UpdateBackGroundTexColor(new Color(Color.Red, alpha).Premultiplied());
                 }
             }
 

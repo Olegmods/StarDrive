@@ -53,6 +53,14 @@ namespace Ship_Game
         RectF SelectedStuffRect;
         RectF OperationsRect;
         RectF PrioritiesRect;
+
+        // Both the per-node Target Priority sliders and the Operational Radius
+        // slider are currently disconnected from gameplay in practice — combat
+        // state changes overwrite the weights and the OrdersRadius slider has a
+        // relative/absolute unit mismatch that the AI ignores. Hide the panels
+        // until the underlying systems are reworked; flip back to true when the
+        // weights actually persist and OrdersRadius is honored.
+        static bool ShowTargetingPanels = false;
         RectF FleetOverviewRect;
         UITextBox FleetOverviewText;
         WeightSlider SliderAssist;

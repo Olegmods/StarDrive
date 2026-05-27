@@ -991,6 +991,11 @@
   <ItemGroup>
     <ProjectReference Include="SDGraphics\SDGraphics.csproj" />
     <ProjectReference Include="SDUtils\SDUtils.csproj" />
+    <!-- Compile-time only: build-fails on non-premultiplied `new Color(R,G,B,A<255)`
+         literals fed to SpriteBatch draws (SD0001). Not copied into game/ output. -->
+    <ProjectReference Include="SDAnalyzers\SDAnalyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Phase 2.6.A: net8 imports System.Range by default which collides with the

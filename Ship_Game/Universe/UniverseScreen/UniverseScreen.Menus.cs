@@ -48,7 +48,7 @@ namespace Ship_Game
                 var followIcon = ResourceManager.Texture("UI/FollowIcon");
                 var holdPosition = ResourceManager.Texture("UI/HoldPositionIcon");
                 var other = new PieMenuNode(GameText.Other, followIcon, null);
-                if (s is {IsPlatformOrStation: false, CanBeScrapped: true})
+                if (s is {IsPlatformOrStation: false, IsSubspaceProjector: false, CanBeScrapped: true})
                 {
                     other.Add(new(GameText.RefitTo, followIcon, () => RefitTo(s)));
                 }

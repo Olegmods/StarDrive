@@ -227,7 +227,7 @@ namespace Ship_Game
             if (screen < 2) // Low-res explosion marker
             {
                 r.Width = r.Height = 1;
-                batch.Draw(ExplosionPixel, r, new Color(Color.LightYellow, a));
+                batch.Draw(ExplosionPixel, r, new Color(Color.LightYellow, a).Premultiplied());
                 return;
             }
 

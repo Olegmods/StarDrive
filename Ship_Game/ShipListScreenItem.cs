@@ -169,10 +169,11 @@ namespace Ship_Game
                 ExploreButton.Draw(batch);
                 //PatrolButton.Draw(batch); // FB - Disabled until we make it better
             }
-            RefitButton.Draw(batch);
+            if (!Ship.IsSubspaceProjector)
+                RefitButton.Draw(batch);
             ScrapButton.Draw(batch);
 
-            batch.DrawRectangle(TotalEntrySize, new Color(118, 102, 67, 50));
+            batch.DrawRectangle(TotalEntrySize, new Color(118, 102, 67, 50).Premultiplied());
         }
 
         public static string GetStatusText(Ship ship)
@@ -372,7 +373,7 @@ namespace Ship_Game
                 }
             }
 
-            if (RefitButton.HandleInput(input))
+            if (!Ship.IsSubspaceProjector && RefitButton.HandleInput(input))
             {
                 GameAudio.EchoAffirmative();
                 Screen.ScreenManager.AddScreen(new RefitToWindow(Screen, this));

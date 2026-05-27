@@ -307,25 +307,28 @@ namespace Ship_Game
                     batch.DrawString(Fonts.Arial20Bold, text, cursor, Colors.Cream);
                 }
 
-                cursor.Y = OperationsRect.Y + 10;
-                batch.DrawString(Fonts.Pirulen12, "Movement Orders", cursor, Colors.Cream);
+                if (ShowTargetingPanels)
+                {
+                    cursor.Y = OperationsRect.Y + 10;
+                    batch.DrawString(Fonts.Pirulen12, "Movement Orders", cursor, Colors.Cream);
 
-                OperationsSelector = new Selector(OperationsRect, new Color(0, 0, 0, 180));
-                OperationsSelector.Draw(batch, elapsed);
-                cursor = new Vector2(OperationsRect.X + 20, OperationsRect.Y + 10);
-                batch.DrawString(Fonts.Pirulen12, "Target Selection", cursor, Colors.Cream);
-                SliderArmor.Draw(batch);
-                SliderAssist.Draw(batch);
-                SliderDefend.Draw(batch);
-                SliderDps.Draw(batch);
-                SliderShield.Draw(batch);
-                SliderVulture.Draw(batch);
-                PrioritySelector = new Selector(PrioritiesRect, new Color(0, 0, 0, 180));
-                PrioritySelector.Draw(batch, elapsed);
-                cursor = new Vector2(PrioritiesRect.X + 20, PrioritiesRect.Y + 10);
-                batch.DrawString(Fonts.Pirulen12, "Priorities", cursor, Colors.Cream);
-                OperationalRadius.Draw(batch, elapsed);
-                SliderSize.Draw(ScreenManager);
+                    OperationsSelector = new Selector(OperationsRect, new Color(0, 0, 0, 180));
+                    OperationsSelector.Draw(batch, elapsed);
+                    cursor = new Vector2(OperationsRect.X + 20, OperationsRect.Y + 10);
+                    batch.DrawString(Fonts.Pirulen12, "Target Selection", cursor, Colors.Cream);
+                    SliderArmor.Draw(batch);
+                    SliderAssist.Draw(batch);
+                    SliderDefend.Draw(batch);
+                    SliderDps.Draw(batch);
+                    SliderShield.Draw(batch);
+                    SliderVulture.Draw(batch);
+                    PrioritySelector = new Selector(PrioritiesRect, new Color(0, 0, 0, 180));
+                    PrioritySelector.Draw(batch, elapsed);
+                    cursor = new Vector2(PrioritiesRect.X + 20, PrioritiesRect.Y + 10);
+                    batch.DrawString(Fonts.Pirulen12, "Priorities", cursor, Colors.Cream);
+                    OperationalRadius.Draw(batch, elapsed);
+                    SliderSize.Draw(ScreenManager);
+                }
             }
             else if (SelectedNodeList.Count > 1)
             {
@@ -335,25 +338,28 @@ namespace Ship_Game
 
                 batch.DrawString(Fonts.Arial20Bold, $"Group of {SelectedNodeList.Count} ships selected", cursor, Colors.Cream);
 
-                cursor.Y = OperationsRect.Y + 10;
-                batch.DrawString(Fonts.Pirulen12, "Group Movement Orders", cursor, Colors.Cream);
+                if (ShowTargetingPanels)
+                {
+                    cursor.Y = OperationsRect.Y + 10;
+                    batch.DrawString(Fonts.Pirulen12, "Group Movement Orders", cursor, Colors.Cream);
 
-                OperationsSelector = new Selector(OperationsRect, new Color(0, 0, 0, 180));
-                OperationsSelector.Draw(batch, elapsed);
-                cursor = new Vector2(OperationsRect.X + 20, OperationsRect.Y + 10);
-                batch.DrawString(Fonts.Pirulen12, "Group Target Selection", cursor, Colors.Cream);
-                SliderArmor.Draw(batch);
-                SliderAssist.Draw(batch);
-                SliderDefend.Draw(batch);
-                SliderDps.Draw(batch);
-                SliderShield.Draw(batch);
-                SliderVulture.Draw(batch);
-                PrioritySelector = new Selector(PrioritiesRect, new Color(0, 0, 0, 180));
-                PrioritySelector.Draw(batch, elapsed);
-                cursor = new Vector2(PrioritiesRect.X + 20, PrioritiesRect.Y + 10);
-                batch.DrawString(Fonts.Pirulen12, "Group Priorities", cursor, Colors.Cream);
-                OperationalRadius.Draw(batch, elapsed);
-                SliderSize.Draw(ScreenManager);
+                    OperationsSelector = new Selector(OperationsRect, new Color(0, 0, 0, 180));
+                    OperationsSelector.Draw(batch, elapsed);
+                    cursor = new Vector2(OperationsRect.X + 20, OperationsRect.Y + 10);
+                    batch.DrawString(Fonts.Pirulen12, "Group Target Selection", cursor, Colors.Cream);
+                    SliderArmor.Draw(batch);
+                    SliderAssist.Draw(batch);
+                    SliderDefend.Draw(batch);
+                    SliderDps.Draw(batch);
+                    SliderShield.Draw(batch);
+                    SliderVulture.Draw(batch);
+                    PrioritySelector = new Selector(PrioritiesRect, new Color(0, 0, 0, 180));
+                    PrioritySelector.Draw(batch, elapsed);
+                    cursor = new Vector2(PrioritiesRect.X + 20, PrioritiesRect.Y + 10);
+                    batch.DrawString(Fonts.Pirulen12, "Group Priorities", cursor, Colors.Cream);
+                    OperationalRadius.Draw(batch, elapsed);
+                    SliderSize.Draw(ScreenManager);
+                }
             }
             else
             {

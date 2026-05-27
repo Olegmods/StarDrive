@@ -65,7 +65,7 @@ namespace Ship_Game
             if (HandleSingleNodeSelection(input, input.CursorPosition))
                 return false;
 
-            if (SelectedNodeList.Count > 1)
+            if (ShowTargetingPanels && SelectedNodeList.Count > 1)
             {
                 SliderDps.HandleInput(input);
                 SliderVulture.HandleInput(input);
@@ -115,6 +115,8 @@ namespace Ship_Game
             if (input.LeftMouseClick && !ShipSL.HitTest(input.CursorPosition))
             {
                 Vector2 pickedPosition = CursorWorldPosition2D;
+                if (WouldOverlap(pickedPosition, ActiveShipDesign.Radius))
+                    return false;
                 AddDesignToFleet(ActiveShipDesign, pickedPosition);
 
                 // if we're holding shift key down, allow placing multiple designs
@@ -173,6 +175,65 @@ namespace Ship_Game
                 ActiveShipDesign = null;
             }
             // else: otherwise we will just have a data node
+
+            AssignNodeToSquad(node);
+        }
+
+        // Make sure the new node lives in a Squad so the squad rect/drag works
+        // (matches Ctrl+# fleet creation, which goes through AutoArrange). Prefer
+        // the nearest existing squad in any flank; if none are close enough,
+        // create a fresh single-node squad in the CenterFlank at the drop point.
+        void AssignNodeToSquad(FleetDataNode node)
+        {
+            if (SelectedFleet == null)
+                return;
+
+            // AllFlanks must contain refs to the individual flank arrays so
+            // that AllSquads enumeration sees squads we add via CenterFlank.
+            // On a fresh fleet (no AutoArrange) it's empty; on a save-loaded
+            // fleet the entries may not be identity-equal to the individual
+            // flank fields after StarData round-trip. Rebuild defensively.
+            SelectedFleet.AllFlanks.Clear();
+            SelectedFleet.AllFlanks.Add(SelectedFleet.CenterFlank);
+            SelectedFleet.AllFlanks.Add(SelectedFleet.LeftFlank);
+            SelectedFleet.AllFlanks.Add(SelectedFleet.RightFlank);
+            SelectedFleet.AllFlanks.Add(SelectedFleet.ScreenFlank);
+            SelectedFleet.AllFlanks.Add(SelectedFleet.RearFlank);
+
+            // already a member of some squad? nothing to do
+            foreach (Squad existing in AllSquads)
+                if (existing.DataNodes.ContainsRef(node))
+                    return;
+
+            const float JoinDistance = Squad.SquadSpacing * 2f;
+            Squad nearest = null;
+            float bestDist = float.MaxValue;
+            foreach (Squad candidate in AllSquads)
+            {
+                float d = candidate.Offset.Distance(node.RelativeFleetOffset);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    nearest = candidate;
+                }
+            }
+
+            if (nearest != null && bestDist <= JoinDistance)
+            {
+                nearest.DataNodes.Add(node);
+                if (node.Ship != null) nearest.Ships.AddUnique(node.Ship);
+                return;
+            }
+
+            // No nearby squad — spin up a new one in the Center flank at the drop point.
+            var fresh = new Squad
+            {
+                Fleet = SelectedFleet,
+                Offset = node.RelativeFleetOffset,
+            };
+            fresh.DataNodes.Add(node);
+            if (node.Ship != null) fresh.Ships.Add(node.Ship);
+            SelectedFleet.CenterFlank.Add(fresh);
         }
 
         // delete all selected ships
@@ -275,6 +336,9 @@ namespace Ship_Game
             if (SelectedNodeList.Count != 1)
                 return false;
 
+            if (!ShowTargetingPanels)
+                return false;
+
             var node = SelectedNodeList[0];
 
             bool setReturn = false;
@@ -369,7 +433,11 @@ namespace Ship_Game
         {
             if (GetRoundedNodeMove(newSpot, node.RelativeFleetOffset, out Vector2 difference))
             {
-                node.RelativeFleetOffset += difference;
+                Vector2 candidate = node.RelativeFleetOffset + difference;
+                (_, float radius) = GetNodeOffsetAndRadius(node);
+                if (WouldOverlap(candidate, radius, exclude: node))
+                    return;
+                node.RelativeFleetOffset = candidate;
                 if (node.Ship != null)
                 {
                     node.Ship.RelativeFleetOffset = node.RelativeFleetOffset;
@@ -401,6 +469,13 @@ namespace Ship_Game
             Vector2 newSpot = CursorWorldPosition2D;
             if (GetRoundedNodeMove(newSpot, selectedSquad.Offset, out Vector2 difference))
             {
+                foreach (FleetDataNode node in selectedSquad.DataNodes)
+                {
+                    (Vector2 oldPos, float radius) = GetNodeOffsetAndRadius(node);
+                    if (WouldOverlap(oldPos + difference, radius, excludeAll: selectedSquad.DataNodes))
+                        return;
+                }
+
                 selectedSquad.Offset += difference;
                 foreach (FleetDataNode node in selectedSquad.DataNodes)
                 {
@@ -412,6 +487,26 @@ namespace Ship_Game
                     }
                 }
             }
+        }
+
+        bool WouldOverlap(Vector2 candidateOffset, float candidateRadius,
+                          FleetDataNode exclude = null,
+                          IReadOnlyList<FleetDataNode> excludeAll = null)
+        {
+            if (SelectedFleet == null)
+                return false;
+
+            for (int i = 0; i < SelectedFleet.DataNodes.Count; i++)
+            {
+                FleetDataNode other = SelectedFleet.DataNodes[i];
+                if (other == exclude) continue;
+                if (excludeAll != null && excludeAll.Contains(other)) continue;
+
+                (Vector2 oPos, float oRadius) = GetNodeOffsetAndRadius(other);
+                if (candidateOffset.Distance(oPos) < candidateRadius + oRadius)
+                    return true;
+            }
+            return false;
         }
 
         void UpdateHoveredNodesList(InputState input)

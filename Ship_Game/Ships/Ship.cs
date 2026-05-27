@@ -1385,7 +1385,7 @@ namespace Ship_Game.Ships
 
             float newShipCost = newShip.GetCost(Loyalty);
             int cost          = Math.Max((int)(newShipCost - oldShipCost), 0);
-            return cost + (int)(10 * Universe.ProductionPace); // extra refit cost: accord for GamePace;
+            return cost + (int)(newShipCost * 0.1f); // 10% of new ship cost as refit overhead (already paced via GetCost)
         }
 
         public bool IsTethered => TetheredTo != null;
@@ -1455,21 +1455,37 @@ namespace Ship_Game.Ships
         }
 
         // Base chance to evade and exploding ship
-        public int ExplosionEvadeBaseChance()
+        // FB: Ships will be lucky to not get caught in the explosion, based on their level as well.
+        // Point-blank (closest module inside the exploding ship's hull radius) drops evade to 10% of normal.
+        public float ExplosionEvadeBaseChance(bool pointBlank)
         {
+            float explosionEvadeBaseChance = 0;
             switch (ShipData.HullRole)
             {
                 default:
-                case RoleName.drone:      return 80;
-                case RoleName.scout:      return 80;
-                case RoleName.fighter:    return 70;
-                case RoleName.corvette:   return 60;
-                case RoleName.frigate:    return 40;
-                case RoleName.cruiser:    return 20;
-                case RoleName.battleship: return 10;
+                case RoleName.drone:     
+                case RoleName.scout:      explosionEvadeBaseChance = 80; break;
+                case RoleName.fighter:    explosionEvadeBaseChance = 70; break;
+                case RoleName.corvette:   explosionEvadeBaseChance = 60; break;
+                case RoleName.frigate:    explosionEvadeBaseChance = 40; break;
+                case RoleName.cruiser:    explosionEvadeBaseChance = 20; break;
+                case RoleName.battleship: explosionEvadeBaseChance = 10; break;
                 case RoleName.capital: 
-                case RoleName.station:    return 0;
+                case RoleName.station:    explosionEvadeBaseChance = 0; break;
             }
+
+            explosionEvadeBaseChance += Level;
+            if (pointBlank)
+                switch (ShipData.HullRole)
+                {
+                    case RoleName.drone:
+                    case RoleName.scout:   
+                    case RoleName.fighter: return explosionEvadeBaseChance;
+                    default:               return explosionEvadeBaseChance * 0.1f;
+
+                }
+
+            return explosionEvadeBaseChance;
         }
 
         void AddExplosionEffect(bool addWarpExplode)
@@ -1608,7 +1624,7 @@ namespace Ship_Game.Ships
                 if (PlanetCrash == null)
                 {
                     float explosionDamage = GetExplosionDamage();
-                    Universe.Spatial.ShipExplode(this, explosionDamage, Position, Radius + explosionDamage / 500);
+                    Universe.Spatial.ShipExplode(this, explosionDamage, Position, Radius + explosionDamage * 0.01f);
                     if (visible)
                     {
                         // Added by RedFox - spawn flaming spacejunk when a ship dies

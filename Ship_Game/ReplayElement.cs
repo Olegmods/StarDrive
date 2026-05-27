@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics;
 using Color = Microsoft.Xna.Framework.Color;
+using SDGraphics;
 using SDUtils;
 using SDGraphics.Input;
 using Ship_Game.Universe;
@@ -112,13 +113,13 @@ namespace Ship_Game
                 {
                     Vector2 origin = new Vector2(x * MapRect.Width / 20f, 0f) + new Vector2(MapRect.X, MapRect.Y);
                     Vector2 end    = new Vector2(x * MapRect.Width / 20f, MapRect.Height) + new Vector2(MapRect.X, MapRect.Y);
-                    batch.DrawLine(origin, end, new Color(100, 100, 100, 70));
+                    batch.DrawLine(origin, end, new Color(100, 100, 100, 70).Premultiplied());
                 }
                 for (int y = 0; y < 21; y++)
                 {
                     Vector2 origin = new Vector2(0f, y * MapRect.Height / 20f) + new Vector2(MapRect.X, MapRect.Y);
                     Vector2 end    = new Vector2(MapRect.Width, y * MapRect.Height / 20f) + new Vector2(MapRect.X, MapRect.Y);
-                    batch.DrawLine(origin, end, new Color(100, 100, 100, 40));
+                    batch.DrawLine(origin, end, new Color(100, 100, 100, 40).Premultiplied());
                 }
             }
             batch.Draw(ResourceManager.Texture("EndGameScreen/TextBox"), TextRect, Color.White);
@@ -235,7 +236,7 @@ namespace Ship_Game
                                 (int) (nro.Radius * scale * 2f),
                                 (int) (nro.Radius * scale * 2f));
                             var empire = UState.Empires[entry.Key];
-                            batch.Draw(ResourceManager.Texture("UI/node"), starRect, new Color(empire.EmpireColor, 128));
+                            batch.Draw(ResourceManager.Texture("UI/node"), starRect, new Color(empire.EmpireColor, 128).Premultiplied());
                         }
                     }
                 }
