@@ -635,8 +635,11 @@ namespace Ship_Game
             float str = targetEmpire.OffensiveStrength * strMultiplier 
                 * Owner.GetFleetStrEmpireMultiplier(targetEmpire) / GlobalStats.Defaults.RemnantDesignStrMultiplier.LowerBound(0.1f);
             float effectiveLevel = Level * strMultiplier;
-            return str.Clamped(min: Level * Level * 1000 * strMultiplier,
-                               max: str * effectiveLevel / MaxLevel);
+            // Cap at the level-fraction ceiling, then floor at the level-appropriate
+            // minimum. Ordered this way because the floor can exceed the ceiling for
+            // non-huge targets; a min-first Clamp would dip the requirement below the floor.
+            return str.UpperBound(str * effectiveLevel / MaxLevel)
+                      .LowerBound(Level * Level * 1000 * strMultiplier);
         }
 
         public bool HostileTargetingSystem(SolarSystem solarSystem)
