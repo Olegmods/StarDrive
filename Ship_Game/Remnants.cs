@@ -986,11 +986,6 @@ namespace Ship_Game
             DefenseProduction = (DefenseProduction + amount).Clamped(0, MaxDefenseProduction);
         }
 
-        public int NumPortals()
-        {
-            return Owner.OwnedShips.Count(s => s.Name == Owner.data.RemnantPortal && s.Active);
-        }
-
         public bool RerouteGoalPortals(out Ship newPortal)
         {
             newPortal = null;
