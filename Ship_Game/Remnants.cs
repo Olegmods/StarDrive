@@ -1003,7 +1003,23 @@ namespace Ship_Game
 
         public bool GetPortals(out Ship[] portals)
         {
-            portals = Owner.OwnedShips.Filter(s => s.Name == Owner.data.RemnantPortal && s.Active);
+            // Portals are created 1:1 with a RemnantPortal goal that holds the portal as
+            // TargetShip, so derive live portals from that small goal list instead of
+            // scanning all OwnedShips by name.
+            var found = new Array<Ship>();
+            var goals = Owner.AI.Goals;
+            for (int i = 0; i < goals.Count; i++)
+            {
+                var g = goals[i];
+                if (g.Type == GoalType.RemnantPortal
+                    && g.TargetShip is { Active: true } portal
+                    && portal.Loyalty == Owner)
+                {
+                    found.Add(portal);
+                }
+            }
+
+            portals = found.ToArray();
             return portals.Length > 0;
         }
 
