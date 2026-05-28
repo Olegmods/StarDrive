@@ -821,7 +821,7 @@ namespace Ship_Game
                 return;
             }
 
-            ShipCosts.Add(type, ship.ShipData.BaseCost);
+            ShipCosts.Add(type, ship.GetCost(Owner));
         }
 
         RemnantShipType SelectShipForCreation(int level, int shipsInFleet) // Note Bombers are created exclusively 
@@ -968,7 +968,7 @@ namespace Ship_Game
                 amount *= 0.05f;
 
             if (Owner.AI.CountGoals(g => g.Type == GoalType.RemnantPortal) > 1)
-                amount = amount * 0.75f;
+                amount *= 0.75f + 0.05f * (int)Universe.P.Difficulty;
 
             if (DefenseProduction < MaxDefenseProduction)
             {
