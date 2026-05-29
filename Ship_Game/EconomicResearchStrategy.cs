@@ -15,8 +15,8 @@ namespace Ship_Game
         [StarData] public readonly byte ResearchPriority = 5;
         [StarData] public readonly byte IndustryPriority = 5;
 
-        float PriorityRatio(float priority) 
-            => Math.Max(priority / (MilitaryPriority + ExpansionPriority + ResearchPriority + IndustryPriority), 0.1f);
+        float PriorityRatio(float priority)
+            => Math.Max(priority / Math.Max(MilitaryPriority + ExpansionPriority + ResearchPriority + IndustryPriority, 1), 0.1f);
 
         public float MilitaryRatio => PriorityRatio(MilitaryPriority);
         public float ExpansionRatio => PriorityRatio(ExpansionPriority);
