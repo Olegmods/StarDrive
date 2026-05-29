@@ -545,14 +545,6 @@ namespace Ship_Game
                         }
                         else if (caller is ShipDesignScreen shipDesigner && b.launches != "Shipyard")
                         {
-                            // Symmetric with the FleetDesign → non-Fleets branch above.
-                            // Without this, the top-bar Fleets button from inside
-                            // ShipDesign left ShipDesignScreen alive underneath the
-                            // newly-added FleetDesignScreen, and its DesignedShip's
-                            // SceneObject kept rendering as a center-screen orphan in
-                            // the FleetDesign view. Using ExitScreen routes through
-                            // the existing save-WIP / save-dirty dialog flow so the
-                            // hull selection survives the round-trip.
                             shipDesigner.ExitScreen();
                         }
 
