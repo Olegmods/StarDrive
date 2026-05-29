@@ -178,9 +178,8 @@ namespace Ship_Game.AI.Research
 
         public void LoadResearchOptions(Empire empire)
         {
-            Array<ResearchSettings> researchMods = ResearchSettings.LoadYaml();
-
-            foreach (var mods in researchMods)
+            // Research.yaml is parsed once at content load and cached in ResourceManager.
+            foreach (var mods in ResourceManager.GetResearchOptionSettings())
             {
                 mods.ApplyMatchingModifiers(TechTypeMods,     mods.TechnologyTypeModifiers, empire);
                 mods.ApplyMatchingModifiers(ShipMods,         mods.ShipCostModifiers,       empire);
