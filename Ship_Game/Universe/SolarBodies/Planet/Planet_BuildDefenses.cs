@@ -407,8 +407,14 @@ namespace Ship_Game
             if (TroopsInTheWorks)
                 return;  // Build one militia at a time
 
-            Troop cheapestTroop = ResourceManager.GetTroopTemplatesFor(Owner).First();
-            Construction.Enqueue(cheapestTroop, QueueItemType.Troop);
+            // CanBuildInfantry only checks the building flag; the empire may
+            // still have zero unlocked troop templates (no troop tech, or a
+            // race whose troops are all locked in the active mod). Skip the
+            // build instead of throwing inside the sim thread.
+            Troop[] templates = ResourceManager.GetTroopTemplatesFor(Owner);
+            if (templates.Length == 0)
+                return;
+            Construction.Enqueue(templates[0], QueueItemType.Troop);
         }
 
         void BuildAndScrapMilitaryBuildings(float budget, float tolerance)
