@@ -799,6 +799,21 @@ namespace Ship_Game
 
                 evt["Memory"] = (GC.GetTotalMemory(false) / 1024).ToString();
                 evt["XnaMemory"] = StarDriveGame.Instance != null ? (StarDriveGame.Instance.Content.GetLoadedAssetBytes() / 1024).ToString() : "0";
+
+                // System-memory pressure context (KB). When MemoryLoad reaches
+                // HighMemoryLoadThreshold the GC stops growing the heap and
+                // throws OOM on large allocations even if the managed heap is
+                // healthy — this fingerprint is invisible without GCMemoryInfo.
+                try
+                {
+                    GCMemoryInfo gcInfo = GC.GetGCMemoryInfo();
+                    evt["GCHeap"] = (gcInfo.HeapSizeBytes / 1024).ToString();
+                    evt["GCFragmented"] = (gcInfo.FragmentedBytes / 1024).ToString();
+                    evt["MemoryLoad"] = (gcInfo.MemoryLoadBytes / 1024).ToString();
+                    evt["MemoryLoadThreshold"] = (gcInfo.HighMemoryLoadThresholdBytes / 1024).ToString();
+                    evt["TotalAvailableMemory"] = (gcInfo.TotalAvailableMemoryBytes / 1024).ToString();
+                }
+                catch { /* GCMemoryInfo unsupported on this runtime — skip */ }
             }
 
             if (!evt.Contains("Thread"))
