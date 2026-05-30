@@ -468,6 +468,13 @@ namespace Ship_Game
             if (!WouldOverlap(result, radius))
                 return true;
 
+            // Capture the snap origin so the Chebyshev ring stays centered on
+            // the originally-snapped cursor. Reusing `result` as the origin
+            // shifts the ring every time we accept a better candidate, which
+            // breaks the "nearest free slot" guarantee (the search drifts
+            // cumulatively away from `desired`).
+            Vector2 snapOrigin = result;
+
             const int maxRings = 40; // GridSnap*40 = 2000 world units of search
             float bestDist = float.MaxValue;
             int foundAtRing = -1;
@@ -482,7 +489,7 @@ namespace Ship_Game
                         if (dx != -r && dx != r && dy != -r && dy != r)
                             continue;
 
-                        Vector2 candidate = new(result.X + dx*GridSnap, result.Y + dy*GridSnap);
+                        Vector2 candidate = new(snapOrigin.X + dx*GridSnap, snapOrigin.Y + dy*GridSnap);
                         if (WouldOverlap(candidate, radius))
                             continue;
 
