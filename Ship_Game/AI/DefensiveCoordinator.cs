@@ -127,8 +127,9 @@ namespace Ship_Game.AI
             float maxDist = empire.Universe.Size * 2f;
             return DefenseDict.FindMaxKeyByValuesFiltered(
                 com => com.TroopStrengthNeeded > 0
-                       && com.System.PlanetList.Count > 0
-                       && com.System.PlanetList.Sum(p => p.GetFreeTiles(empire)) > 0,
+                       && com.System.PlanetList.Any(p => p.Owner == empire
+                                                        && !p.MightBeAWarZone(empire)
+                                                        && p.GetFreeTiles(empire) > 0),
                 com => (1f - ((float)com.TroopCount / com.IdealTroopCount))
                        * com.TotalValueToUs
                        * ((maxDist - com.System.Position.Distance(fromPos)).LowerBound(0f) / maxDist)
@@ -242,6 +243,10 @@ namespace Ship_Game.AI
             {
                 Ship troopShip = troopShips[i];
 
+                // ship is already in flight to a rebase target; respect those orders
+                if (troopShip.AI.State == AIState.Rebase)
+                    continue;
+
                 SolarSystem solarSystem = GetNearestSystemNeedingTroops(troopShip.Position, troopShip.Loyalty);
 
                 if (solarSystem == null)
@@ -249,19 +254,19 @@ namespace Ship_Game.AI
 
                 SystemCommander defenseSystem = DefenseDict[solarSystem];
 
-                defenseSystem.TroopStrengthNeeded--;
-                defenseSystem.TroopCount++;
-                troopShips.RemoveAtSwapLast(i);
-
                 Planet target = defenseSystem.OurPlanets
                     .FindMinFiltered(p => !p.MightBeAWarZone(p.Owner) && p.GetFreeTiles(p.Owner) > 0,
                         planet => planet.CountEmpireTroops(planet.Owner) / defenseSystem.PlanetTroopMin(planet));
 
-                if (target != null)
-                {
-                    troopShip.AI.OrderRebase(target, true);
-                    totalRebasedTroops++;
-                }
+                if (target == null)
+                    continue;
+
+                defenseSystem.TroopStrengthNeeded--;
+                defenseSystem.TroopCount++;
+                troopShips.RemoveAtSwapLast(i);
+
+                troopShip.AI.OrderRebase(target, true);
+                totalRebasedTroops++;
             }
             return totalRebasedTroops;
         }

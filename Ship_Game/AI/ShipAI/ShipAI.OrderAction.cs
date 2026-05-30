@@ -553,14 +553,13 @@ namespace Ship_Game.AI
 
         public void OrderRebase(Planet p, bool clearOrders)
         {
+            if (p.FreeTilesWithRebaseOnTheWay(Owner.Loyalty) == 0)
+                return;
+
             if (clearOrders)
                 ClearWayPoints();
 
             ClearOrders();
-
-            if (p.FreeTilesWithRebaseOnTheWay(Owner.Loyalty) == 0)
-                return;
-
             IgnoreCombat = true;
             OrderMoveAndRebase(p);
         }
