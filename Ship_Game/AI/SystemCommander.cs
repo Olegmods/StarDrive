@@ -1,4 +1,5 @@
 using Ship_Game.Gameplay;
+using Ship_Game.Ships;
 using System;
 using SDGraphics;
 using SDUtils;
@@ -138,6 +139,78 @@ namespace Ship_Game.AI
         {
             PlanetValues.TryGetValue(planet, out PlanetTracker planetTracker);
             return planetTracker;
+        }
+
+        // Walks troopShips, drops dead/invalid entries, and credits any in-flight
+        // rebases targeting this system against TroopCount / TroopStrengthNeeded.
+        // Survivors stay in the list for the coordinator to reassign.
+        public void CreditIncomingRebases(Array<Ship> troopShips)
+        {
+            int currentTroops = TroopCount;
+            for (int i = troopShips.Count - 1; i >= 0; i--)
+            {
+                Ship troopShip = troopShips[i];
+                if (troopShip == null || !troopShip.HasOurTroops)
+                {
+                    troopShips.RemoveAtSwapLast(i);
+                    continue;
+                }
+
+                ShipAI troopAI = troopShip.AI;
+                if (troopAI == null)
+                {
+                    troopShips.RemoveAtSwapLast(i);
+                    continue;
+                }
+
+                if ((troopAI.State == AIState.Rebase || troopAI.State == AIState.RebaseToShip)
+                    && troopAI.OrderQueue.NotEmpty
+                    && troopAI.OrderQueue.Any(g => g.TargetPlanet != null && System == g.TargetPlanet.System))
+                {
+                    currentTroops++;
+                    TroopStrengthNeeded--;
+                    troopShips.RemoveAtSwapLast(i);
+                }
+            }
+            TroopCount = currentTroops;
+        }
+
+        // Picks the most under-garrisoned non-war-zone owned planet in this system
+        // and routes troopShip there, updating local counters. Returns false (and
+        // touches nothing) if no viable landing planet exists.
+        public bool AbsorbIdleTroop(Ship troopShip)
+        {
+            Planet target = OurPlanets.FindMinFiltered(
+                p => !p.MightBeAWarZone(p.Owner) && p.GetFreeTiles(p.Owner) > 0,
+                p => p.CountEmpireTroops(p.Owner) / PlanetTroopMin(p));
+
+            if (target == null)
+                return false;
+
+            TroopStrengthNeeded--;
+            TroopCount++;
+            troopShip.AI.OrderRebase(target, true);
+            return true;
+        }
+
+        // Per-system half of LaunchExcessTroops: any owned planet whose defending
+        // garrison exceeds the min gets one launchable troop kicked into space so
+        // the coordinator's next pass can rebase it where it's needed.
+        public void LaunchExcessTroops()
+        {
+            if (System.HostileForcesPresent(Us))
+                return;
+
+            Planet[] ourPlanets = OurPlanets;
+            for (int i = 0; i < ourPlanets.Length; i++)
+            {
+                Planet p = ourPlanets[i];
+                if (p.GetDefendingTroopCount() > PlanetTroopMin(p))
+                {
+                    foreach (Troop l in p.Troops.GetLaunchableTroops(Us, 1))
+                        l.Launch();
+                }
+            }
         }
 
         public void Dispose()
