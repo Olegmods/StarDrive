@@ -107,8 +107,6 @@ namespace Ship_Game.AI
                 return;
             if (State == AIState.AttackTarget && Target == toAttack)
                 return;
-            if (State == AIState.SystemDefender && Target == toAttack)
-                return;
 
             if (Owner.Weapons.Count == 0 || Owner.ShipData.Role == RoleName.troop)
             {
@@ -530,8 +528,6 @@ namespace Ship_Game.AI
                 {
                     if (State == AIState.AttackTarget && Target == toAttack)
                         return;
-                    if (State == AIState.SystemDefender && Target == toAttack)
-                        return;
                     if (Owner.Weapons.Count == 0 || Owner.ShipData.Role == RoleName.troop)
                     {
                         OrderInterceptShip(toAttack);
@@ -706,36 +702,6 @@ namespace Ship_Game.AI
             AddShipGoal(Plan.MinePlanet, AIState.Mining, targetPlanet.Mining.GetMinePos(), targetPlanet, true);
         }
 
-        public void OrderSystemDefense(SolarSystem system)
-        {
-            ShipGoal goal = OrderQueue.PeekLast;
-
-            if (SystemToDefend != system || AwaitClosest?.Owner == null ||
-                AwaitClosest.Owner != Owner.Loyalty || Owner.System != system &&
-                goal != null && OrderQueue.PeekLast.Plan != Plan.DefendSystem)
-            {
-                ClearOrders(State);
-                SystemToDefend = system;
-                if (SystemToDefend.PlanetList.Count > 0)
-                {
-                    var potentials = new Array<Planet>();
-                    foreach (Planet p in SystemToDefend.PlanetList)
-                    {
-                        if (p.Owner == null || p.Owner != Owner.Loyalty)
-                            continue;
-                        potentials.Add(p);
-                    }
-                    if (potentials.Count > 0)
-                    {
-                        AwaitClosest = Random.Item(potentials);
-                        OderMoveAndDefendSystem(AwaitClosest);
-                    }
-                    else
-                        GoOrbitNearestPlanetAndResupply(true);
-                }
-            }
-        }
-
         public void GoOrbitNearestPlanetAndResupply(bool cancelOrders)
         {
             if (Owner.ShipData.HullRole == RoleName.drone)
@@ -784,16 +750,9 @@ namespace Ship_Game.AI
 
         Planet GetAwaitClosest()
         {
-            Planet closest = null;
-            if (SystemToDefend != null && SystemToDefend.PlanetList.NotEmpty)
-            {
-                closest = SystemToDefend.PlanetList[0];
-                if (closest != null)
-                    return closest;
-            }
-
             Empire e = Owner.Loyalty;
-            
+            Planet closest = null;
+
             if (!e.IsFaction && !e.isPlayer)
             {
                 SolarSystem currentFriendlySys = Owner.System?.OwnerList.Contains(e) != true ? null : Owner.System;
@@ -844,7 +803,7 @@ namespace Ship_Game.AI
 
             if (AwaitClosest != null)
             {
-                if (SystemToDefend != null || Owner.Loyalty.isPlayer)
+                if (Owner.Loyalty.isPlayer)
                 {
                     Orbit.Orbit(AwaitClosest, timeStep);
                     return;

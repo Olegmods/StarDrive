@@ -25,7 +25,6 @@ namespace Ship_Game.AI
         [Pure] public RandomBase Random => Owner.Loyalty.Random;
         [StarData] public AIState State = AIState.AwaitingOrders;
         [StarData] public Planet ResupplyTarget;
-        [StarData] public SolarSystem SystemToDefend; // FB - check if this is needed, since we are not using systemdefender for now
         [StarData] public SolarSystem ExplorationTarget;
         [StarData] public AIState DefaultAIState = AIState.AwaitingOrders;
 
@@ -156,7 +155,6 @@ namespace Ship_Game.AI
             PatrolTarget = null;
             FleetNode = null;
             ResupplyTarget = null;
-            SystemToDefend = null;
             ExplorationTarget = null;
 
             Mem.Dispose(ref OrderQueue);
@@ -197,7 +195,6 @@ namespace Ship_Game.AI
             Target = null;
             ResupplyTarget = null;
             EscortTarget = null;
-            SystemToDefend = null;
             ExplorationTarget = null;
 
             PotentialTargets = Empty<Ship>.Array;
@@ -223,7 +220,6 @@ namespace Ship_Game.AI
                 }
                 return Target?.Position
                     ?? ExplorationTarget?.Position
-                    ?? SystemToDefend?.Position
                     ?? ResupplyTarget?.Position
                     ?? ColonizeTarget?.Position
                     ?? Vector2.Zero;
@@ -530,7 +526,6 @@ namespace Ship_Game.AI
                 case Plan.StandByColonize:          DoStandByColonize(timeStep);              break;
                 case Plan.Explore:                  DoExplore(timeStep);                      break;
                 case Plan.Rebase:                   DoRebase(timeStep, goal);                 break;
-                case Plan.DefendSystem:             DoSystemDefense(timeStep);                break;
                 case Plan.DoCombat:                 DoCombat(timeStep);                       break;
                 case Plan.DeployStructure:          DoDeploy(goal, timeStep);                 break;
                 case Plan.DeployOrbital:            DoDeployOrbital(goal, timeStep);          break;
@@ -582,7 +577,6 @@ namespace Ship_Game.AI
             {
                 default:
                 case AIState.AwaitingOrders: return Plan.AwaitOrders;
-                case AIState.SystemDefender:
                 case AIState.Resupply:       return Plan.AwaitOrdersAIManaged; // @see Ship.UpdateResupply()
                 case AIState.Escort:         return Plan.Escort;
                 case AIState.ReturnToHangar: return Plan.ReturnToHangar;

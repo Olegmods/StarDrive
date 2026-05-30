@@ -949,15 +949,6 @@ namespace Ship_Game.AI
             }
         }
 
-        void DoSystemDefense(FixedSimTime timeStep)
-        {
-            SystemToDefend = SystemToDefend ?? Owner.System;
-            if (SystemToDefend == null || AwaitClosest?.Owner == Owner.Loyalty)
-                AwaitOrdersAIControlled(timeStep);
-            else
-                OrderSystemDefense(SystemToDefend);
-        }
-
         void DoTroopToShip(FixedSimTime timeStep, ShipGoal goal)
         {
             if (EscortTarget == null || !EscortTarget.Active)

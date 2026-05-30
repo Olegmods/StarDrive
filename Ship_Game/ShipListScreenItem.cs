@@ -320,7 +320,6 @@ namespace Ship_Game
                     }
                     return Localizer.Token(GameText.HoldingPosition);
                 case AIState.Explore:        return Localizer.Token(GameText.ExploringTheGalaxy);
-                case AIState.SystemDefender: return Localizer.Token(GameText.SystemDefenseDuty);
                 case AIState.Resupply:
                     if (ship.AI.ResupplyTarget == null)
                         return Localizer.Token(GameText.ReturningToBaseForResupply);

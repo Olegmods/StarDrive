@@ -96,12 +96,6 @@ public class ShipDebugInfoPanel : Submenu
                 Text.String($"Fleet: {s.Fleet.Name}  {(int)s.Fleet.FinalPosition.X}x{(int)s.Fleet.FinalPosition.Y}  STLCap:{s.Fleet.STLSpeedLimit:0} FTLCap:{s.Fleet.FTLSpeedLimit:0}");
             }
 
-            if (s.AI.State == AIState.SystemDefender)
-            {
-                SolarSystem systemToDefend = s.AI.SystemToDefend;
-                Text.String($"Defending {systemToDefend?.Name ?? "Awaiting Order"}");
-            }
-
             Text.String(s.System == null ? "Deep Space" : $"System: {s.System.Name}");
             var influence = s.GetProjectorInfluenceEmpires().Select(e => e.Name);
             Text.String("Influence: " + (s.IsInFriendlyProjectorRange ? "Friendly"

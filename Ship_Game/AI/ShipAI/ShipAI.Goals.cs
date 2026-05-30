@@ -58,7 +58,6 @@ namespace Ship_Game.AI
         {
             DisposeOrders();
             Orbit?.ExitOrbit();
-            SystemToDefend = null;
             IgnoreCombat = false;
             ExitCombatState();
             ChangeAIState(newState); // Must come after ExitCombatState since ExitCombatState change the AIstate to awaiting orders.
@@ -303,12 +302,6 @@ namespace Ship_Game.AI
             SetOrbitTarget(p);
             OrderMoveTo(GetPositionOnPlanet(p), direction, AIState.Scrap);
             AddPlanetGoal(Plan.Scrap, p, AIState.Scrap);
-        }
-
-        public void OderMoveAndDefendSystem(Planet p)
-        {
-            OrderMoveTo(GetPositionOnPlanet(p), Vectors.Up, AIState.SystemDefender);
-            AddShipGoal(Plan.DefendSystem, AIState.SystemDefender);
         }
 
         public void AddEscortGoal(Ship targetShip, bool clearOrders = true)
