@@ -41,6 +41,9 @@ namespace Ship_Game.AI.Research
 
         public IShipDesign FindCheapestShipInList(Empire empire, Array<IShipDesign> ships, HashSet<string> techs)
         {
+            // Rebuild from scratch each pick; these accumulate otherwise and drift the line-focus ratio.
+            MostTechs.Clear();
+            KnownTechs.Clear();
             PopulateKnownTechs(empire);
             var buildableShips = empire.ShipsWeCanBuildSnapshot;
             PopulateMostTechs(buildableShips, KnownTechs);
@@ -137,7 +140,7 @@ namespace Ship_Game.AI.Research
                         MostTechs[ship.Role] = knownNumber;
                 }
                 else
-                    MostTechs[ship.Role] = 1;
+                    MostTechs[ship.Role] = knownNumber; // CountTechsAlreadyResearched already floors at 1
             }
         }
 

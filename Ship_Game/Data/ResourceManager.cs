@@ -21,6 +21,7 @@ using Ship_Game.Data.Mesh;
 using Ship_Game.Ships.Legacy;
 using Ship_Game.Universe;
 using Ship_Game.Utils;
+using Ship_Game.AI.Research;
 
 #pragma warning disable CA2237, RCS1194 // Mark ISerializable types with serializable
 
@@ -276,6 +277,7 @@ namespace Ship_Game
             Profiled(LoadSunZoneData);
             Profiled(LoadBuildRatios);
             Profiled(LoadEcoResearchStrats);
+            Profiled(LoadResearchOptionSettings);
             Profiled(LoadBlackboxSpecific);
             Profiled(LoadBlueprintsTemplates);
         }
@@ -390,6 +392,7 @@ namespace Ship_Game
             ShipNames.Clear();
 
             EconStrategies.Clear();
+            ResearchOptionSettings = Empty<ResearchOptions.ResearchSettings>.Array;
             ZoneDistribution.Clear();
             BuildRatios.Clear();
 
@@ -2089,6 +2092,17 @@ namespace Ship_Game
             EconStrategies.Clear();
             foreach (var s in YamlParser.DeserializeArray<EconomicResearchStrategy>("EconomicResearchStrategies.yaml"))
                 EconStrategies[s.Name] = s;
+        }
+
+        // Parsed Research.yaml (ResearchOptions modifiers). Loaded once per content load so
+        // ResearchOptions doesn't re-read+parse the file for every empire.
+        static IReadOnlyList<ResearchOptions.ResearchSettings> ResearchOptionSettings = Empty<ResearchOptions.ResearchSettings>.Array;
+
+        public static IReadOnlyList<ResearchOptions.ResearchSettings> GetResearchOptionSettings() => ResearchOptionSettings;
+
+        static void LoadResearchOptionSettings()
+        {
+            ResearchOptionSettings = ResearchOptions.ResearchSettings.LoadYaml();
         }
 
         static readonly Map<SunZone, Array<PlanetCategory>> ZoneDistribution = new();

@@ -114,9 +114,8 @@ namespace Ship_Game
             // assign it to the fleet on Left click
             if (input.LeftMouseClick && !ShipSL.HitTest(input.CursorPosition))
             {
-                Vector2 pickedPosition = SnapToGrid(CursorWorldPosition2D);
-                if (WouldOverlap(pickedPosition, ActiveShipDesign.Radius))
-                    return false;
+                if (!TryFindNearestFreeOffset(CursorWorldPosition2D, ActiveShipDesign.Radius, out Vector2 pickedPosition))
+                    return false; // fleet is packed solid around the cursor, nowhere to put it
                 AddDesignToFleet(ActiveShipDesign, pickedPosition);
 
                 // if we're holding shift key down, allow placing multiple designs
@@ -458,6 +457,60 @@ namespace Ship_Game
                     return true;
             }
             return false;
+        }
+
+        // Snap `desired` to the grid; if that slot overlaps a node, search grid
+        // rings outward and return the nearest free slot instead of rejecting.
+        // Returns false only if everything within the search bound is occupied.
+        bool TryFindNearestFreeOffset(Vector2 desired, float radius, out Vector2 result)
+        {
+            result = SnapToGrid(desired);
+            if (!WouldOverlap(result, radius))
+                return true;
+
+            // Capture the snap origin so the Chebyshev ring stays centered on
+            // the originally-snapped cursor. Reusing `result` as the origin
+            // shifts the ring every time we accept a better candidate, which
+            // breaks the "nearest free slot" guarantee (the search drifts
+            // cumulatively away from `desired`).
+            Vector2 snapOrigin = result;
+
+            const int maxRings = 40; // GridSnap*40 = 2000 world units of search
+            float bestDist = float.MaxValue;
+            int foundAtRing = -1;
+
+            for (int r = 1; r <= maxRings; r++)
+            {
+                for (int dx = -r; dx <= r; dx++)
+                {
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        // only the perimeter of ring r (Chebyshev distance == r)
+                        if (dx != -r && dx != r && dy != -r && dy != r)
+                            continue;
+
+                        Vector2 candidate = new(snapOrigin.X + dx*GridSnap, snapOrigin.Y + dy*GridSnap);
+                        if (WouldOverlap(candidate, radius))
+                            continue;
+
+                        float d = candidate.Distance(desired);
+                        if (d < bestDist)
+                        {
+                            bestDist = d;
+                            result = candidate;
+                            if (foundAtRing < 0)
+                                foundAtRing = r;
+                        }
+                    }
+                }
+
+                // a free slot on ring r can still be beaten by an axis slot on
+                // ring r+1, so scan one extra ring before settling on the nearest
+                if (foundAtRing >= 0 && r >= foundAtRing + 1)
+                    return true;
+            }
+
+            return foundAtRing >= 0;
         }
 
         void UpdateHoveredNodesList(InputState input)

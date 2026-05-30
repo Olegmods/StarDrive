@@ -135,8 +135,15 @@ public sealed class GamePlayMenuScreen : GameScreen
     {
         if (DisallowActions()) return;
 
-        // safely go to MainMenu, clear all 3D stuff if there's anything left
-        ScreenManager.GoToScreen(new MainMenuScreen(), clear3DObjects:true);
+        // Route through GameLoadingScreen with resetResources:true. This is the
+        // same path the mod-switch flow uses (ModManager.cs:169): it tears down
+        // the in-game graphics state via the safely-sequenced UnloadAllData →
+        // UnloadGraphicsResources, then re-runs the boot LoadContent sequence
+        // so MainMenu finds ResourceManager.Blank, Beam.BeamEffect, the Textures
+        // index, etc. populated. Direct GoToScreen(MainMenu, true) leaves the
+        // in-game content cache pinned and OOM'd on memory-tight machines when
+        // MainMenu's atlas DXT5 decompress allocated on top of it.
+        ScreenManager.GoToScreen(new GameLoadingScreen(showSplash:false, resetResources:true), clear3DObjects:true);
     }
 
     void Exit_OnClick(UIButton button)

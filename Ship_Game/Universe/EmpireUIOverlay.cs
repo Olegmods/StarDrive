@@ -543,6 +543,10 @@ namespace Ship_Game
                         {
                             fleetDesigner.ExitScreen();
                         }
+                        else if (caller is ShipDesignScreen shipDesigner && b.launches != "Shipyard")
+                        {
+                            shipDesigner.ExitScreen();
+                        }
 
                         if (b.launches == null)
                         {

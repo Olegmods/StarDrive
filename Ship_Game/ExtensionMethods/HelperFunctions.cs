@@ -63,9 +63,15 @@ namespace Ship_Game
 
                 if (s.IsDefaultTroopShip)
                 {
-                    Troop troop = ResourceManager.GetTroopTemplatesFor(owner).First();
-                    if (ResourceManager.TryCreateTroop(troop.Name, owner, out Troop newTroop))
+                    // Owner may have no unlocked troop templates (no tech, or a
+                    // race whose troops are all locked) — leave the troop ship
+                    // empty instead of throwing inside fleet spawn.
+                    Troop[] templates = ResourceManager.GetTroopTemplatesFor(owner);
+                    if (templates.Length > 0
+                        && ResourceManager.TryCreateTroop(templates[0].Name, owner, out Troop newTroop))
+                    {
                         newTroop.LandOnShip(s);
+                    }
                 }
 
                 s.AI.CombatState = node.CombatState;
