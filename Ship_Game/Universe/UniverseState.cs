@@ -99,6 +99,33 @@ namespace Ship_Game.Universe
         public InfluenceTree Influence;
 
         /// <summary>
+        /// Refcount of active Remnant portals per solar system. The portal carries a warp
+        /// inhibitor, so the gravity-well pathfinder routes around any system with count >= 1
+        /// when it is known to the routing empire. Refcount handles the rare multi-portal-per-system
+        /// case correctly when goals are removed in arbitrary order (e.g. ClearGoals). Maintained
+        /// by the RemnantPortal goal lifecycle; query via HasRemnantPortal.
+        /// </summary>
+        [StarData] readonly Map<SolarSystem, int> RemnantPortalCounts = new();
+
+        public bool HasRemnantPortal(SolarSystem sys) => RemnantPortalCounts.ContainsKey(sys);
+
+        public void RegisterRemnantPortal(SolarSystem sys)
+        {
+            RemnantPortalCounts.TryGetValue(sys, out int n);
+            RemnantPortalCounts[sys] = n + 1;
+        }
+
+        public void DeregisterRemnantPortal(SolarSystem sys)
+        {
+            if (!RemnantPortalCounts.TryGetValue(sys, out int n))
+                return;
+            if (n <= 1)
+                RemnantPortalCounts.Remove(sys);
+            else
+                RemnantPortalCounts[sys] = n - 1;
+        }
+
+        /// <summary>
         /// Invoked when a Ship is removed from the universe
         /// </summary>
         public event Action<Ship> EvtOnShipRemoved;

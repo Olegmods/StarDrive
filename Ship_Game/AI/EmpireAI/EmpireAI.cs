@@ -554,11 +554,16 @@ namespace Ship_Game.AI
 
         public void RemoveGoal(Goal goal)
         {
+            goal.OnRemoved();
             GoalsList.Remove(goal);
         }
 
         public void ClearGoals()
         {
+            // Fire per-goal cleanup so universe-state registrations (e.g. portal-system
+            // cache) released — RemoveGoal is otherwise the sole chokepoint.
+            for (int i = 0; i < GoalsList.Count; ++i)
+                GoalsList[i]?.OnRemoved();
             GoalsList.Clear();
         }
 

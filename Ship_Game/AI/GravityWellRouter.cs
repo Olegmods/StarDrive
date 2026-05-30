@@ -318,7 +318,13 @@ public static class GravityWellRouter
                     skipFriendly++;
                     continue;
                 }
-                if (isKnown && sys.PlanetList.Count == 0)
+
+                // Known portal systems carry a warp inhibitor — treat as obstacle even when
+                // planet-less (radiating-star / lone-system portals would otherwise be skipped
+                // by the known-empty rule and trap a passing ship).
+                bool isKnownPortalSystem = isKnown && ship.Universe.HasRemnantPortal(sys);
+
+                if (isKnown && sys.PlanetList.Count == 0 && !isKnownPortalSystem)
                 {
                     skipKnownEmpty++;
                     continue;

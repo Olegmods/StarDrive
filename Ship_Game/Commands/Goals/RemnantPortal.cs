@@ -14,6 +14,10 @@ namespace Ship_Game.Commands.Goals
     {
         [StarData] public sealed override Ship TargetShip { get; set; }
         [StarData] Vector2 TetherOffset;
+        // Captured at construction so we can deregister from UState.RemnantPortalSystems
+        // when the goal ends, even after the portal ship is destroyed (TargetShip.System
+        // is unreliable after Active=false).
+        [StarData] public SolarSystem PortalSystem;
 
         Remnants Remnants => Owner.Remnants;
         Ship Portal => TargetShip;
@@ -31,8 +35,17 @@ namespace Ship_Game.Commands.Goals
         public RemnantPortal(Empire owner, Ship portal, string systemName) : this(owner)
         {
             TargetShip = portal;
+            PortalSystem = portal.System;
+            if (PortalSystem != null)
+                UState.RegisterRemnantPortal(PortalSystem);
             if (Remnants.Verbose)
                 Log.Info(ConsoleColor.Green, $"---- Remnants: New {Owner.Name} Portal in {systemName} ----");
+        }
+
+        public override void OnRemoved()
+        {
+            if (PortalSystem != null)
+                UState.DeregisterRemnantPortal(PortalSystem);
         }
 
         void UpdatePosition()
