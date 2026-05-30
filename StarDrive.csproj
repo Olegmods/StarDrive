@@ -91,6 +91,7 @@
     <Compile Include="Ship_Game\AI\EmpireAI\EspionageManager.cs" />
     <Compile Include="Ship_Game\AI\ExpansionAI\MiningOpsPlanner.cs" />
     <Compile Include="Ship_Game\AI\ExpansionAI\ResearchStationPlanner.cs" />
+    <Compile Include="Ship_Game\AI\GravityWellRouter.cs" />
     <Compile Include="Ship_Game\AI\ShipAI\ShipAI_Trade.cs" />
     <Compile Include="Ship_Game\AI\ThreatCluster.cs" />
     <Compile Include="Ship_Game\AI\ThreatClusterUpdate.cs" />

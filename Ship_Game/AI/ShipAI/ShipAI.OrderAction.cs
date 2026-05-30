@@ -304,13 +304,37 @@ namespace Ship_Game.AI
 
             MovePosition = position;
 
+            // Snapshot original params so OnSystemNewlyExplored can re-issue this
+            // exact move after a previously-unknown system becomes visible mid-route.
+            // Strip AddWayPoint so the re-issue rebuilds from scratch instead of queueing.
+            LastMoveFinalPos = position;
+            LastMoveFinalDir = finalDir;
+            LastMoveWantedState = wantedState;
+            LastMoveOrder = order & ~MoveOrder.AddWayPoint;
+
+            // Gravity-well routing: consume pre-computed detours from a clustered fleet
+            // move, or compute one for this single ship. The router early-outs cheaply
+            // when routing is disabled, no wells exist, or the move is Aggressive/Pursue.
+            Vector2[] detours;
+            if (PendingDetours != null)
+            {
+                detours = PendingDetours;
+                if (GravityWellRouter.LogVerbose)
+                    Log.Info($"[GWRouter] {Owner.Name}: consuming {detours.Length} pre-computed detour(s) from fleet");
+                PendingDetours = null; // one-shot
+            }
+            else
+            {
+                detours = GravityWellRouter.BuildDetours(Owner, Owner.Position, position, order);
+            }
+
             // WARNING: please don't 'FIX' anything here without caution and testing.
             //   Checklist: single ship move & queued move,
             //              fleet move & queued move,
             //              ship group move & queued move,
             //              priority movement for all of the above while in combat
             //              Verify ships can complete move to planet goals like colonization.
-            WayPoint[] wayPoints = WayPoints.EnqueueAndToArray(new WayPoint(position, finalDir));
+            WayPoint[] wayPoints = WayPoints.EnqueueRangeAndToArray(detours, new WayPoint(position, finalDir));
 
                /////////////////////////////////////////////////////////////////
               ////// --               FINAL WARNING                   -- //////

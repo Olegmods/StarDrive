@@ -23,6 +23,35 @@ namespace Ship_Game.AI
 
         WayPoints WayPoints = new();
 
+        // Optional one-shot detour chain set by Fleet/ShipGroup so a clustered fleet
+        // shares ONE route computation. Consumed and cleared by the next AddWayPoint.
+        // null = AddWayPoint computes its own via GravityWellRouter.
+        Vector2[] PendingDetours;
+
+        // Called by Fleet/ShipGroup before issuing OrderMoveTo when the fleet is
+        // clustered enough to share a single routed path (per-ship FleetOffset
+        // already applied by the caller).
+        public void SetPendingDetours(Vector2[] detours) => PendingDetours = detours;
+
+        // Snapshot of the most recent move-order params. Set by AddWayPoint, used by
+        // OnSystemNewlyExplored to re-issue the same destination with fresh detour
+        // calculation when a previously-unknown system on the route becomes visible.
+        Vector2 LastMoveFinalPos;
+        Vector2 LastMoveFinalDir;
+        AIState LastMoveWantedState;
+        MoveOrder LastMoveOrder;
+
+        // Called by Ship_Update.ExploreCurrentSystem the frame a system is first
+        // discovered by this ship. If the ship has an active move order, re-issue it
+        // so the router can now see the system's planet wells. No-op when the ship
+        // has no queued waypoints (idle / arrived).
+        public void OnSystemNewlyExplored(SolarSystem _)
+        {
+            if (WayPoints.Count == 0) return;
+            // Re-issue from current position; AddWayPoint will rebuild detours.
+            AddWayPoint(LastMoveFinalPos, LastMoveFinalDir, LastMoveWantedState, LastMoveOrder, 0f, null);
+        }
+
         [StarData] WayPoint[] WayPointsSave
         {
             get => WayPoints.ToArray();

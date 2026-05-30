@@ -106,6 +106,11 @@ public static class GlobalStats
 
     // PERF this is a graphics performance toggle, disabling engine trails makes everything much faster
     public static bool EnableEngineTrails = true;
+
+    // When TRUE, GravityWellRouter pre-computes a detour chain around hostile/unknown
+    // planetary gravity wells at move-order time, so ships skirt them instead of
+    // dropping out of warp. Toggle from main Options screen.
+    public static bool RouteAroundGravityWells = true;
         
     // PERF
     // global option for controlling physics simulation interval, bigger is slower but more precise
@@ -343,6 +348,7 @@ public static class GlobalStats
         GetSetting(config, "AltArcControl", ref AltArcControl);
         GetSetting(config, "DisableAsteroids", ref DisableAsteroids);
         GetSetting(config, "EnableEngineTrails", ref EnableEngineTrails);
+        GetSetting(config, "RouteAroundGravityWells", ref RouteAroundGravityWells);
         GetSetting(config, "DisableScreenPanning", ref DisableScreenPanning);
         GetSetting(config, "MaxDynamicLightSources", ref MaxDynamicLightSources);
         GetSetting(config, "SimulationFramesPerSecond", ref SimulationFramesPerSecond);
@@ -531,6 +537,7 @@ public static class GlobalStats
         WriteSetting(config, "AltArcControl", AltArcControl);
         WriteSetting(config, "DisableAsteroids", DisableAsteroids);
         WriteSetting(config, "EnableEngineTrails", EnableEngineTrails);
+        WriteSetting(config, "RouteAroundGravityWells", RouteAroundGravityWells);
         WriteSetting(config, "DisableScreenPanning", DisableScreenPanning);
         WriteSetting(config, "MaxDynamicLightSources", MaxDynamicLightSources);
         WriteSetting(config, "SimulationFramesPerSecond", SimulationFramesPerSecond);

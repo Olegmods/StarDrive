@@ -12470,6 +12470,12 @@ EspionageTotalMoneyLeechedTip:
 ResearchDisruptedByInfiltrationTip:
  Id: 4535
  ENG: "Research output is being slowed by enemy infiltration this turn. The percentage shows how much research is getting through. Each successful disruption mission cuts research by 10%."
+RouteAroundGravityWells:
+ Id: 4536
+ ENG: "Route Around Gravity Wells"
+RouteAroundGravityWellsTip:
+ Id: 4537
+ ENG: "When ON, ships plot a course around hostile and unknown planetary gravity wells when moving across the universe, avoiding warp drops. Turning this OFF makes ships travel in straight lines and drop out of warp as wells are encountered."
 FlatIncomePerTurn:
  Id: 4384
  ENG: "Flat Income Per Turn" 
