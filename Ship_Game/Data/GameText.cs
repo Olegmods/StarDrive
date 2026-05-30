@@ -4697,10 +4697,10 @@ namespace Ship_Game
         EspionageTotalMoneyLeechedTip = 4534,
         /// <summary>Research output is being slowed by enemy infiltration this turn.</summary>
         ResearchDisruptedByInfiltrationTip = 4535,
-        /// <summary>Route Around Gravity Wells</summary>
-        RouteAroundGravityWells = 4536,
+        /// <summary>Pathfinder</summary>
+        Pathfinder = 4536,
         /// <summary>When ON, ships plot a course around hostile and unknown planetary gravity wells.</summary>
-        RouteAroundGravityWellsTip = 4537,
+        PathfinderTip = 4537,
 
 
 
