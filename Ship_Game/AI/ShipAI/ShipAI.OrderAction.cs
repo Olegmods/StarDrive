@@ -324,7 +324,13 @@ namespace Ship_Game.AI
             }
             else
             {
-                detours = GravityWellRouter.BuildDetours(Owner, Owner.Position, position, order);
+                // For a queued waypoint (shift-click), the leg the ship will actually fly
+                // starts at the previously queued waypoint, not the ship's current position.
+                // Route from there so the detours match the real segment.
+                Vector2 routeFrom = (queueNewWayPoint && WayPoints.Count > 0)
+                    ? WayPoints.ElementAt(WayPoints.Count - 1).Position
+                    : Owner.Position;
+                detours = GravityWellRouter.BuildDetours(Owner, routeFrom, position, order);
             }
 
             // WARNING: please don't 'FIX' anything here without caution and testing.
