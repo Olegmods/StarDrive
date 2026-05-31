@@ -57,6 +57,13 @@ namespace UnitTests
             // won't reject the empty ModPath), ModPath, and Defaults. It does NOT
             // SaveActiveMod, so the developer's real mod selection is untouched.
             GlobalStats.SetActiveModNoSave(null);
+
+            // Same user-config leak hazard: the AUTO / AUTOFAST builds set
+            // RestrictAIPlayerInteraction=true and persist it to the user config.
+            // Tests assume normal AI<->Player hostility, so force it off here (the
+            // testhost ignores app.config, so this can't be relied on from there).
+            GlobalStats.RestrictAIPlayerInteraction = false;
+
             Log.Initialize(enableSentry: false, showHeader: false);
             Log.VerboseLogging = true;
 
