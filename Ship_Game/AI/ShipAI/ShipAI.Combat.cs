@@ -467,11 +467,15 @@ namespace Ship_Game.AI
             }
             else if (relSize > 1f)
             {
-                // anti-ship prefers bigger; everyone else treats bigger as a juicy
-                // target, ramping from 1x at equal size up to a peak at ~2x then
-                // tapering (continuous at 1x, unlike the old 4/relSize jump to 4x)
+                // anti-ship prefers bigger. Fighters/scouts/drones/gunboats decay
+                // smoothly because a fighter shouldn't be pulled off an equal-size
+                // fighter onto a corvette (FightersPreferWeakestFighters). Larger
+                // hulls keep the peak-at-2 "juicy" zone so frigates still prefer
+                // carriers over equal-size frigates (FrigatesPreferJuicyCarriers).
                 if (Owner.ShipData.HangarDesignation == HangarOptions.AntiShip)
                     value *= (relSize * relSize);
+                else if (Owner.DesignRole <= RoleName.drone) // fighter / scout / gunboat / drone
+                    value *= (1f / relSize).LowerBound(0.05f);
                 else
                     value *= (relSize <= 2f ? relSize : 4f / relSize).LowerBound(0.05f);
             }
