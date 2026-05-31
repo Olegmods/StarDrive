@@ -42,6 +42,27 @@ public sealed class WayPoints : IDisposable
             return ActiveWayPoints.ToArray();
         }
     }
+
+    // Atomically enqueues detour waypoints + a final waypoint, then returns the
+    // snapshot. Used by ShipAI.AddWayPoint when GravityWellRouter has produced
+    // intermediate waypoints to route around enemy gravity wells.
+    public WayPoint[] EnqueueRangeAndToArray(Vector2[] detourPositions, WayPoint final)
+    {
+        lock (ActiveWayPoints.Locker)
+        {
+            if (detourPositions != null)
+            {
+                for (int i = 0; i < detourPositions.Length; i++)
+                {
+                    Vector2 next = i + 1 < detourPositions.Length ? detourPositions[i + 1] : final.Position;
+                    Vector2 dir = (next - detourPositions[i]).Normalized();
+                    ActiveWayPoints.Enqueue(new WayPoint(detourPositions[i], dir));
+                }
+            }
+            ActiveWayPoints.Enqueue(final);
+            return ActiveWayPoints.ToArray();
+        }
+    }
     public WayPoint ElementAt(int element)
     {
         return ActiveWayPoints.ElementAt(element);

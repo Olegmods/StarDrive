@@ -96,12 +96,6 @@ public class ShipDebugInfoPanel : Submenu
                 Text.String($"Fleet: {s.Fleet.Name}  {(int)s.Fleet.FinalPosition.X}x{(int)s.Fleet.FinalPosition.Y}  STLCap:{s.Fleet.STLSpeedLimit:0} FTLCap:{s.Fleet.FTLSpeedLimit:0}");
             }
 
-            if (s.AI.State == AIState.SystemDefender)
-            {
-                SolarSystem systemToDefend = s.AI.SystemToDefend;
-                Text.String($"Defending {systemToDefend?.Name ?? "Awaiting Order"}");
-            }
-
             Text.String(s.System == null ? "Deep Space" : $"System: {s.System.Name}");
             var influence = s.GetProjectorInfluenceEmpires().Select(e => e.Name);
             Text.String("Influence: " + (s.IsInFriendlyProjectorRange ? "Friendly"
@@ -140,12 +134,6 @@ public class ShipDebugInfoPanel : Submenu
             Text.String($"DPS: {s.TotalDps}");
             Text.String($"Sensor: {s.AI.GetSensorRadius().GetNumberString()} "+
                         $"BadGuys:{s.AI.BadGuysNear}[{s.AI.PotentialTargets.Length}] CanRepair:{s.CanRepair}");
-            Text.SetCursor(Pos.X + 250, 600f, Color.White);
-            foreach (SystemCommander sc in s.Loyalty.AI.DefensiveCoordinator.DefenseDict.Values)
-            {
-                if (sc.ContainsShip(s))
-                    Text.String(sc.System.Name);
-            }
         }
         else if (Screen.SelectedShips.Count > 0)
         {

@@ -9,7 +9,7 @@
          AutoFast variants and Deploy don't need their own PropertyGroup since
          they fall back to base settings (plus the Deploy AfterTargets hook
          further down). -->
-    <Configurations>Debug;Release;Debug - Auto Fast;Release - Auto Fast;Deploy</Configurations>
+    <Configurations>Debug;Release;Debug - Auto Fast;Release - Auto Fast;Debug - Auto;Release - Auto;Deploy</Configurations>
     <OutputType>WinExe</OutputType>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>Ship_Game</RootNamespace>
@@ -76,6 +76,26 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
+  <!-- AUTO: same as Auto Fast except the simulation-speed auto-ramp is OFF.
+       Player input is still locked out (AI plays for the player), but the game
+       runs at the normal speed the player picks instead of being shoved to max.
+       Useful for observing AI behavior at human-readable pace. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug - Auto'">
+    <DefineConstants>DEBUG;TRACE;AUTO</DefineConstants>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <!-- Match Debug: restore the console subsystem so dev logs are visible during
+         observed soak runs. AutoFast intentionally keeps WinExe for unattended runs. -->
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release - Auto'">
+    <DefineConstants>AUTO</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
   <!-- Deploy is what MakeMajorInstaller bundles into the itch.io NSIS package
        (post-build hook below). Mirror Release's compile flags so the shipped
        binary is optimized; warning gate stays off per §4.3 (Release|x64 only). -->
@@ -91,6 +111,7 @@
     <Compile Include="Ship_Game\AI\EmpireAI\EspionageManager.cs" />
     <Compile Include="Ship_Game\AI\ExpansionAI\MiningOpsPlanner.cs" />
     <Compile Include="Ship_Game\AI\ExpansionAI\ResearchStationPlanner.cs" />
+    <Compile Include="Ship_Game\AI\GravityWellRouter.cs" />
     <Compile Include="Ship_Game\AI\ShipAI\ShipAI_Trade.cs" />
     <Compile Include="Ship_Game\AI\ThreatCluster.cs" />
     <Compile Include="Ship_Game\AI\ThreatClusterUpdate.cs" />

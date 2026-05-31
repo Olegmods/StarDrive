@@ -874,11 +874,6 @@ namespace Ship_Game.Ships
             AI.EscortTarget = escortTarget;
         }
 
-        public void DoDefense()
-        {
-            AI.ChangeAIState(AIState.SystemDefender);
-        }
-
         public void OrderToOrbit(Planet orbit, bool clearOrders, MoveOrder order = MoveOrder.Regular)
         {
             AI.OrderToOrbit(orbit, clearOrders, order);

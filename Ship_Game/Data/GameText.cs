@@ -360,8 +360,6 @@ namespace Ship_Game
         ColonistTransport = 168,
         /// <summary>En route to colonize</summary>
         EnRouteToColonize = 169,
-        /// <summary>System Defense Duty</summary>
-        SystemDefenseDuty = 170,
         /// <summary>Under direct player control</summary>
         UnderDirectPlayerControl = 171,
         /// <summary>Resupplying at</summary>
@@ -4697,6 +4695,10 @@ namespace Ship_Game
         EspionageTotalMoneyLeechedTip = 4534,
         /// <summary>Research output is being slowed by enemy infiltration this turn.</summary>
         ResearchDisruptedByInfiltrationTip = 4535,
+        /// <summary>Pathfinder</summary>
+        Pathfinder = 4536,
+        /// <summary>When ON, ships plot a course around hostile and unknown planetary gravity wells.</summary>
+        PathfinderTip = 4537,
 
 
 

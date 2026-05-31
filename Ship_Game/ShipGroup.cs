@@ -414,6 +414,11 @@ namespace Ship_Game
 
             UpdateSpeedLimit();
 
+            // Gravity-well routing: if the group is clustered enough, compute ONE detour
+            // chain at the fleet's average position and translate per-ship by FleetOffset.
+            // Dispersed groups fall back to per-ship routing inside AddWayPoint.
+            Vector2[] sharedDetours = TryComputeClusteredDetours(finalPos, order);
+
             foreach (Ship ship in Ships)
             {
                 if (ship.PlayerShipCanTakeFleetOrders())
@@ -421,14 +426,61 @@ namespace Ship_Game
                     // set PriorityOrder = true, so that our ships don't scatter after arriving
                     ship.AI.ResetPriorityOrder(clearOrders: false);
 
+                    MoveOrder shipOrder = order;
                     // Allow AI ships in gravity wells to react to incoming attacks
                     if (!ship.Loyalty.isPlayer && ship.IsInhibitedByUnfriendlyGravityWell)
-                        order |= MoveOrder.Aggressive;
+                        shipOrder |= MoveOrder.Aggressive;
+
+                    if (sharedDetours != null && !shipOrder.IsSet(MoveOrder.Aggressive))
+                        ship.AI.SetPendingDetours(TranslateDetours(sharedDetours, ship.FleetOffset));
 
                     Vector2 finalShipPos = FinalPosition + ship.FleetOffset;
-                    ship.AI.OrderMoveTo(finalShipPos, finalDir, AIState.FormationMoveTo, order);
+                    ship.AI.OrderMoveTo(finalShipPos, finalDir, AIState.FormationMoveTo, shipOrder);
                 }
             }
+        }
+
+        // Returns a shared detour chain if the group is clustered enough that all ships
+        // can reuse the same route (with their FleetOffset applied). Returns null when
+        // dispersed (each ship will route independently) or when routing produced none.
+        Vector2[] TryComputeClusteredDetours(Vector2 finalPos, MoveOrder order)
+        {
+            Ship sample = (this as Fleet)?.CommandShip ?? (Ships.Count > 0 ? Ships[0] : null);
+            if (sample == null)
+                return null;
+            // Aggressive moves explicitly skip routing — don't bother computing
+            if (order.IsSet(MoveOrder.Aggressive) || order.IsSet(MoveOrder.Pursue))
+            {
+                if (GravityWellRouter.LogVerbose)
+                    Log.Info($"[GWRouter] FLEET ({Ships.Count} ships) skip — order={order}");
+                return null;
+            }
+
+            Vector2 avg = AveragePosition();
+            float cohesion = GetRelativeSize().Length();
+            float cohesionSq = cohesion * cohesion;
+            for (int i = 0; i < Ships.Count; i++)
+            {
+                if (Ships[i].Position.SqDist(avg) > cohesionSq)
+                {
+                    if (GravityWellRouter.LogVerbose)
+                        Log.Info($"[GWRouter] FLEET ({Ships.Count} ships) DISPERSED — falling back to per-ship routing");
+                    return null; // dispersed — let each ship route on its own
+                }
+            }
+
+            if (GravityWellRouter.LogVerbose)
+                Log.Info($"[GWRouter] FLEET ({Ships.Count} ships) CLUSTERED → routing once at avg={avg}");
+            Vector2[] detours = GravityWellRouter.BuildDetours(sample, avg, finalPos, order);
+            return detours.Length == 0 ? null : detours;
+        }
+
+        static Vector2[] TranslateDetours(Vector2[] src, Vector2 offset)
+        {
+            var copy = new Vector2[src.Length];
+            for (int i = 0; i < src.Length; i++)
+                copy[i] = src[i] + offset;
+            return copy;
         }
 
         /// <summary>

@@ -1038,12 +1038,6 @@ EnRouteToColonize:
  RUS: "Колонизирует"
  SPA: "Rumbo a colonizar"
  UKR: "Колонізує"
-SystemDefenseDuty:
- Id: 170
- ENG: "System Defense Duty"
- RUS: "Оборона системы"
- SPA: "Servicio de defensa de sistema"
- UKR: "На захисті системи"
 UnderDirectPlayerControl:
  Id: 171
  ENG: "Under direct player control"
@@ -12470,6 +12464,12 @@ EspionageTotalMoneyLeechedTip:
 ResearchDisruptedByInfiltrationTip:
  Id: 4535
  ENG: "Research output is being slowed by enemy infiltration this turn. The percentage shows how much research is getting through. Each successful disruption mission cuts research by 10%."
+Pathfinder:
+ Id: 4536
+ ENG: "Pathfinder"
+PathfinderTip:
+ Id: 4537
+ ENG: "When ON, ships plot a course around hostile and unknown planetary gravity wells when moving across the universe, avoiding warp drops. Turning this OFF makes ships travel in straight lines and drop out of warp as wells are encountered."
 FlatIncomePerTurn:
  Id: 4384
  ENG: "Flat Income Per Turn" 

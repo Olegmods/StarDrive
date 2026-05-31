@@ -117,20 +117,21 @@ namespace Ship_Game.AI
             foreach (SystemCommander com in commanders)
             {
                 com.RankImportance = (int) (10 * (com.RankImportance / ranker));
-                com.CalculateShipNeeds();
                 com.CalculateTroopNeeds();
             }
         }
 
         public SolarSystem GetNearestSystemNeedingTroops(Vector2 fromPos, Empire empire)
         {
-            float width = empire.Universe.Size;
+            float maxDist = empire.Universe.Size * 2f;
             return DefenseDict.FindMaxKeyByValuesFiltered(
                 com => com.TroopStrengthNeeded > 0
-                       && com.System.PlanetList.Count > 0
-                       && com.System.PlanetList.Sum(p => p.GetFreeTiles(empire)) > 0,
-                com => (1f - ((float)com.TroopCount / com.IdealTroopCount ))
-                       * com.TotalValueToUs * ((width - com.System.Position.SqDist(fromPos)) / width)
+                       && com.System.PlanetList.Any(p => p.Owner == empire
+                                                        && !p.MightBeAWarZone(empire)
+                                                        && p.FreeTilesWithRebaseOnTheWay(empire) > 0),
+                com => (1f - ((float)com.TroopCount / com.IdealTroopCount))
+                       * com.TotalValueToUs
+                       * ((maxDist - com.System.Position.Distance(fromPos)).LowerBound(0f) / maxDist)
             );
         }
 
@@ -167,20 +168,7 @@ namespace Ship_Game.AI
         void LaunchExcessTroops()
         {
             foreach (var kv in DefenseDict)
-            {
-                if (kv.Key.HostileForcesPresent(Us))
-                    continue;
-
-                var sysCom = kv.Value;
-                foreach (Planet p in kv.Value.OurPlanets)
-                {
-                    if (p.GetDefendingTroopCount() > sysCom.PlanetTroopMin(p))
-                    {
-                        foreach (Troop l in p.Troops.GetLaunchableTroops(Us, 1))
-                            l.Launch();
-                    }
-                }
-            }
+                kv.Value.LaunchExcessTroops();
         }
 
         private struct TroopsInSystems
@@ -191,44 +179,17 @@ namespace Ship_Game.AI
 
             public TroopsInSystems(Empire empire, Map<SolarSystem, SystemCommander> DefenseDict)
             {
-                TotalCurrentTroops         = 0;
-                TotalTroopWanted           = 0;
+                TotalCurrentTroops = 0;
+                TotalTroopWanted = 0;
                 TroopShips = empire.GetAvailableTroopShips(out int troopsInFleets);
                 foreach (var kv in DefenseDict)
                 {
-                    int currentTroops = kv.Value.TroopCount;
-                    for (int i = TroopShips.Count - 1; i >= 0; i--)
-                    {
-                        Ship troopShip = TroopShips[i];
-
-                        if (troopShip == null || !troopShip.HasOurTroops)
-                        {
-                            TroopShips.RemoveAtSwapLast(i);
-                            continue;
-                        }
-
-                        ShipAI troopAI = troopShip.AI;
-                        if (troopAI == null)
-                        {
-                            TroopShips.RemoveAtSwapLast(i);
-                            continue;
-                        }
-
-                        if ((troopAI.State == AIState.Rebase || troopAI.State == AIState.RebaseToShip)
-                            && troopAI.OrderQueue.NotEmpty
-                            && troopAI.OrderQueue.Any(goal =>
-                                goal.TargetPlanet != null && kv.Key == goal.TargetPlanet.System))
-                        {
-                            currentTroops++;
-                            kv.Value.TroopStrengthNeeded--;
-                            TroopShips.RemoveAtSwapLast(i);
-                        }
-                    }
-
-                    kv.Value.TroopCount = currentTroops;
-                    TotalCurrentTroops += currentTroops+ troopsInFleets;
+                    kv.Value.CreditIncomingRebases(TroopShips);
+                    TotalCurrentTroops += kv.Value.TroopCount;
                     TotalTroopWanted += kv.Value.IdealTroopCount;
                 }
+
+                TotalCurrentTroops += troopsInFleets;
             }
         }
 
@@ -239,26 +200,20 @@ namespace Ship_Game.AI
             {
                 Ship troopShip = troopShips[i];
 
+                // ship is already in flight to a rebase target; respect those orders
+                if (troopShip.AI.State == AIState.Rebase)
+                    continue;
+
                 SolarSystem solarSystem = GetNearestSystemNeedingTroops(troopShip.Position, troopShip.Loyalty);
 
                 if (solarSystem == null)
                     break;
 
-                SystemCommander defenseSystem = DefenseDict[solarSystem];
+                if (!DefenseDict[solarSystem].AbsorbIdleTroop(troopShip))
+                    continue;
 
-                defenseSystem.TroopStrengthNeeded--;
-                defenseSystem.TroopCount++;
                 troopShips.RemoveAtSwapLast(i);
-
-                Planet target = defenseSystem.OurPlanets
-                    .FindMinFiltered(p => !p.MightBeAWarZone(p.Owner) && p.GetFreeTiles(p.Owner) > 0,
-                        planet => planet.CountEmpireTroops(planet.Owner) / defenseSystem.PlanetTroopMin(planet));
-
-                if (target != null)
-                {
-                    troopShip.AI.OrderRebase(target, true);
-                    totalRebasedTroops++;
-                }
+                totalRebasedTroops++;
             }
             return totalRebasedTroops;
         }

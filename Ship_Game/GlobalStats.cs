@@ -106,6 +106,11 @@ public static class GlobalStats
 
     // PERF this is a graphics performance toggle, disabling engine trails makes everything much faster
     public static bool EnableEngineTrails = true;
+
+    // When TRUE, GravityWellRouter pre-computes a detour chain around hostile/unknown
+    // planetary gravity wells at move-order time, so ships skirt them instead of
+    // dropping out of warp. Toggle from main Options screen.
+    public static bool RouteAroundGravityWells = true;
         
     // PERF
     // global option for controlling physics simulation interval, bigger is slower but more precise
@@ -233,6 +238,12 @@ public static class GlobalStats
     // Dev Option for AUTOPERF
     public static bool RestrictAIPlayerInteraction;
 
+    // When TRUE, UniverseScreen.UpdateGame auto-ramps UState.GameSpeed up to whatever
+    // the simulation can sustain — used by AUTOFAST soak runs. The 'Auto' build
+    // config locks player input the same way but leaves this OFF so the game runs
+    // at the rate the player selected. Set from the AUTOFAST #if block at startup.
+    public static bool AutoRampGameSpeed;
+
     // DEV APP CONFIG OPTION
     // Debug log options
     public static bool VerboseLogging;
@@ -343,6 +354,7 @@ public static class GlobalStats
         GetSetting(config, "AltArcControl", ref AltArcControl);
         GetSetting(config, "DisableAsteroids", ref DisableAsteroids);
         GetSetting(config, "EnableEngineTrails", ref EnableEngineTrails);
+        GetSetting(config, "RouteAroundGravityWells", ref RouteAroundGravityWells);
         GetSetting(config, "DisableScreenPanning", ref DisableScreenPanning);
         GetSetting(config, "MaxDynamicLightSources", ref MaxDynamicLightSources);
         GetSetting(config, "SimulationFramesPerSecond", ref SimulationFramesPerSecond);
@@ -360,6 +372,11 @@ public static class GlobalStats
             VerboseLogging = true;
         #endif
         #if AUTOFAST
+            RestrictAIPlayerInteraction = true;
+            AutoRampGameSpeed = true;
+        #endif
+        #if AUTO
+            // Same input lockout as AUTOFAST, but no simulation-speed ramping.
             RestrictAIPlayerInteraction = true;
         #endif
 
@@ -531,6 +548,7 @@ public static class GlobalStats
         WriteSetting(config, "AltArcControl", AltArcControl);
         WriteSetting(config, "DisableAsteroids", DisableAsteroids);
         WriteSetting(config, "EnableEngineTrails", EnableEngineTrails);
+        WriteSetting(config, "RouteAroundGravityWells", RouteAroundGravityWells);
         WriteSetting(config, "DisableScreenPanning", DisableScreenPanning);
         WriteSetting(config, "MaxDynamicLightSources", MaxDynamicLightSources);
         WriteSetting(config, "SimulationFramesPerSecond", SimulationFramesPerSecond);

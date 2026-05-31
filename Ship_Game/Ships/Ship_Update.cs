@@ -213,6 +213,11 @@ namespace Ship_Game.Ships
                 {
                     TryAddResearchableStarNotification();
                     System.SetExploredBy(Loyalty); // Arrived to a system for the first time
+                    // Newly-visible system may have planet wells the original route
+                    // didn't know about — re-route from here to the original destination.
+                    if (GravityWellRouter.LogVerbose)
+                        Log.Info($"[GWRouter] {Name}: discovered system {System.Name} mid-route → re-issuing move order");
+                    AI.OnSystemNewlyExplored(System);
                 }
 
                 for (int i = 0; i < System.PlanetList.Count; i++)

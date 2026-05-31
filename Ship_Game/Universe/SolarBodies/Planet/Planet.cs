@@ -237,8 +237,13 @@ namespace Ship_Game
             int rebasingTroops = 0;
             if (Owner != null)
             {
-                rebasingTroops = Owner.OwnedShips.Filter(s => s.IsDefaultTroopTransport)
-                         .Count(s => s.AI.OrderQueue.Any(goal => goal.TargetPlanet == this));
+                IReadOnlyList<Ship> ships = Owner.OwnedShips;
+                for (int i = 0; i < ships.Count; i++)
+                {
+                    Ship s = ships[i];
+                    if (s.IsDefaultTroopTransport && s.AI.OrderQueue.Any(g => g.TargetPlanet == this))
+                        rebasingTroops++;
+                }
             }
             return (GetFreeTiles(empire) - rebasingTroops).Clamped(0, TileArea);
         }

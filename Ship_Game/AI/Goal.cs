@@ -184,6 +184,10 @@ namespace Ship_Game.AI
             }
         }
 
+        // Hook for subclasses to release universe-state registrations when this goal is
+        // removed (GoalFailed/Complete or explicit RemoveGoal). Called from EmpireAI.RemoveGoal.
+        public virtual void OnRemoved() { }
+
         protected GoalStep DummyStepTryAgain() => GoalStep.TryAgain;
 
         protected GoalStep WaitForShipBuilt()

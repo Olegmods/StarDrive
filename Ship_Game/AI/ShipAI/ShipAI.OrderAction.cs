@@ -107,8 +107,6 @@ namespace Ship_Game.AI
                 return;
             if (State == AIState.AttackTarget && Target == toAttack)
                 return;
-            if (State == AIState.SystemDefender && Target == toAttack)
-                return;
 
             if (Owner.Weapons.Count == 0 || Owner.ShipData.Role == RoleName.troop)
             {
@@ -165,6 +163,7 @@ namespace Ship_Game.AI
             Vector2 pos = bg.BuildPosition;
             Vector2 dir = Owner.Position.DirectionToTarget(pos);
             Owner.Construction = ConstructionShip.Create(Owner, constructionNeeded, buildRadius);
+            bg.Detours = GravityWellRouter.BuildDetours(Owner, Owner.Position, pos, MoveOrder.Regular);
             if (bg.IsBuildingOrbitalFor(bg.TargetPlanet)) // orbitals for planet defense or research stations
                 AddShipGoal(Plan.DeployOrbital, pos, dir, bg, bg.ToBuild.Name, 0f, AIState.MoveTo);
             else // deep space structures
@@ -304,13 +303,37 @@ namespace Ship_Game.AI
 
             MovePosition = position;
 
+            // Snapshot original params so OnSystemNewlyExplored can re-issue this
+            // exact move after a previously-unknown system becomes visible mid-route.
+            // Strip AddWayPoint so the re-issue rebuilds from scratch instead of queueing.
+            LastMoveFinalPos = position;
+            LastMoveFinalDir = finalDir;
+            LastMoveWantedState = wantedState;
+            LastMoveOrder = order & ~MoveOrder.AddWayPoint;
+
+            // Gravity-well routing: consume pre-computed detours from a clustered fleet
+            // move, or compute one for this single ship. The router early-outs cheaply
+            // when routing is disabled, no wells exist, or the move is Aggressive/Pursue.
+            Vector2[] detours;
+            if (PendingDetours != null)
+            {
+                detours = PendingDetours;
+                if (GravityWellRouter.LogVerbose)
+                    Log.Info($"[GWRouter] {Owner.Name}: consuming {detours.Length} pre-computed detour(s) from fleet");
+                PendingDetours = null; // one-shot
+            }
+            else
+            {
+                detours = GravityWellRouter.BuildDetours(Owner, Owner.Position, position, order);
+            }
+
             // WARNING: please don't 'FIX' anything here without caution and testing.
             //   Checklist: single ship move & queued move,
             //              fleet move & queued move,
             //              ship group move & queued move,
             //              priority movement for all of the above while in combat
             //              Verify ships can complete move to planet goals like colonization.
-            WayPoint[] wayPoints = WayPoints.EnqueueAndToArray(new WayPoint(position, finalDir));
+            WayPoint[] wayPoints = WayPoints.EnqueueRangeAndToArray(detours, new WayPoint(position, finalDir));
 
                /////////////////////////////////////////////////////////////////
               ////// --               FINAL WARNING                   -- //////
@@ -505,8 +528,6 @@ namespace Ship_Game.AI
                 {
                     if (State == AIState.AttackTarget && Target == toAttack)
                         return;
-                    if (State == AIState.SystemDefender && Target == toAttack)
-                        return;
                     if (Owner.Weapons.Count == 0 || Owner.ShipData.Role == RoleName.troop)
                     {
                         OrderInterceptShip(toAttack);
@@ -528,14 +549,13 @@ namespace Ship_Game.AI
 
         public void OrderRebase(Planet p, bool clearOrders)
         {
+            if (p.FreeTilesWithRebaseOnTheWay(Owner.Loyalty) == 0)
+                return;
+
             if (clearOrders)
                 ClearWayPoints();
 
             ClearOrders();
-
-            if (p.FreeTilesWithRebaseOnTheWay(Owner.Loyalty) == 0)
-                return;
-
             IgnoreCombat = true;
             OrderMoveAndRebase(p);
         }
@@ -682,36 +702,6 @@ namespace Ship_Game.AI
             AddShipGoal(Plan.MinePlanet, AIState.Mining, targetPlanet.Mining.GetMinePos(), targetPlanet, true);
         }
 
-        public void OrderSystemDefense(SolarSystem system)
-        {
-            ShipGoal goal = OrderQueue.PeekLast;
-
-            if (SystemToDefend != system || AwaitClosest?.Owner == null ||
-                AwaitClosest.Owner != Owner.Loyalty || Owner.System != system &&
-                goal != null && OrderQueue.PeekLast.Plan != Plan.DefendSystem)
-            {
-                ClearOrders(State);
-                SystemToDefend = system;
-                if (SystemToDefend.PlanetList.Count > 0)
-                {
-                    var potentials = new Array<Planet>();
-                    foreach (Planet p in SystemToDefend.PlanetList)
-                    {
-                        if (p.Owner == null || p.Owner != Owner.Loyalty)
-                            continue;
-                        potentials.Add(p);
-                    }
-                    if (potentials.Count > 0)
-                    {
-                        AwaitClosest = Random.Item(potentials);
-                        OderMoveAndDefendSystem(AwaitClosest);
-                    }
-                    else
-                        GoOrbitNearestPlanetAndResupply(true);
-                }
-            }
-        }
-
         public void GoOrbitNearestPlanetAndResupply(bool cancelOrders)
         {
             if (Owner.ShipData.HullRole == RoleName.drone)
@@ -760,16 +750,9 @@ namespace Ship_Game.AI
 
         Planet GetAwaitClosest()
         {
-            Planet closest = null;
-            if (SystemToDefend != null && SystemToDefend.PlanetList.NotEmpty)
-            {
-                closest = SystemToDefend.PlanetList[0];
-                if (closest != null)
-                    return closest;
-            }
-
             Empire e = Owner.Loyalty;
-            
+            Planet closest = null;
+
             if (!e.IsFaction && !e.isPlayer)
             {
                 SolarSystem currentFriendlySys = Owner.System?.OwnerList.Contains(e) != true ? null : Owner.System;
@@ -820,7 +803,7 @@ namespace Ship_Game.AI
 
             if (AwaitClosest != null)
             {
-                if (SystemToDefend != null || Owner.Loyalty.isPlayer)
+                if (Owner.Loyalty.isPlayer)
                 {
                     Orbit.Orbit(AwaitClosest, timeStep);
                     return;
