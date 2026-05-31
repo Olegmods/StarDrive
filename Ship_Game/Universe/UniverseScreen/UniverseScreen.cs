@@ -772,16 +772,25 @@ namespace Ship_Game
 
         protected override void Dispose(bool disposing)
         {
-            UnloadGraphics();
+            // Only walk managed children on an explicit Dispose. From the finalizer
+            // (disposing == false), Ships / UState / module slots etc. may already
+            // have been finalized in undefined GC order, so reaching into them AVs
+            // (e.g. Ship.RemoveFromUniverseUnsafe -> BombBays.Clear()). UState and
+            // its children all have their own finalizers and will clean themselves
+            // up; we just don't drive that walk from here.
+            if (disposing)
+            {
+                UnloadGraphics();
 
-            anomalyManager = null;
-            BombList.Clear();
-            PendingSimThreadActions.Dispose();
-            NotificationManager?.Clear();
-            SelectedShipList = new();
+                anomalyManager = null;
+                BombList.Clear();
+                PendingSimThreadActions.Dispose();
+                NotificationManager?.Clear();
+                SelectedShipList = new();
 
-            DrawCompletedEvt.Dispose();
-            UState.Dispose();
+                DrawCompletedEvt.Dispose();
+                UState.Dispose();
+            }
 
             base.Dispose(disposing);
         }
