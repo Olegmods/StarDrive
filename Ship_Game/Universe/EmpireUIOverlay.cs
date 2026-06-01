@@ -89,40 +89,53 @@ namespace Ship_Game
             r5.PressedTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_res5");
             Buttons.Add(r5);
 
-            float rangeforbuttons = r5.Rect.X - (r4.Rect.X + r4.Rect.Width);
-            float roomoneitherside = (rangeforbuttons - 734f) / 2f;
-            //Added by McShooterz: Shifted buttons to add new ones, added dummy espionage button
-            Cursor.X = r4.Rect.X + r4.Rect.Width + roomoneitherside;
+            // ShipList + Fleets are optional top-bar buttons that only fit on wider screens.
+            // Add as many as the free span between the money panel (res4) and the right
+            // panel (res5) can hold, prioritizing Fleets over ShipList. The always-present
+            // cluster (Shipyard, Empire, Espionage, Diplomacy) spans ~757px with its gaps;
+            // each extra 168px button costs another 173px (button + 5px gap). The whole
+            // cluster is then centered in the available span.
+            float rangeForButtons = r5.Rect.X - (r4.Rect.X + r4.Rect.Width);
+            int btnWidth = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Width;
+            int btnHeight = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Height;
+            // Shipyard..Diplomacy: 4 buttons plus their gaps (40 + 40 + 5, set below).
+            float baseClusterWidth = 4 * btnWidth + 40 + 40 + 5;
+            const float extraButtonPadding = 10f; // breathing room so buttons don't kiss the panels
+            float extraButtonStride = btnWidth + 5f;
 
-            if (Universe.ScreenWidth >= 1920)
+            int extraButtons = 0;
+            if (rangeForButtons >= baseClusterWidth + 2f * extraButtonStride + extraButtonPadding)
+                extraButtons = 2; // room for ShipList + Fleets
+            else if (rangeForButtons >= baseClusterWidth + extraButtonStride + extraButtonPadding)
+                extraButtons = 1; // room for Fleets only
+
+            float clusterWidth = baseClusterWidth + extraButtons * extraButtonStride;
+            Cursor.X = r4.Rect.X + r4.Rect.Width + (rangeForButtons - clusterWidth) / 2f;
+
+            if (extraButtons >= 2)
             {
-                float saveY = Cursor.Y;
-                Cursor.X -= 220f;
-
                 Button ShipList = new Button();
-                ShipList.Rect = new Rectangle((int)Cursor.X, (int)Cursor.Y, ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Width, ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Height);
+                ShipList.Rect = new Rectangle((int)Cursor.X, 2, btnWidth, btnHeight);
                 ShipList.NormalTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_military");
                 ShipList.HoverTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_military_hover");
                 ShipList.PressedTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_military_pressed");
                 ShipList.Text = Localizer.Token(GameText.ShipsArray);
                 ShipList.launches = "ShipList";
                 Buttons.Add(ShipList);
-                Cursor.X = Cursor.X + ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_hover").Width + 5;
+                Cursor.X += extraButtonStride;
+            }
 
+            if (extraButtons >= 1)
+            {
                 Button Fleets = new Button();
-                Fleets.Rect = new Rectangle((int)Cursor.X, (int)Cursor.Y, ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Width, ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Height);
+                Fleets.Rect = new Rectangle((int)Cursor.X, 2, btnWidth, btnHeight);
                 Fleets.NormalTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_military");
                 Fleets.HoverTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_military_hover");
                 Fleets.PressedTexture = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_military_pressed");
                 Fleets.Text = Localizer.Token(GameText.Fleets);
                 Fleets.launches = "Fleets";
                 Buttons.Add(Fleets);
-                Cursor.X = Cursor.X + ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px_hover").Width + 5;
-                Cursor.Y = saveY;
-            }
-            else
-            {
-                Cursor.X -= 50f;                    
+                Cursor.X += extraButtonStride;
             }
 
             Button Shipyard = new Button();
