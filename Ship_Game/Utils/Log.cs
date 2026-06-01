@@ -487,7 +487,10 @@ namespace Ship_Game
             if (!IsStatsReportEnabled)
                 return;
 
-            LastAutoSavePath = autoSavePath ?? LastAutoSavePath;
+            // Straight assignment (not ??): a null path clears the cached save so it
+            // stops riding error events. UniverseScreen calls ConfigureStatsReporter(null)
+            // on exit precisely to reset the latest savegame attachment.
+            LastAutoSavePath = autoSavePath;
             SentrySdk.ConfigureScope(scope =>
             {
                 if (!scope.HasUser())

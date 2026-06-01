@@ -98,7 +98,8 @@ namespace Ship_Game
             float rangeForButtons = r5.Rect.X - (r4.Rect.X + r4.Rect.Width);
             int btnWidth = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Width;
             int btnHeight = ResourceManager.Texture("EmpireTopBar/empiretopbar_btn_168px").Height;
-            const float baseClusterWidth = 757f; // Shipyard..Diplomacy incl. gaps
+            // Shipyard..Diplomacy: 4 buttons plus their gaps (40 + 40 + 5, set below).
+            float baseClusterWidth = 4 * btnWidth + 40 + 40 + 5;
             const float extraButtonPadding = 10f; // breathing room so buttons don't kiss the panels
             float extraButtonStride = btnWidth + 5f;
 
