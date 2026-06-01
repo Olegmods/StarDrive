@@ -534,7 +534,11 @@ namespace Ship_Game
                     if (n <= 0) break;
                     read += n;
                 }
-                return read == count ? buf : buf[..read];
+                if (read == count)
+                    return buf;
+                var trimmed = new byte[read]; // slice-free: repo aliases Range to SDGraphics.Range
+                Array.Copy(buf, trimmed, read);
+                return trimmed;
             }
             catch
             {
@@ -752,8 +756,12 @@ namespace Ship_Game
                 if (tail != null)
                     scope.AddAttachment(tail, "blackbox.tail.log");
 
-                if (IncludeSaveGameInReports && !string.IsNullOrEmpty(LastAutoSavePath))
-                    scope.AddAttachment(LastAutoSavePath);
+                if (IncludeSaveGameInReports && !string.IsNullOrEmpty(LastAutoSavePath) && File.Exists(LastAutoSavePath))
+                {
+                    // Best-effort: a missing/locked save must never break the error report.
+                    try { scope.AddAttachment(LastAutoSavePath); }
+                    catch { /* ignore attachment failure */ }
+                }
             });
 
             if (level == SentryLevel.Fatal) // for fatal errors, we can't do ASYNC reports
