@@ -421,6 +421,38 @@ namespace Ship_Game.Universe.SolarBodies
             AddToQueueAndPrioritize(item);
         }
 
+        // Bumps a refit job to the front of the queue (for both player and AI) so the ship
+        // gets back into service fast - unless the current front item is about to finish, in
+        // which case the refit slots second so a nearly-complete build isn't bumped.
+        // Caller must hold the ConstructionQueue lock.
+        void PromoteRefitToFront(QueueItem item)
+        {
+            if (Count <= 1)
+                return; // the refit is already the only/first item
+
+            int refitIndex = ConstructionQueue.IndexOf(item);
+            if (refitIndex < 0)
+                return;
+
+            // The "about to finish" window scales with ProductionPace, same as build costs do.
+            float turnsThreshold = 5 * P.Universe.ProductionPace;
+            int insertAt = TurnsToCompleteFirstItem() <= turnsThreshold ? 1 : 0;
+            if (refitIndex != insertAt)
+                MoveTo(insertAt, refitIndex);
+        }
+
+        // Turns the planet needs to finish the item currently at the front of the queue.
+        // Stored production is dumped into it first, then per-turn income covers the rest.
+        int TurnsToCompleteFirstItem()
+        {
+            float remaining = (ConstructionQueue[0].ProductionNeeded - P.ProdHere).LowerBound(0);
+            if (remaining <= 0)
+                return 0; // the stockpile alone finishes it next turn
+
+            float perTurn = P.CurrentProductionToQueue.LowerBound(0.01f);
+            return (int)Math.Ceiling(remaining / perTurn);
+        }
+
         void AddToQueueAndPrioritize(QueueItem item)
         {
             lock (ConstructionQueue)
@@ -443,6 +475,10 @@ namespace Ship_Game.Universe.SolarBodies
                         MoveTo(0, Count - 1);
                     }
                 }
+
+                // Ship and orbital refits jump the queue so the ship returns to service fast.
+                if (item.Goal is RefitShip or RefitOrbital)
+                    PromoteRefitToFront(item);
             }
         }
 
