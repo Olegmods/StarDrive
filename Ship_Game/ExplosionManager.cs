@@ -97,16 +97,6 @@ namespace Ship_Game
             }
         }
 
-        public static void UnloadContent()
-        {
-            using (Lock.AcquireWriteLock())
-            {
-                ActiveExplosions.Clear();
-                ExplosionPixel = null;
-                Types.Clear();
-            }
-        }
-
         static void AddLight(ExplosionState newExp, Vector3 position, float intensity)
         {
             newExp.Light = new PointLight
