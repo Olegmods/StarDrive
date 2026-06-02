@@ -221,6 +221,11 @@ public static class GlobalStats
     public static int RunLocalizer;
 
     // DEV CLI OPTION
+    // merge only Missing.<LANG>.yaml translations into GameText.yaml, without
+    // regenerating the GameText.cs enum or rewriting C# token references `--merge-translations`
+    public static bool MergeMissingTranslations;
+
+    // DEV CLI OPTION
     // debug log all resource loading paths `--resource-debug`
     public static bool DebugResourceLoading;
 
