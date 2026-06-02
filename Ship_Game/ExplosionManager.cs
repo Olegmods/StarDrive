@@ -69,6 +69,16 @@ namespace Ship_Game
         {
             GameLoadingScreen.SetStatus("LoadExplosions");
 
+            // Drop any explosions still in flight from a previous session. This
+            // reload disposes the old explosion atlases, and a surviving
+            // ExplosionState holds a now-dead atlas reference whose Sorted array
+            // is emptied — DrawExplosion would then index into it and throw
+            // IndexOutOfRange (seen after loading a save mid-battle). Clearing
+            // here is coupled to the exact moment the atlases are rebuilt, so no
+            // stale state can outlive the load.
+            using (Lock.AcquireWriteLock())
+                ActiveExplosions.Clear();
+
             foreach (KeyValuePair<ExplosionType, Array<Explosion>> kv in Types)
                 kv.Value.Clear();
 
