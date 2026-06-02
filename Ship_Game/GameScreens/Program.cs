@@ -114,6 +114,10 @@ internal static class Program
             {
                 GlobalStats.RunLocalizer = value.IsEmpty() ? 1 : int.Parse(value);
             }
+            else if (key == "--merge-translations")
+            {
+                GlobalStats.MergeMissingTranslations = true;
+            }
             else if (key == "--resource-debug")
             {
                 GlobalStats.DebugResourceLoading = true;
@@ -156,6 +160,7 @@ internal static class Program
         Log.Write("  --fix-roles         Fixes Role and Category for all .design ships");
         Log.Write("  --run-localizer=[0-2] Run localization tool to merge missing translations and generate id-s");
         Log.Write("                        0: disabled  1: generate with YAML NameIds  2: generate with C# NameIds");
+        Log.Write("  --merge-translations Merge GameText.Missing.<LANG>.yaml into GameText.yaml only (no enum/C# regen)");
         Log.Write("  --resource-debug    Debug logs all resource loading, mainly for Mods to ensure their assets are loaded");
         Log.Write("  --asset-debug       Debug logs all asset load events, useful for analyzing the order of assets being loaded");
         Log.Write("  --console           Enable the Debug Console which mirrors blackbox.log");
@@ -178,6 +183,12 @@ internal static class Program
         if (GlobalStats.RunLocalizer > 0)
         {
             Tools.Localization.LocalizationTool.Run(GlobalStats.ModPath, GlobalStats.RunLocalizer);
+            runGame = GlobalStats.ContinueToGame;
+        }
+
+        if (GlobalStats.MergeMissingTranslations)
+        {
+            Tools.Localization.LocalizationTool.MergeMissingTranslations();
             runGame = GlobalStats.ContinueToGame;
         }
 

@@ -1,0 +1,57 @@
+﻿<DiplomacyDialog>
+  <StatementSets>
+    <StatementSet>
+      <Name>Ordinary Discussion</Name>
+      <DialogOptions>
+        <DialogOption>
+          <words>Vocês têm alguma queixa contra nós?</words>
+          <Response>Hardcoded_Grievances</Response>
+        </DialogOption>
+        <DialogOption>
+          <words>Vamos discutir outro Império...</words>
+          <Response>Hardcoded_EmpireChoose</Response>
+        </DialogOption>
+        <DialogOption>
+          <words>O que você pode me contar sobre seu povo? </words>
+          <Response>AboutUS</Response>
+        </DialogOption>
+        <DialogOption>
+          <SpecialInquiry>Racial_Inquiry_1</SpecialInquiry>
+          <words></words>
+          <Response>Racial_Response_1</Response>
+        </DialogOption>
+        <DialogOption>
+          <words>Propomos unir nossos impérios em uma Federação. Nós ficaríamos no comando, é claro. </words>
+          <Response>Hardcoded_Federation_Analysis</Response>
+        </DialogOption>
+      </DialogOptions>
+    </StatementSet>
+    <StatementSet>
+      <Name>EmpireDiscuss</Name>
+      <DialogOptions>
+        <DialogOption>
+          <words>Qual é a sua opinião sobre TAREMP?</words>
+          <Response>Target_Opinion</Response>
+        </DialogOption>
+        <DialogOption>
+          <words>Queremos que vocês declarem guerra contra TAREMP</words>
+          <Response>Hardcoded_War_Analysis</Response>
+        </DialogOption>
+      </DialogOptions>
+    </StatementSet>
+    <StatementSet>
+      <Name>Threaten</Name>
+      <DialogOptions>
+        <DialogOption>
+          <words>Ficaremos muito irritados se vocês fundarem novas colônias em sistemas que reivindicamos.</words>
+          <Response>Threatened_Territory</Response>
+        </DialogOption>
+        <DialogOption>
+          <words>Parem de nos espionar </words>
+          <Response>Stop_Spying</Response>
+        </DialogOption>
+      </DialogOptions>
+    </StatementSet>
+  </StatementSets>
+ 
+</DiplomacyDialog>

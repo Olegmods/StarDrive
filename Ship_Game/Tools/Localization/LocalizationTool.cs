@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
+using Ship_Game.Data.Yaml;
 
 namespace Ship_Game.Tools.Localization
 {
@@ -202,6 +204,190 @@ namespace Ship_Game.Tools.Localization
                 Log.Write(ConsoleColor.Green, $"Modified  {fileName}  ({modified})");
                 File.WriteAllLines(fileName, lines);
             }
+        }
+
+        // Translations-only merge (CLI: --merge-translations).
+        // For each Content/GameText.Missing.<LANG>.yaml it inserts the "<LANG>: ..." row of every
+        // matching entry into Content/GameText.yaml, leaving every other byte unchanged. Unlike
+        // Run(), it does NOT regenerate the GameText.cs enum, rewrite C# token references, normalize
+        // the file, or regenerate the Missing files. Rows whose NameId isn't already present in
+        // GameText.yaml are skipped and reported (out-of-scope translations are never injected).
+        public static void MergeMissingTranslations()
+        {
+            string starDrive = Directory.GetCurrentDirectory();
+            string gameContent = $"{starDrive}/Content";
+            if (!Directory.Exists(gameContent))
+                throw new Exception($"Could not find StarDrive/Content at: {gameContent}");
+
+            string yamlFile = $"{gameContent}/GameText.yaml";
+            if (!File.Exists(yamlFile))
+                throw new Exception($"Could not load base localization: {yamlFile}");
+
+            string[] langs = { "RUS", "SPA", "UKR", "GER", "PTB", "POL" };
+            int totalMerged = 0, totalSkipped = 0;
+            foreach (string lang in langs)
+            {
+                string missingFile = $"{gameContent}/GameText.Missing.{lang}.yaml";
+                if (!File.Exists(missingFile))
+                    continue;
+
+                (int merged, int skipped) = MergeMissingLang(yamlFile, missingFile, lang);
+                totalMerged  += merged;
+                totalSkipped += skipped;
+                Log.Write(ConsoleColor.Cyan, $"{lang}: merged {merged}, skipped {skipped} out-of-scope row(s)");
+            }
+
+            Log.Write(ConsoleColor.Cyan, $"Translations-only merge complete: {totalMerged} merged, " +
+                                         $"{totalSkipped} skipped. {yamlFile} updated; GameText.cs and C# sources untouched.");
+        }
+
+        // Reads the two files, runs the pure MergeLangIntoYaml transform, VERIFIES the result still
+        // parses as valid GameText YAML, then writes it back (UTF-8 with BOM, matching the tool's
+        // other YAML output). If verification fails the original file is left untouched and the
+        // problem is reported - so a malformed merge is caught here, not at game load. See
+        // MergeLangIntoYaml.
+        static (int merged, int skipped) MergeMissingLang(string yamlFile, string missingFile, string lang)
+        {
+            string result = MergeLangIntoYaml(File.ReadAllText(yamlFile), File.ReadAllText(missingFile),
+                                              lang, out int merged, out int skipped);
+            VerifyParsesOrThrow(result, yamlFile, lang);
+            File.WriteAllText(yamlFile, result, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            return (merged, skipped);
+        }
+
+        // Parses the merged YAML with the same reader the game uses (YamlParser -> LangToken) and
+        // confirms it still deserializes into at least as many tokens as before. Throws (without
+        // writing) if the merge produced anything the game could not load.
+        static void VerifyParsesOrThrow(string mergedYaml, string yamlFile, string lang)
+        {
+            int before;
+            try
+            {
+                before = YamlParser.DeserializeArray<LangToken>(new FileInfo(yamlFile)).Count;
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Base {yamlFile} does not parse before merging {lang}: {e.Message}");
+            }
+
+            string tmp = Path.Combine(Path.GetTempPath(), $"GameText.merge.{lang}.yaml");
+            File.WriteAllText(tmp, mergedYaml, new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            try
+            {
+                int after = YamlParser.DeserializeArray<LangToken>(new FileInfo(tmp)).Count;
+                if (after < before)
+                    throw new Exception($"token count dropped {before} -> {after}");
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"Merged {lang} YAML failed verification - {yamlFile} left unchanged. " +
+                                    $"Cause: {e.Message}");
+            }
+            finally
+            {
+                try { File.Delete(tmp); } catch { /* best-effort cleanup */ }
+            }
+        }
+
+        // Pure text transform (no file IO, so it is unit-testable): inserts each " <lang>: ..." row
+        // from `missingText` into the matching NameId entry of `yamlText`, appended after that
+        // entry's existing rows. Every other byte is preserved - newline style, ordering, trailing
+        // newline. NameIds not present in `yamlText` are skipped+counted; entries that already carry
+        // the language are left unchanged (so the merge is idempotent).
+        // A YAML entry header is a non-indented, non-comment line introducing "NameId:" - the
+        // NameId is everything before the first ':'. Shared by both parse passes so they agree.
+        static bool IsEntryHeader(string line)
+            => line.Length > 0 && line[0] != ' ' && line[0] != '\t' && line[0] != '#' && line.IndexOf(':') >= 0;
+
+        static string HeaderNameId(string line) => line.Substring(0, line.IndexOf(':')).Trim();
+
+        public static string MergeLangIntoYaml(string yamlText, string missingText, string lang,
+                                               out int merged, out int skipped)
+        {
+            string prefix = lang + ":";
+
+            // 1) NameId -> the bare "<lang>: ..." text, read verbatim from the missing text.
+            //    The indent is applied at insertion time to match the target entry's own fields.
+            var langLineByName = new Dictionary<string, string>();
+            string current = null;
+            foreach (string raw in missingText.Split('\n'))
+            {
+                string line = raw.TrimEnd('\r');
+                if (line.Length == 0 || line[0] == '#')
+                    continue;
+                if (IsEntryHeader(line))
+                {
+                    current = HeaderNameId(line);
+                }
+                else if (current != null)
+                {
+                    string trimmed = line.TrimStart();
+                    if (trimmed.StartsWith(prefix, StringComparison.Ordinal))
+                        langLineByName[current] = trimmed;
+                }
+            }
+
+            // 2) Walk yaml and append the lang row at the end of each matching entry
+            string nl = yamlText.Contains("\r\n") ? "\r\n" : "\n";
+            string[] lines = yamlText.Split(new[] { nl }, StringSplitOptions.None);
+
+            var outLines = new List<string>(lines.Length + langLineByName.Count);
+            var yamlNames = new HashSet<string>();
+            int mergedCount = 0;
+            string curName = null;
+            bool curHasLang = false;
+            string curIndent = " "; // indentation of the current entry's fields (default 1 space)
+
+            void FlushEntry()
+            {
+                if (curName != null && !curHasLang && langLineByName.TryGetValue(curName, out string add))
+                {
+                    // Match the entry's own field indentation. Most entries use a single space,
+                    // but a few legacy entries use two - inserting at the wrong depth corrupts the
+                    // YAML structure (a stray dedent), so we mirror what the entry already uses.
+                    outLines.Add(curIndent + add);
+                    ++mergedCount;
+                }
+                curName = null; // entry handled; don't append twice
+            }
+
+            foreach (string line in lines)
+            {
+                bool isHeader = IsEntryHeader(line);
+                bool isBlank = line.Trim().Length == 0;
+
+                // Close the current entry (appending the lang row) before a new header OR any
+                // blank/separator line - never after a trailing blank, so the row lands as the
+                // entry's last field and the file's trailing newline is preserved.
+                if (isHeader || isBlank)
+                    FlushEntry();
+
+                if (isHeader)
+                {
+                    curName = HeaderNameId(line);
+                    curHasLang = false;
+                    curIndent = " ";
+                    yamlNames.Add(curName);
+                }
+                else if (curName != null && (line[0] == ' ' || line[0] == '\t'))
+                {
+                    // a field line of the current entry: remember its indentation
+                    curIndent = line.Substring(0, line.Length - line.TrimStart().Length);
+                    if (line.TrimStart().StartsWith(prefix, StringComparison.Ordinal))
+                        curHasLang = true; // entry already has this language
+                }
+                outLines.Add(line);
+            }
+            FlushEntry(); // last entry (no trailing blank case)
+
+            int skippedCount = 0;
+            foreach (KeyValuePair<string, string> kv in langLineByName)
+                if (!yamlNames.Contains(kv.Key))
+                    ++skippedCount;
+
+            merged = mergedCount;
+            skipped = skippedCount;
+            return string.Join(nl, outLines);
         }
 
         // modPath: "Mods/My Mod/"

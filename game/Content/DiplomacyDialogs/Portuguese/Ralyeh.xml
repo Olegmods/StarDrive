@@ -1,0 +1,696 @@
+<DiplomacyDialog>
+  <Dialogs>
+    <DialogLine>
+      <DialogType>First Contact</DialogType>
+      <Friendly>...Talvez, talvez. Somos os Ralyeh, portadores da morte. E ainda assim, vocês... vocês nos impressionam. Talvez outro destino esteja reservado para vocês?</Friendly>
+      <Neutral>Diga-me, SING, você já contemplou de verdade a hora da sua própria morte, quando tudo se torna nada? Você teme sofrer? Deveria, pois somos os Ralyeh, arautos da morte e servos do Deus Ancião.</Neutral>
+      <Hostile>Diga-me, SING, você já contemplou de verdade a hora da sua própria morte, quando tudo se torna nada? Você teme sofrer? Deveria, pois somos os Ralyeh, arautos da morte e servos do Deus Ancião.</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Colonized Warning</DialogType>
+      <Friendly>Estão tão ansiosos para desaparecer na inexistência que ousam provocar o Deus Ancião diante de seu trono? Sua invasão aos nossos sistemas é uma grande ofensa.</Friendly>
+      <Neutral>Vocês provocam o Deus Ancião com sua expansão para dentro de seus domínios. Esperam que ele não os esmague como os insetos que são?</Neutral>
+      <Hostile>Sua zombaria contra o Deus Ancião não passa despercebida. Sua transgressão no sistema TARSYS não será esquecida.</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Aggression Warning</DialogType>
+      <Friendly>Estão tão ansiosos para desaparecer na inexistência que ousam provocar o Deus Ancião atacando seus discípulos? Que loucura os possui?</Friendly>
+      <Neutral>Seus ataques contra os Ralyeh, por mais patéticos que sejam, ofendem gravemente o Deus Ancião. Cuidado.</Neutral>
+      <Hostile>PLURAL tolos! Estão tão ansiosos para morrer que nos provocam antes mesmo de chegar sua vez?</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Warning Ships</DialogType>
+      <Friendly>SING, retire suas naves do nosso espaço ou ficaremos irados.</Friendly>
+      <Neutral>SING, retire suas naves do nosso espaço ou ficaremos irados. Já toleramos isso por tempo suficiente.</Neutral>
+      <Hostile>SING, suas naves estão em nosso espaço e não aceitaremos suas invasões. Remova suas naves ou elas serão removidas.</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Warning Ships then Colonized</DialogType>
+      <Friendly>Vocês zombam de nós, certamente? Quão enlouquecidos podem ser os PLURAL para pôr em risco uma amizade com os Ralyeh? Cedam-nos TARSYS ou enfrentem as consequências.</Friendly>
+      <Neutral>Como esperado, suas incursões em nosso espaço agora se mostram mais permanentes. Sua colonização de TARSYS é uma grande ofensa.</Neutral>
+      <Hostile>...em breve, SING. Em breve o Deus Ancião julgará vocês. Preparem-se.</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Warning Colonized then Ships</DialogType>
+      <Friendly>Vocês zombam de nós, certamente? Quão enlouquecidos podem ser os PLURAL para pôr em risco uma amizade com os Ralyeh? Cedam-nos TARSYS ou enfrentem as consequências.</Friendly>
+      <Neutral>Como esperado, suas incursões em nosso espaço agora se mostram mais permanentes. Sua colonização de TARSYS é uma grande ofensa, e sua presença prolongada é ainda pior.</Neutral>
+      <Hostile>...em breve, SING. Em breve o Deus Ancião julgará vocês. Preparem-se.</Hostile>    </DialogLine>
+    <DialogLine>
+      <DialogType>Declare War</DialogType>
+      <misc1>Não se enganem, SING. Quando a hora da sua morte chegar, vocês não serão mais nada. Tudo que conheceram e tudo que foram será apagado. Não há Deus além do Deus Ancião, e até ele é escravo da morte. Mas divago. A hora da sua morte chegou. Estamos agora em guerra.</misc1>
+      <misc2>Tirar uma vida é uma grande honra e um grande fardo. O portador da morte é um destruidor de mundos — de universos! Tudo que vocês foram um dia se torna nada! Faremos isso com vocês. Destruiremos seus mundos e esmagaremos seus universos até a inexistência! Estamos agora em guerra.</misc2>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Dunno_Anybody</DialogType>
+      <Default>O olho do Deus Ancião ainda não caiu sobre nenhuma raça além da nossa e da sua. Em breve, porém, em breve ele verá.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Greeting</DialogType>
+      <Friendly>Saudações, SING. Pensou mais sobre sua morte? Será uma boa morte?</Friendly>
+      <Neutral>Como será sua morte, SING? Em sua casa, cercado por sua família, velho e enfermo? Em batalha? Um acidente? Assassinato? Nós nos perguntamos essas coisas. Por que nos perturbam desses pensamentos sombrios?</Neutral>
+      <Hostile>Os PLURAL vêm farejar os calcanhares da Morte. O que querem?</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Racial_Inquiry_1</DialogType>
+      <Default>O que é esse cajado que você está segurando?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Racial_Response_1</DialogType>
+      <Default>Este é o Cetro do Deus Ancião, que me marca como líder do nosso povo. Sou eu quem interpreta a vontade do Deus Ancião e a manifesta.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>AboutUS</DialogType>
+      <DL_Agg>Somos portadores da morte, SING,</DL_Agg>
+      <DL_Hon>Somos portadores da morte, SING,</DL_Hon>
+      <DL_Pac>Somos portadores da morte, SING,</DL_Pac>
+      <DL_Ruth>Somos portadores da morte, SING,</DL_Ruth>
+      <DL_Cunn>Somos portadores da morte, SING,</DL_Cunn>
+      <DL_Xeno>Somos portadores da morte, SING,</DL_Xeno>
+      <DL_Exp>e carregaremos nosso pesado fardo até as bordas do espaço, até cada estrela em cada céu.</DL_Exp>
+      <DL_Tech>e, por meio das mortes daqueles que desagradam o Deus Ancião, obteremos conhecimento. Conhecimento para desafiar a morte!</DL_Tech>
+      <DL_Mil>e nossas poderosas frotas carregarão nosso pesado fardo aos muitos mundos de nossos inimigos.</DL_Mil>
+      <DL_Ind>e nossas poderosas indústrias produzirão instrumentos de poder tais que ninguém jamais poderia resistir ao nosso encargo sagrado.</DL_Ind>
+      <DL_Gen>e ainda assim amamos a vida. Vida e Morte. Luz e Escuridão. Caos e Ordem.</DL_Gen>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_InsufficientTrust</DialogType>
+      <Default>Não temos motivo para confiar nos PLURAL com tal acordo.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_AcceptGreatOffer_LowTrust</DialogType>
+      <Default>Sua oferenda ao Deus Ancião nos leva a estender a vocês mais confiança do que nosso melhor julgamento permitiria. Está acordado.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Reject_PoorOffer_LowTrust</DialogType>
+      <Default>Vocês devem pensar que os Ralyeh são imbecis. Não.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Reject_PoorOffer_EnoughTrust</DialogType>
+      <Default>Vocês abusam da nossa confiança fazendo uma oferta tão pobre. Aumentem sua parte da barganha se desejam fazer tal acordo.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Reject_Insulting</DialogType>
+      <Default>Vocês irritam o Deus Ancião com termos tão insultantes!</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Fair</DialogType>
+      <Default>Então está acordado.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Good</DialogType>
+      <Default>Seus termos agradam o Deus Ancião. Concordamos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Great</DialogType>
+      <Default>Seus termos generosos são aceitos, SING.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Gift</DialogType>
+      <Default>O Deus Ancião ficará satisfeito com sua oferenda.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Fair_Pleading</DialogType>
+      <Default>Vocês imploram por uma troca justa? Patético. Ainda assim, aceitamos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_InsufficientFear</DialogType>
+      <Default>O som da risada do Deus Ancião faria seu crânio explodir, se fossem capazes de ouvi-la. Ele ri de suas ameaças patéticas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Fair_Threatening</DialogType>
+      <Default>Suas ameaças são ervas levadas pela maré. Aceitamos sua oferta de troca, mas não apreciamos o tom.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OfferResponse_Accept_Bad_Threatening</DialogType>
+      <Default>O Deus Ancião nos abandonou? Como criaturas como vocês podem nos forçar a entregar tanto por tão pouco? Neste tempo de escuridão, aceitamos suas exigências.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>WarDeclared_FeelsBetrayed</DialogType>
+      <Default>Vocês violam seus juramentos, mas nós manteremos os nossos. Juramos matá-los. Juramos esmagar seus ossos e sugar suas entranhas. Juramos beber seu sangue dos crânios de seus filhos. Perante o Deus Ancião, juramos isso.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>WarDeclared_Generic</DialogType>
+      <Default>Muito bem. A morte vem para todos nós, SING. Este é o caminho da Vida.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Greeting_AtWar</DialogType>
+      <Default>Consegue ver a escuridão à sua frente? Ela está tão perto agora, SING. Está satisfeito com a forma como viveu? Encontrou sentido? Fale agora, e ouviremos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Declare War Defense</DialogType>
+      <Default>Teríamos preferido esperar antes de guerrear com vocês, mas a prudência exige que comecemos imediatamente. Suas transgressões são numerosas demais, e agora estamos em guerra.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Declare War BC</DialogType>
+      <Default>Teríamos preferido esperar antes de guerrear com vocês, mas a prudência exige que comecemos imediatamente. Suas transgressões são numerosas demais, e agora estamos em guerra.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Declare War BC TarSys</DialogType>
+      <Default>Teríamos preferido esperar antes de guerrear com vocês, mas a prudência exige que comecemos imediatamente. Sua transgressão em TARSYS foi uma a mais, e agora estamos em guerra.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Offer NAPact</DialogType>
+      <Default>O Deus Ancião estende a vocês uma oferta de Não Agressão, na esperança de que nossos dois povos possam desafiar a morte juntos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>NAPact Accepted</DialogType>
+      <Default>E assim será. PLURAL e Ralyeh viverão, e a morte esperará até amanhã.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>NAPact Rejected</DialogType>
+      <Default>Então é como ele previu. Vocês morrerão e serão esquecidos, sozinhos e ignorantes.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Offer Trade</DialogType>
+      <Default>Nós o saudamos, SING. É nosso desejo trocar bens com seu povo. Aceitará tal acordo?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Trade Accepted</DialogType>
+      <Default>O Deus Ancião está satisfeito. Faremos os preparativos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Trade Rejected</DialogType>
+      <Default>Muito bem. Ouvimos dizer que seus produtos eram de qualidade inferior mesmo.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>ComeAround_NAPACT</DialogType>
+      <Default>Nossas palavras o convenceram? É a Vida que você escolhe agora, e não a morte?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>ComeAround_TRADE</DialogType>
+      <Default>Vocês nos rejeitam uma vez e agora nos oferecem nossos próprios termos? Os PLURAL são tão estranhos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Xeno Demand Tech</DialogType>
+      <Default>Seria sábio conceder-nos a tecnologia TECH_DEMAND. Fazer isso poderia prolongar significativamente suas vidas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Xeno Demand Tech Accepted</DialogType>
+      <Default>É como o Deus Ancião previu. Talvez desafiemos a morte por mais algum tempo, você e eu.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Xeno Demand Tech Rejected</DialogType>
+      <Default>Não importa. Isto foi apenas um teste, e você falhou. Adeus, SING.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Insult Military</DialogType>
+      <Default>O olho do Deus Ancião cai sobre sua frota e a considera insuficiente. Ele se pergunta: serão os PLURAL os próximos a morrer?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Compliment Military</DialogType>
+      <Default>O Deus Ancião julgou sua frota e a considera digna. Vocês viverão, por enquanto.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Compliment Military Better</DialogType>
+      <Default>Estamos satisfeitos por vocês terem seguido o aviso do Deus Ancião, e ele também está. Sua frota está em condição muito melhor agora.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Declare War Imperialism</DialogType>
+      <Default>Viemos agora até vocês com nosso encargo sagrado. Tomaremos suas vidas, SING. Tomaremos seus planetas, seus bens e seu povo, e os esmagaremos até a inexistência. Preparem-se.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Kulrathi</DialogType>
+      <Default>Respeitamos suas filosofias e sua força. Eles viverão, por enquanto.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Kulrathi</DialogType>
+      <Default>Eles estão além da consideração do Deus Ancião no momento.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Kulrathi</DialogType>
+      <Default>As bestas guerreiras ofendem o Deus Ancião, e há apenas uma punição para tal ofensa.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Pollops</DialogType>
+      <Default>Nós... não conseguimos deixar de gostar dessas criaturas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Pollops</DialogType>
+      <Default>Coisas curiosas, os Pollops. Em grande parte, nós os ignoramos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Pollops</DialogType>
+      <Default>Algas! Nem sequer ficaremos tristes quando os arrancarmos pela raiz.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Vulfen</DialogType>
+      <Default>Às vezes questionamos como os Vulfar sequer são capazes de voar pelo espaço. Mas são fortes e ferozes, e gostamos deles.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Vulfen</DialogType>
+      <Default>Não pensamos muito nos Vulfar.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Vulfen</DialogType>
+      <Default>Esses cães não são dignos de viver.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Terran</DialogType>
+      <Default>Sim, gostamos bastante dos Humanos. O Deus Ancião visitou o mundo natal deles uma vez, há muito tempo. A lenda humana afirma que ele foi expulso inteiramente de seu mundo. Mas, é claro, nós Ralyeh conhecemos a verdadeira história.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Terran</DialogType>
+      <Default>Não nos ocupamos muito com os Humanos desde que o Deus Ancião visitou o mundo natal deles há muitas eras.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Terran</DialogType>
+      <Default>Os Humanos têm lendas sobre nosso Deus Ancião. Eles acreditam ser capazes de derrotá-lo! Quão errados e patéticos são!</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Declare War Imperialism Break NA</DialogType>
+      <Default>Para os Ralyeh há apenas um juramento: aquele que todos devemos fazer ao serviço do Deus Ancião. Decidimos que nosso pacto de Não Agressão é incompatível com nosso Juramento. Ele agora está descartado e estamos em guerra.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Conquered_Player</DialogType>
+      <Default>Seus planetas são nossos, suas frotas jazem em ruínas. O círculo se fechou e a vontade do Deus Ancião foi cumprida. A morte foi levada aos PLURAL, e lamentamos sua perda.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Offer Open Borders</DialogType>
+      <Default>Vocês foram amigos dignos do Deus Ancião e de seus devotos. Não desejamos que essas disputas de fronteira ponham em risco nosso relacionamento. Assinemos um tratado de Fronteiras Abertas e deixemos este conflito para trás.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Open Borders Accepted</DialogType>
+      <Default>Você é sábio, SING. Agora levemos a mensagem àqueles que são mais merecedores, não?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Open Borders Rejected</DialogType>
+      <Default>Isso é extremamente infeliz. Vocês atraem o olhar do Deus Ancião com sua afronta, e seu olhar traz apenas morte.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Invaded NA Pact</DialogType>
+      <Default>Hmmm. Admiramos sua coragem, SING. Não previmos esse movimento vindo de vocês. Pensávamos que fossem mais honrados do que isso. Não importa, agora vemos a verdade. Guerra, então.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Invaded Start War</DialogType>
+      <Default>Então. Vocês batem à porta da Morte com suas tropas desembarcando em TARSYS. Muito bem. Ele vem atender.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Opteris</DialogType>
+      <Default>Criaturas interessantes, esses Opteris. Estão vivos? Podem morrer? Ao menos somos amigáveis com eles.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Opteris</DialogType>
+      <Default>Não temos opinião sobre essas máquinas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Opteris</DialogType>
+      <Default>Eles irritam o Deus Ancião.</Default>
+    </DialogLine>
+
+    <DialogLine>
+      <DialogType>Opinion_JustMetUs</DialogType>
+      <Default>Vocês estão vivos? Bem, então temos uma queixa.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_NoProblems</DialogType>
+      <Default>O olho do Deus Ancião está desviado de vocês, por enquanto. Certamente são abençoados por ele ignorá-los.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Problems</DialogType>
+      <Default>O Deus Ancião está descontente com vocês de várias maneiras.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_JustTerritorial</DialogType>
+      <Default>A principal questão de preocupação é nossa disputa por sistemas estelares.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_Territorial</DialogType>
+      <Default>A principal questão de preocupação é nossa disputa por sistemas estelares.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_AlsoMilitary</DialogType>
+      <Default>No entanto, também estamos preocupados com a força da sua frota e com suas intenções em relação a ela.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_AlsoMilitaryWeak</DialogType>
+      <Default>Além disso, sua frota é patética e não podemos respeitar isso.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_MilitaryWeak</DialogType>
+      <Default>A principal questão de preocupação é o quão fracos vocês são. O Deus Ancião despreza os fracos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_PrimaryMilitary</DialogType>
+      <Default>A principal questão de preocupação é o tamanho da sua frota e suas intenções em relação a ela.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_AlliedWithEnemy</DialogType>
+      <Default>Sua aliança com os inimigos do Deus Ancião, TAREMP, nos desagrada.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Problem_AlsoAlliedWithEnemy</DialogType>
+      <Default>Além disso, sua aliança com os inimigos do Deus Ancião, TAREMP, nos desagrada.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_NothingMajor</DialogType>
+      <Default>O fato de vocês estarem vivos nos desagrada. Fora isso, não temos queixas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>AtWar_Winning</DialogType>
+      <Default>Consegue ouvir os sinos anunciando sua morte, chamando-o para o submundo? Está tão perto agora, SING.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>AtWar_Losing</DialogType>
+      <Default>Sua contínua resistência ao chamado do Deus Ancião é enfurecedora. O que você quer, SING?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>HelpUS_War</DialogType>
+      <Default>O Deus Ancião ficaria muito satisfeito se vocês se juntassem a nós em nossa batalha contra TAREMP. O que dizem?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>HelpUS_War_Yes</DialogType>
+      <Default>Excelente. Juntos entregaremos seu pesado fardo.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>HelpUS_War_No</DialogType>
+      <Default>Tolo! Não pense que está a salvo de nós.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Draylok</DialogType>
+      <Default>Eles ainda não irritaram o Deus Ancião, então isso é bom. Suponho que gostamos deles.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Draylok</DialogType>
+      <Default>Ignoramos seres inferiores.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Draylok</DialogType>
+      <Default>Eles estão na nossa lista, SING. E não na lista boa.</Default>
+    </DialogLine>
+
+
+    <!-- Second Run Localization -->
+    <DialogLine>
+      <DialogType>OFFERPEACE_FAIR</DialogType>
+      <Default>Por razões além da minha compreensão, o Deus Ancião deseja poupar seu povo por enquanto. Oferecemos um tratado de paz.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_FAIR_WINNING</DialogType>
+      <Default>Por razões além da minha compreensão, e apesar de nosso sucesso militar contínuo, o Deus Ancião deseja poupar seu povo por enquanto. Oferecemos um tratado de paz.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_EVENLY_MATCHED</DialogType>
+      <Default>O Deus Ancião reconheceu sua força em batalha. Em deferência ao seu poder, oferecemos um tratado que encerraria as hostilidades.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_PLEADING</DialogType>
+      <Default>Nós... devemos pedir que encerrem sua guerra contra nós. Nossa mensagem é importante demais e vocês ameaçam nossa existência com seu poder. Por favor, permitam que encerremos esta guerra.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_LOSINGBC</DialogType>
+      <Default>O Deus Ancião reconheceu sua força na defesa de suas reivindicações. Em deferência ao seu poder, oferecemos um tratado que encerraria as hostilidades.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_WINNINGBC</DialogType>
+      <Default>Esses conflitos de fronteira nos distraem. Sentimos que vencemos esta rodada e estamos dispostos a encerrar as hostilidades agora.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_REJECTED</DialogType>
+      <Default>Bem... paz foi uma ideia ruim desde o início mesmo.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFERPEACE_ACCEPTED</DialogType>
+      <Default>Assim está escrito, assim será feito. Estamos em paz.</Default>
+    </DialogLine>
+
+    <DialogLine>
+      <DialogType>ACCEPT_OFFER_PEACE</DialogType>
+      <Default>Toquem o sino duas vezes. Uma pelos que caíram, e outra pelos que foram salvos. Temos paz.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>REJECT_OFFER_PEACE_POOROFFER</DialogType>
+      <Default>Os Servos do Deus Ancião não precisam de onisciência para ver o quão tolos vocês devem pensar que somos ao oferecer termos tão horríveis. Não.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>REJECT_OFFER_PEACE_UNWILLING_BC</DialogType>
+      <Default>As reivindicações do Deus Ancião permanecem não resolvidas. Não as abandonaremos sem bom motivo.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>ACCEPT_OFFER_PEACE_RELUCTANT</DialogType>
+      <Default>Você nos dobra à sua vontade aqui, SING. Podemos admirar isso. Muito bem — concordamos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>PROBLEM_RECENTWAR</DialogType>
+      <Default>Sua existência contínua, apesar de nossos melhores esforços na guerra, é uma queixa constante.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFER_ALLIANCE</DialogType>
+      <Default>A galáxia é um lugar perigoso, SING. Sentimos que nossa amizade merece reconhecimento com uma aliança, para manter esses perigos afastados. O que diz?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>ALLIANCE_ACCEPTED</DialogType>
+      <Default>Estamos satisfeitos com sua sabedoria.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>ALLIANCE_REJECTED</DialogType>
+      <Default>Sua falta de sabedoria neste assunto nos intriga.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>OFFER_ALLIANCE_TOO_COMPLICATED</DialogType>
+      <Default>Considerar uma aliança é uma análise complicada. Não queremos que nossa decisão seja turvada por estes outros termos. Ofereça-nos uma aliança isolada e poderemos considerá-la.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>AI_ALLIANCE_ACCEPT</DialogType>
+      <Default>Sim... sim! Vemos a sabedoria nisso! Sejamos aliados, então.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>AI_ALLIANCE_REJECT</DialogType>
+      <Default>Ah. Não, SING. Não seremos seus aliados.</Default>
+    </DialogLine>
+	<DialogLine>
+      <DialogType>TREATY_TOO_SOON_REJECT</DialogType>
+      <Default>Não, precisamos de mais tempo para ler os presságios do Deus Ancião antes de concordar com este tratado.</Default>
+    </DialogLine>				
+    <DialogLine>
+      <DialogType>REJECT_PEACE_RUTHLESS</DialogType>
+      <Default>E que dízimos vocês ofereceram ao Deus Ancião por seu perdão? Hmm? Que mundos darão a ele? Pensem nisso antes de pedir que ele poupe suas vidas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>ACCEPT_PEACE_COLDWAR</DialogType>
+      <Default>Uma paz? Antes que qualquer sangue tenha sido derramado? Seu dízimo parece suficiente. Muito bem. Paz seja.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>HelpUS_War_No_BreakAlliance</DialogType>
+      <Default>Você nos irrita, SING. Não é assim que aliados devem agir. Muito bem. A aliança está cancelada.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Stole Claim</DialogType>
+      <Default>Você não tem respeito, SING, pelas reivindicações de um DEUS? TARSYS deveria ser dele, e você o irrita com sua afronta!</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Stole Claim 2</DialogType>
+      <Default>Tolos! Pensávamos que os PLURAL gostassem de se agarrar às suas existências patéticas. Mas sua contínua afronta aos nossos desejos nos faz perguntar se desejam que apressemos a entrega do nosso presente.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Stole Claim 3</DialogType>
+      <Default>E novamente vocês roubam nossas reivindicações bem debaixo de nossos tentáculos. O Deus Ancião desperta, SING. Ele não ficará feliz ao saber disso.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Claim System</DialogType>
+      <Friendly>Dizemos isto porque somos amigos, SING. Fiquem longe do sistema TARSYS. Nós o reivindicamos para nosso Deus.</Friendly>
+      <Neutral>Em nome do Deus Ancião, reivindicamos o sistema TARSYS. Fique longe, SING.</Neutral>
+      <Hostile>Saibam isto: os Ralyeh reivindicaram o sistema TARSYS. Colonizem-no por sua própria conta e risco!</Hostile>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Positive_Cordrazine</DialogType>
+      <Default>Uma raça estranha, sem dúvida. E seus companheiros, os peludos... também estranhos. Mas gostamos deles.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Neutral_Cordrazine</DialogType>
+      <Default>Não temos opinião sobre os escravizadores.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Opinion_Negative_Cordrazine</DialogType>
+      <Default>Ah, os escravizadores. Não nos impressionamos com seus métodos, e os consideramos inimigos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Caught_Spying_1</DialogType>
+      <Default>PLURAL. À espreita nas sombras... roubando os segredos de seus superiores... repugnante.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Caught_Spying_2</DialogType>
+      <Default>Estamos atentos a você, SING. Sabemos que está nos espionando. Você apenas acelera sua própria ruína ao nos irritar.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Caught_Spying_3</DialogType>
+      <Default>O Deus Ancião não tolerará isso! Sua espionagem passou dos limites! Nossos tratados estão cancelados!</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Killed_Spy_1</DialogType>
+      <Default>Uma oferenda ao Deus Ancião! Seu Agente estava delicioso.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Caught_Spying_Ally_1</DialogType>
+      <Default>...por que você nos espiona, SING? Por que fazer uma aliança e depois descartá-la tão impensadamente? Daremos a você uma chance de parar.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Caught_Spying_Ally_2</DialogType>
+      <Default>E sua única chance foi desperdiçada. Nossa Aliança acabou.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Offer Open Borders Friends</DialogType>
+      <Default>Junte-se a nós, SING. Abriríamos nossas fronteiras a vocês e vocês a nós, em amizade. Consente?</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Open Borders Friends Rejected</DialogType>
+      <Default>Como desejar. Mas a Morte não conhece fronteiras, não favorece ninguém.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_JustMet</DialogType>
+      <Default>Não, criatura ansiosa. Este não é um acordo que faremos com qualquer um.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_NoAlliance</DialogType>
+      <Default>Amigos... você pede muito de nós, e ainda nem somos aliados formais. O que você pede talvez seja possível algum dia, mas primeiro precisamos construir uma base para esse relacionamento.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_AllianceTooYoung</DialogType>
+      <Default>Ansioso como sempre, vejo. Deixe-nos nos acomodar nesta nova aliança primeiro... garantir que não haja problemas... então poderemos discutir melhor esta proposta.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_WeAreTooStrong</DialogType>
+      <Default>Mas por que faríamos isso, quando somos fortes e vocês... bem, vocês não são tão fortes? Não podemos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_WeAreNotWeak</DialogType>
+      <Default>Somos seus aliados, SING. Não desejamos "aprimorar" nosso relacionamento ainda.</Default>
+    </DialogLine>				
+    <DialogLine>
+      <DialogType>Federation_Accept</DialogType>
+      <Default>Este é um dia dos mais auspiciosos. Vocês nos ajudaram a encontrar vida na escuridão. Hoje nos juntamos a vocês. Vida longa à nossa Federação!</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_Quest_DestroyEnemy</DialogType>
+      <Default>Você pede muito de nós, SING. Nós nos juntaremos a vocês. Porém, só nos juntaremos se primeiro derrotarem nossos inimigos, TAREMP. Provem sua fé e nos tornaremos um só.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_YouDidIt_KilledEnemy</DialogType>
+      <Default>E assim está feito. TAREMP foi derrotado e manteremos nossa palavra, juntando-nos à sua Federação.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_RelationsPoor</DialogType>
+      <Default>Talvez você deva se concentrar em melhorar nossas relações e resolver algumas de nossas queixas antes de fazer propostas tão grandiosas.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_Quest_AllyFriend</DialogType>
+      <Default>Nós nos juntaríamos a vocês, SING. Mas você deve provar ser amigo de nossos amigos. Se conseguir fazer uma aliança com TAREMP, então nos juntaremos à sua Federação.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>Federation_YouDidIt_AllyFriend</DialogType>
+      <Default>Você fez como pedimos. Com nossos amigos, TAREMP, agora seus aliados, nos juntaremos à sua Federação.</Default>
+    </DialogLine>
+
+    <DialogLine>
+      <DialogType>JoinWar_YouAreNotAtWar</DialogType>
+      <Default>Seu entusiasmo por criar conflitos foi notado. Contudo, os soldados do Deus Ancião não são mercenários. A resposta é não.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_WeAreAtWar</DialogType>
+      <Default>Já estamos em guerra com TAREMP, SING.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_Allied_OK</DialogType>
+      <Default>Como seus aliados, temos o dever de aceitar seu pedido. Guerra, então.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_Allied_DECLINE</DialogType>
+      <Default>Não podemos guerrear contra TAREMP, pois eles também são nossos amigos e aliados.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_Reject_PoorRelations</DialogType>
+      <Default>Não, SING. Estávamos pensando que talvez guerreássemos contra você em vez disso. Não seria divertido? Agora vá embora.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_Reject_Pacifist</DialogType>
+      <Default>Não aprovamos guerra, a menos que seja em legítima defesa.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_Reject_TooDangerous</DialogType>
+      <Default>Não. Eles são poderosos demais para nós. Não podemos concordar.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>JoinWar_OK</DialogType>
+      <Default>Exatamente meus pensamentos! Eles são fracos, vulneráveis... vamos atacar e acabar com eles.</Default>
+    </DialogLine>
+
+    <DialogLine>
+      <DialogType>REJECT_OFFER_PEACE_ALLIED_WITH_ENEMY</DialogType>
+      <Default>Você quer paz com os Ralyeh, mas está aliado aos nossos inimigos. Fora, SING!</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>AI_ALLIANCE_REJECT_ALLIED_WITH_ENEMY</DialogType>
+      <Default>Você insulta o Deus Ancião ao oferecer aliança enquanto está aliado aos nossos inimigos. Recusamos.</Default>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>CUTTING_DEALS_WITH_ENEMY</DialogType>
+      <Default>Que abominação é esta?! Vocês agem pelas nossas costas, assinando tratados com nossos inimigos mútuos?</Default>
+      <DL_Agg>Nossa Aliança está cancelada.</DL_Agg>
+      <DL_Ruth>Nossas relações acabaram. Em breve você sentirá nossa ira, SING.</DL_Ruth>
+      <DL_Xeno>Isto era esperado, mas não aceitável. Estamos cortando nossas relações com vocês.</DL_Xeno>
+      <DL_Cunn>O Deus Ancião não está satisfeito.</DL_Cunn>
+      <DL_Pac>O Deus Ancião acolhe soluções pacíficas, mas vocês deveriam esperar até que nós também não estejamos em guerra com eles.</DL_Pac>
+      <DL_Hon>Você pensou em sua morte, SING? Que morte será? Em nome do Deus Ancião, nós o eliminaremos.</DL_Hon>
+    </DialogLine>
+    <DialogLine>
+      <DialogType>TRIED_CUTTING_DEALS_WITH_ENEMY</DialogType>
+      <Default>Que abominação é esta?! Vocês agem pelas nossas costas, tentando assinar tratados com nossos inimigos mútuos?</Default>
+      <DL_Agg>Nossa Aliança está cancelada.</DL_Agg>
+      <DL_Ruth>Nossas relações acabaram. Em breve você sentirá nossa ira, SING.</DL_Ruth>
+      <DL_Xeno>Isto era esperado, mas não aceitável. Estamos cortando nossas relações com vocês.</DL_Xeno>
+      <DL_Cunn>O Deus Ancião não está satisfeito.</DL_Cunn>
+      <DL_Pac>O Deus Ancião acolhe soluções pacíficas, mas vocês deveriam esperar até que nós também não estejamos em guerra com eles.</DL_Pac>
+      <DL_Hon>Você pensou em sua morte, SING? Que morte será? Em nome do Deus Ancião, nós o eliminaremos.</DL_Hon>
+    </DialogLine>
+    
+    <!-- Merge and Surrender -->
+    
+    <DialogLine>
+      <DialogType>SURRENDER</DialogType>
+      <Default>Você é o Deus Ancião! Nós nos rendemos.</Default>
+    </DialogLine>    
+    <DialogLine>
+      <DialogType>OFFER_MERGE</DialogType>
+      <Default>O Deus Ancião nos ordenou que nos juntemos a vocês. Aceitarão?</Default>
+    </DialogLine>        
+    <DialogLine>
+      <DialogType>OFFER_MERGE_ACCEPTED</DialogType>
+      <Default>O Deus Ancião está satisfeito!</Default>
+    </DialogLine>            
+    <DialogLine>
+      <DialogType>OFFER_MERGE_REJECTED</DialogType>
+      <Default>O Deus Ancião não está satisfeito.</Default>
+    </DialogLine>                        
+
+    <!-- Player war contribution -->
+    <DialogLine>
+      <DialogType>PLAYER_ALLIED_WAR_CONTRIBUTION_WARNING</DialogType>
+      <DL_Agg>Você está insultando o Deus Ancião ao não se esforçar em nossa guerra conjunta. Melhore, SING!</DL_Agg>
+      <DL_Ruth>O Deus Ancião vê sua falta de contribuição em nossa guerra conjunta. O Deus Ancião vê tudo.</DL_Ruth>
+      <DL_Xeno>Os Ralyeh são os escolhidos. Os escolhidos concordaram em lutar com você, SING. Você também deve lutar esta guerra.</DL_Xeno>
+      <DL_Cunn>Você não pode escapar do olhar do Deus Ancião. Deve lutar melhor em nossa guerra conjunta.</DL_Cunn>
+      <DL_Pac>Concordamos em ajudá-lo em sua guerra e o Deus Ancião desaprova isso. Você deve contribuir mais para este esforço se deseja agradá-lo.</DL_Pac>
+      <DL_Hon>Você desonra o Deus Ancião ao não lutar conosco. Melhore!</DL_Hon>
+    </DialogLine>  
+	
+    <DialogLine>
+      <DialogType>PLAYER_ALLIED_WAR_CONTRIBUTION_ACTION</DialogType>
+      <DL_Agg>O Deus Ancião o considerou uma abominação, SING. Você não investiu o bastante em nossa guerra conjunta.</DL_Agg>
+      <DL_Ruth>Vocês não lutaram bem o suficiente em nossa guerra conjunta, PLURAL. Está na hora de fazer algumas mudanças.</DL_Ruth>
+      <DL_Xeno>Abominações! O Deus Ancião viu sua falta de participação em nossa guerra conjunta.</DL_Xeno>
+      <DL_Cunn>O Deus Ancião vê tudo. Ele viu sua falta de esforço em nossa guerra conjunta. Talvez seja hora de uma mudança.</DL_Cunn>
+      <DL_Pac>O Deus Ancião desaprova a violência; não lutaremos mais suas batalhas por vocês.</DL_Pac>
+      <DL_Hon>O Deus Ancião, em sua sabedoria, julgou vocês desonrados. Vocês não lutaram bem o suficiente em nossa guerra conjunta. Agora corrigiremos isso.</DL_Hon>
+    </DialogLine> 	
+	
+	<!-- Treaties With Low Trust -->
+    <DialogLine>
+      <DialogType>TRUST_LOW_ALLIANCE</DialogType>
+	  <Default>O Deus Ancião vê tudo, PLURAL, e declarou nossa aliança uma abominação.</Default>
+    </DialogLine>  			
+    <DialogLine>
+      <DialogType>TRUST_LOW_OPEN_BORDERS</DialogType>
+	  <Default>Vocês não são mais confiáveis para um Acordo de Fronteiras Abertas. Estamos revogando-o.</Default>
+    </DialogLine>
+	
+  </Dialogs>
+</DiplomacyDialog>
