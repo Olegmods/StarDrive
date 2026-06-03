@@ -570,6 +570,15 @@ namespace Ship_Game.Ships
             return false;
         }
 
+        public override void Update(UpdateTimes elapsed)
+        {
+            base.Update(elapsed);
+
+            // Keep the stance buttons in sync with the ship's live CombatState.
+            if (Ship != null)
+                OrdersButtons.ResetButtons(Ship);
+        }
+
         public void SetShip(Ship s)
         {
             if (Ship == s || s == null)
