@@ -127,8 +127,17 @@ namespace Ship_Game.Universe.SolarBodies
             if (ship != null)
                 SpawnSurvivingTroops(p, owner, tile, out troopMessage);
 
-            if (owner.isPlayer || !owner.isPlayer && Loyalty.isPlayer && NumTroopsSurvived > 0)
+            if (activatingEmpire.isPlayer)
+            {
                 u.Notifications.AddShipRecovered(p, ship, $"{message}{troopMessage}");
+            }
+            else if (p.Owner == u.Player || (Loyalty == u.Player && NumTroopsSurvived > 0))
+            {
+                string bystanderMessage = Loyalty == u.Player
+                    ? $"Our crashed ship ({ShipName}) on {p.Name} was\nrecovered by {activatingEmpire.Name}.\n"
+                    : $"{activatingEmpire.Name} recovered a crashed ship\non {p.Name}.\n";
+                u.Notifications.AddShipRecovered(p, ship, $"{bystanderMessage}{troopMessage}");
+            }
 
             p.DestroyBuildingOn(tile);
         }
