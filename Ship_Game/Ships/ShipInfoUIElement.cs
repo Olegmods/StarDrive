@@ -21,6 +21,7 @@ namespace Ship_Game.Ships
         private readonly UniverseScreen Universe;
         Empire Player => Universe.Player;
         Ship Ship;
+        CombatState LastStanceSeen;
         private readonly Selector Sel;
         public Rectangle LeftRect;
         public Rectangle RightRect;
@@ -574,9 +575,14 @@ namespace Ship_Game.Ships
         {
             base.Update(elapsed);
 
-            // Keep the stance buttons in sync with the ship's live CombatState.
-            if (Ship != null)
+            // Resync the stance buttons only when the ship's CombatState actually changes, to
+            // avoid the per-frame Array<Ship>/LINQ churn in ResetButtons (and the 1-frame revert
+            // of a just-clicked button while its deferred sim-thread apply is still in flight).
+            if (Ship?.AI != null && Ship.AI.CombatState != LastStanceSeen)
+            {
+                LastStanceSeen = Ship.AI.CombatState;
                 OrdersButtons.ResetButtons(Ship);
+            }
         }
 
         public void SetShip(Ship s)
@@ -591,6 +597,7 @@ namespace Ship_Game.Ships
 
             Orders.Clear();
             OrdersButtons.ResetButtons(s);
+            LastStanceSeen = s.AI?.CombatState ?? LastStanceSeen;
             if (s.Loyalty != Player)
                 return;
 
