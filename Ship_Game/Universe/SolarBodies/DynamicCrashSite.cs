@@ -127,12 +127,21 @@ namespace Ship_Game.Universe.SolarBodies
             if (ship != null)
                 SpawnSurvivingTroops(p, owner, tile, out troopMessage);
 
-            if (owner.isPlayer || !owner.isPlayer && Loyalty.isPlayer && NumTroopsSurvived > 0)
+            if (activatingEmpire.isPlayer)
+            {
                 u.Notifications.AddShipRecovered(p, ship, $"{message}{troopMessage}");
+            }
+            else if (p.Owner == u.Player || (Loyalty == u.Player && NumTroopsSurvived > 0))
+            {
+                string bystanderMessage = Loyalty == u.Player
+                    ? $"Our crashed ship ({ShipName}) on {p.Name} was\nrecovered by {activatingEmpire.Name}.\n"
+                    : $"{activatingEmpire.Name} recovered a crashed ship\non {p.Name}.\n";
+                u.Notifications.AddShipRecovered(p, ship, $"{bystanderMessage}{troopMessage}");
+            }
 
             p.DestroyBuildingOn(tile);
         }
-
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
         Ship SpawnShip(UniverseState u, Planet p, Empire activatingEmpire, Empire owner, out string message)
         {
             message = $"Recover efforts of a crashed ship on {p.Name} were futile.\n" +
@@ -144,7 +153,10 @@ namespace Ship_Game.Universe.SolarBodies
 
             if (RecoverShip)
             {
-                string otherOwners = owner.isPlayer ? ".\n" : $" by {owner.Name}.\n";
+                // 'message' is only ever shown to the activating player (ActivateSite routes
+                // bystanders/owners through their own text), so the suffix names the recoverer
+                // (activatingEmpire), not the planet owner.
+                string otherOwners = activatingEmpire.isPlayer ? ".\n" : $" by {activatingEmpire.Name}.\n";
                 Ship ship = Ship.CreateShipNearPlanet(u, ShipName, activatingEmpire, p, true);
                 message = $"Ship ({ShipName}) was recovered from the\nsurface of {p.Name}{otherOwners}";
                 float damageModifier = activatingEmpire == Loyalty ? 0.8f : 1; // If it was our ship, spawn with less damage.

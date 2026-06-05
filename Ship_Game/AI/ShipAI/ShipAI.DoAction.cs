@@ -441,6 +441,31 @@ namespace Ship_Game.AI
                 planet.Mining.ChangeOwnershipIfNeeded(Owner.Loyalty);
         }
 
+        // Gravity-well routing for the explore legs. The explore loop thrusts directly at the
+        // target system/planet, so without this it beelines straight THROUGH intervening known
+        // systems and gets warp-inhibited crossing them (e.g. a scout cutting through Aphronn on
+        // the way to a distant target). Mirrors the goal/trade detour pattern: compute a detour
+        // chain once per leg (keyed on the target object so orbiting planets don't force a
+        // recompute every tick), then walk it via GravityWellRouter.GetThrustTarget.
+        // Deliberately not [StarData]: a mid-flight save/load just clears the cache and the
+        // next tick recomputes a fresh chain from the current position.
+        object ExploreDetourTarget;
+        Vector2[] ExploreDetours;
+        int ExploreDetourIndex;
+        Vector2 ExploreThrustTarget(object legTarget, Vector2 dest)
+        {
+            if (!ReferenceEquals(ExploreDetourTarget, legTarget))
+            {
+                ExploreDetourTarget = legTarget;
+                ExploreDetours = GravityWellRouter.BuildDetours(Owner, Owner.Position, dest, MoveOrder.Regular);
+                ExploreDetourIndex = 0;
+            }
+            return GravityWellRouter.GetThrustTarget(ExploreDetours, ref ExploreDetourIndex, dest, Owner.Position);
+        }
+
+        // Test seam for the explore gravity-well routing wrapper (see TestGravityWellRouter).
+        public Vector2 TestExploreThrustTarget(object legTarget, Vector2 dest) => ExploreThrustTarget(legTarget, dest);
+
         public void DoExplore(FixedSimTime timeStep)
         {
             SetPriorityOrder(true);
@@ -498,7 +523,7 @@ namespace Ship_Game.AI
 
             MovePosition = PatrolTarget.Position;
             {
-                ThrustOrWarpToPos(MovePosition, timeStep);
+                ThrustOrWarpToPos(ExploreThrustTarget(PatrolTarget, MovePosition), timeStep);
                 if (Owner.Position.InRadius(MovePosition, Owner.ExplorePlanetDistance))
                 {
                     PatrolTarget.SetExploredBy(Owner.Loyalty);
@@ -523,7 +548,7 @@ namespace Ship_Game.AI
                 return;
             }
 
-            ThrustOrWarpToPos(MovePosition, timeStep);
+            ThrustOrWarpToPos(ExploreThrustTarget(system, MovePosition), timeStep);
         }
 
         void DoHoldPositionCombat(FixedSimTime timeStep)
