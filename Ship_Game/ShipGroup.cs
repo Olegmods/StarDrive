@@ -514,6 +514,21 @@ namespace Ship_Game
             }
         }
 
+        /// <summary>
+        /// When at least this fraction of a fleet's surface area is assembled in
+        /// formation, the fleet is treated as a coherent body: it travels at full
+        /// speed without waiting for the out-of-position minority (e.g. distant
+        /// reinforcements), which catch up on their own.
+        /// </summary>
+        public const float MajorityAssembledSurfaceRatio = 0.85f;
+
+        /// <summary>
+        /// Warp readiness uses a stricter threshold than movement: we don't want to
+        /// warp off and strand the last few ships (e.g. a carrier still recalling its
+        /// fighters), so nearly the whole established body must be warp-ready first.
+        /// </summary>
+        public const float WarpReadySurfaceRatio = 0.95f;
+
         [Flags]
         public enum MoveStatus
         {
@@ -574,7 +589,7 @@ namespace Ship_Game
                     moveStatus |= MoveStatus.Dispersed;
             }
 
-            if (totalShipSurface > 0 && surfaceAssembled / totalShipSurface > 0.85f)
+            if (totalShipSurface > 0 && surfaceAssembled / totalShipSurface > MajorityAssembledSurfaceRatio)
                 moveStatus |= MoveStatus.MajorityAssembled;
 
             return moveStatus;
@@ -689,21 +704,27 @@ namespace Ship_Game
             if (Ships.Count == 0)
                 return;
 
+            // First, measure how much of the fleet (by surface area) is actually
+            // assembled in formation. If the in-formation body is the overwhelming
+            // majority, we let it travel at full speed and let the out-of-position
+            // minority (e.g. a distant reinforcement) catch up on its own, rather
+            // than throttling the whole fleet down to wait for a handful of ships.
+            int totalSurface = 0;
+            int inFormationSurface = 0;
             // some ships are staying behind, but they can still catch up
             bool gotCapableStragglers = false;
-            float speedCapSTL = 0f; // important that the default values are 0 (uncapped)
-            float speedCapFTL = 0f;
-
             for (int i = 0; i < Ships.Count; ++i)
             {
                 Ship ship = Ships[i];
-                if (ship.CanTakeFleetMoveOrders() && !ship.InCombat)
+                // catching-up reinforcements don't count toward the assembled body
+                if (!ship.CatchingUpToFleet && ship.CanTakeFleetMoveOrders() && !ship.InCombat)
                 {
-                    // the MaxFTLSpeed is often limited by WarpPercent, because the ship direction drifts too much
-                    // from its final target position, see UpdateWarpThrust() for more details on SetWarpPercent
-                    speedCapSTL = speedCapSTL != 0f ? Math.Min(speedCapSTL, ship.MaxSTLSpeed) : ship.MaxSTLSpeed;
-                    speedCapFTL = speedCapFTL != 0f ? Math.Min(speedCapFTL, ship.MaxFTLSpeed) : ship.MaxFTLSpeed;
-                    if (!gotCapableStragglers && !IsShipInFormation(ship, 30_000))
+                    totalSurface += ship.SurfaceArea;
+                    if (IsShipInFormation(ship, 30_000))
+                    {
+                        inFormationSurface += ship.SurfaceArea;
+                    }
+                    else if (!gotCapableStragglers)
                     {
                         float angleDiff = AveragePos.AngleToTargetWithFacing(ship.Position, ship.RotationDegrees);
                         if (angleDiff > 150)
@@ -712,9 +733,32 @@ namespace Ship_Game
                 }
             }
 
-            // in order to allow ships to speed up / slow down
-            // slightly to hold formation, set the fleet speed a bit lower (if some ships are not in formation)
-            if (!gotCapableStragglers)
+            bool bodyIsMajority = totalSurface > 0
+                                  && inFormationSurface >= totalSurface * MajorityAssembledSurfaceRatio;
+
+            // Compute the formation speed cap from the constraining ships. When the
+            // body is the majority, only in-formation ships constrain it, so a slow
+            // straggler can't drag the assembled fleet's cap down to its own speed.
+            float speedCapSTL = 0f; // important that the default values are 0 (uncapped)
+            float speedCapFTL = 0f;
+            for (int i = 0; i < Ships.Count; ++i)
+            {
+                Ship ship = Ships[i];
+                if (!ship.CatchingUpToFleet && ship.CanTakeFleetMoveOrders() && !ship.InCombat
+                    && (!bodyIsMajority || IsShipInFormation(ship, 30_000)))
+                {
+                    // the MaxFTLSpeed is often limited by WarpPercent, because the ship direction drifts too much
+                    // from its final target position, see UpdateWarpThrust() for more details on SetWarpPercent
+                    speedCapSTL = speedCapSTL != 0f ? Math.Min(speedCapSTL, ship.MaxSTLSpeed) : ship.MaxSTLSpeed;
+                    speedCapFTL = speedCapFTL != 0f ? Math.Min(speedCapFTL, ship.MaxFTLSpeed) : ship.MaxFTLSpeed;
+                }
+            }
+
+            // in order to allow ships to speed up / slow down slightly to hold
+            // formation, set the fleet speed a bit lower (if some ships are not in
+            // formation). But if the body is the overwhelming majority, run at full
+            // speed - the out-of-formation minority will catch up on its own.
+            if (bodyIsMajority || !gotCapableStragglers)
             {
                 // full speed ahead
                 STLSpeedLimit = speedCapSTL;

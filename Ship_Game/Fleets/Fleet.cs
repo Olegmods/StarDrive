@@ -145,6 +145,10 @@ namespace Ship_Game.Fleets
             ship.AI.FleetNode = node;
             ship.FleetOffset = node.RelativeFleetOffset;
             ship.RelativeFleetOffset = node.RelativeFleetOffset;
+            // A reinforcement that spawns away from the fleet body is "catching up":
+            // exclude it from the fleet's assembly throttling until it reaches formation,
+            // so it doesn't slow the established fleet down (see UpdateSpeedLimit/Update).
+            ship.CatchingUpToFleet = !IsShipInFormation(ship, 30_000);
             if (Ships.Count == 1 && HasPatrolPlan)
                 ExecutePatrol(Patrol);
 
@@ -2507,6 +2511,7 @@ namespace Ship_Game.Fleets
             if (ship.Fleet == this)
             {
                 ship.Fleet = null;
+                ship.CatchingUpToFleet = false; // don't carry catch-up state into the next fleet
                 if (ship.Active) // if ship is not dead, it means it's being transferred
                 {
                     if (clearOrders)
@@ -2672,7 +2677,16 @@ namespace Ship_Game.Fleets
             if (Ships.Count == 0)
                 return;
 
-            bool readyForWarp = true;
+            // Surface-weighted warp readiness: the fleet warps once nearly all of the
+            // established body is ready, instead of waiting for every last ship. This
+            // stops a small number of out-of-position ships from holding the whole
+            // fleet out of warp - they catch up on their own. Catching-up reinforcements
+            // are excluded entirely (tracked separately as a fallback for the degenerate
+            // case where the whole fleet is still assembling).
+            int totalWarpSurface = 0;
+            int readyWarpSurface = 0;
+            int totalWarpSurfaceAll = 0;
+            int readyWarpSurfaceAll = 0;
             Ship commandShip = null;
             var fleetTotals = new ShipAI.TargetParameterTotals();
 
@@ -2712,13 +2726,34 @@ namespace Ship_Game.Fleets
 
                 UpdateOurFleetShip(ship);
 
-                readyForWarp = readyForWarp && ship.ShipEngines.ReadyForFormationWarp == WarpStatus.ReadyToWarp;
+                // a reinforcement stops "catching up" once it reaches its formation slot
+                if (ship.CatchingUpToFleet && IsShipInFormation(ship, 30_000))
+                    ship.CatchingUpToFleet = false;
+
+                bool readyToWarp = ship.ShipEngines.ReadyForFormationWarp == WarpStatus.ReadyToWarp;
+                totalWarpSurfaceAll += ship.SurfaceArea;
+                if (readyToWarp)
+                    readyWarpSurfaceAll += ship.SurfaceArea;
+                if (!ship.CatchingUpToFleet)
+                {
+                    totalWarpSurface += ship.SurfaceArea;
+                    if (readyToWarp)
+                        readyWarpSurface += ship.SurfaceArea;
+                }
             }
 
             if (commandShip != null)
                 SetCommandShip(commandShip);
 
-            ReadyForWarp = readyForWarp;
+            // if the whole fleet is still catching up (e.g. freshly built), fall back to all ships
+            if (totalWarpSurface == 0)
+            {
+                totalWarpSurface = totalWarpSurfaceAll;
+                readyWarpSurface = readyWarpSurfaceAll;
+            }
+
+            ReadyForWarp = totalWarpSurface > 0
+                           && readyWarpSurface >= totalWarpSurface * WarpReadySurfaceRatio;
             TotalFleetAttributes = fleetTotals;
             AverageFleetAttributes = TotalFleetAttributes.GetAveragedValues();
         }
