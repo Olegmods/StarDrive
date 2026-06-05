@@ -5,6 +5,7 @@ using SDGraphics;
 using SDGraphics.Input;
 using Ship_Game.Audio;
 using Ship_Game.GameScreens.MainMenu;
+using Ship_Game.Graphics;
 using Vector2 = SDGraphics.Vector2;
 
 namespace Ship_Game;
@@ -135,15 +136,23 @@ public sealed class GamePlayMenuScreen : GameScreen
     {
         if (DisallowActions()) return;
 
-        // Route through GameLoadingScreen with resetResources:true. This is the
-        // same path the mod-switch flow uses (ModManager.cs:169): it tears down
-        // the in-game graphics state via the safely-sequenced UnloadAllData →
-        // UnloadGraphicsResources, then re-runs the boot LoadContent sequence
-        // so MainMenu finds ResourceManager.Blank, Beam.BeamEffect, the Textures
-        // index, etc. populated. Direct GoToScreen(MainMenu, true) leaves the
-        // in-game content cache pinned and OOM'd on memory-tight machines when
-        // MainMenu's atlas DXT5 decompress allocated on top of it.
-        ScreenManager.GoToScreen(new GameLoadingScreen(showSplash:false, resetResources:true), clear3DObjects:true);
+        // Leaving a game to MainMenu: the in-game content cache (RootContent +
+        // ResourceManager.Textures, including decompressed DXT5 atlases in both RAM and
+        // VRAM) stays pinned, and MainMenu's own atlas decompress allocates on top of it.
+        // On memory-tight machines running Combined Arms that OOM'd inside
+        // DxtReader.DecompressDXT5 even with a healthy managed heap (OS-level pressure).
+        //
+        // If both system RAM and VRAM have comfortable headroom right now, keep the cache:
+        // fast exit, and a same-content new game reuses it. Otherwise free it first by
+        // routing through GameLoadingScreen(resetResources:true) - the same safely-sequenced
+        // UnloadAllData → UnloadGraphicsResources → boot LoadContent the mod-switch flow uses
+        // (so MainMenu finds ResourceManager.Blank, Beam.BeamEffect, the Textures index, etc.
+        // repopulated). The two are coupled: the fast path is only valid because we keep that
+        // boot content loaded.
+        if (MemoryPressure.HasHeadroomToKeepContent(Device))
+            ScreenManager.GoToScreen(new MainMenuScreen(), clear3DObjects:true);
+        else
+            ScreenManager.GoToScreen(new GameLoadingScreen(showSplash:false, resetResources:true), clear3DObjects:true);
     }
 
     void Exit_OnClick(UIButton button)
