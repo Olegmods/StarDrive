@@ -110,6 +110,7 @@ public static class GameAudio
     // called from GameBase.Dispose()
     public static void Destroy()
     {
+        AudioEngineGood = false;
         SfxThread = null;
         if (AsyncSfxQueue != null)
         {
@@ -275,12 +276,16 @@ public static class GameAudio
             Thread.Sleep(1); // suspend for 1-15ms
             if (SfxThread == null)
                 break;
-            if (AsyncSfxQueue.IsEmpty)
+            // Snapshot: Destroy()/Initialize() can null the queue concurrently during a re-init.
+            Array<AsyncSfx> queue = AsyncSfxQueue;
+            if (queue == null || queue.IsEmpty)
                 continue;
 
             AsyncSfx[] items;
             lock (SfxQueueLock)
             {
+                if (AsyncSfxQueue == null) // re-check under the lock
+                    continue;
                 items = AsyncSfxQueue.ToArray();
                 AsyncSfxQueue.Clear();
             }
@@ -344,7 +349,9 @@ public static class GameAudio
             return;
         lock (SfxQueueLock)
         {
-            AsyncSfxQueue.Add(new()
+            // Null-safe under the lock: Destroy()/Initialize() can null the queue concurrently
+            // (under this same lock) during an audio re-init; dropping the SFX is correct then.
+            AsyncSfxQueue?.Add(new()
             {
                 EffectId = effectId,
                 Emitter = emitter,
@@ -356,7 +363,8 @@ public static class GameAudio
     {
         lock (SfxQueueLock)
         {
-            AsyncSfxQueue.Add(new()
+            // See note above: queue may be nulled mid re-init under this same lock.
+            AsyncSfxQueue?.Add(new()
             {
                 EffectId = effectId,
                 Emitter = emitter,
