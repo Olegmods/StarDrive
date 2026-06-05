@@ -196,7 +196,66 @@ namespace Ship_Game
                 EvtNewTask.Set();
                 Thread ??= new Thread(Run) { Name = Name };
                 if (!Thread.IsAlive)
-                    Thread.Start();
+                {
+                    try
+                    {
+                        if (Parallel.TestForceThreadStartFailure)
+                            throw new OutOfMemoryException("simulated thread-start failure (test)");
+                        Thread.Start();
+                    }
+                    catch (Exception ex) when (ex is OutOfMemoryException or ThreadStartException)
+                    {
+                        // The OS refused to create a worker thread (typically low memory).
+                        // Degrade gracefully: discard the dead thread, consume the pending
+                        // signal, and run the queued task synchronously on the calling thread,
+                        // so a transient thread-creation failure doesn't crash the whole sim.
+                        // Log only the first occurrence to avoid flooding the log under sustained
+                        // pressure - the volume is tracked by Parallel.InlineFallbackCount.
+                        Thread = null;
+                        EvtNewTask.Reset();
+                        if (Interlocked.Increment(ref Parallel.InlineFallbackCount) == 1)
+                            Log.Warning($"{Name} thread start failed ({ex.GetType().Name}); running task inline. " +
+                                        "Further occurrences suppressed; see Parallel.InlineFallbackCount");
+                        RunQueuedTaskInline();
+                    }
+                }
+            }
+        }
+        // Synchronous fallback for TriggerTaskStart when no worker thread is available.
+        // Mirrors the Run() execute/catch/clear path, on the calling thread.
+        void RunQueuedTaskInline()
+        {
+            try
+            {
+                if (RangeTask != null)
+                {
+                    RangeTask.Invoke(LoopStart, LoopEnd);
+                    SetResult(null, null);
+                }
+                else if (VoidTask != null)
+                {
+                    VoidTask.Invoke();
+                    SetResult(null, null);
+                }
+                else if (ResultTask != null)
+                {
+                    object value = ResultTask.Invoke();
+                    SetResult(value, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                var currentThread = Thread.CurrentThread;
+                ex.Data["Thread"] = currentThread.Name;
+                ex.Data["ThreadId"] = currentThread.ManagedThreadId;
+                Log.Warning($"{Name} inline task caught unhandled exception: {ex}");
+                SetResult(null, ex);
+            }
+            finally
+            {
+                RangeTask  = null;
+                VoidTask   = null;
+                ResultTask = null;
             }
         }
         public void Start(int start, int end, Action<int,int> taskBody, ITaskResult result)
@@ -333,6 +392,15 @@ namespace Ship_Game
 
         static readonly Array<ParallelTask> Pool = new Array<ParallelTask>(32);
         public static readonly int NumPhysicalCores = InitThreadPool();
+
+        // Number of times a worker thread could not be started (e.g. low memory) and the
+        // task was instead run synchronously on the calling thread. A non-zero/growing value
+        // signals the process is under memory pressure and the sim has degraded to inline.
+        public static int InlineFallbackCount;
+
+        // Test-only hook: when set, TriggerTaskStart simulates a thread-creation failure so the
+        // graceful inline fallback can be exercised deterministically. See TestThreadExt.
+        internal static volatile bool TestForceThreadStartFailure;
         
         [DllImport("SDNative.dll")]
         static extern int GetPhysicalCPUCoreCount();
