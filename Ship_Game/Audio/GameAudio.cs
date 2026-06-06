@@ -41,7 +41,9 @@ public static class GameAudio
     }
 
     static Array<AsyncSfx> AsyncSfxQueue;
-    static Thread SfxThread;
+    // volatile: cross-thread stop signal. Destroy() writes null on the main thread; the
+    // SfxEnqueueThread worker reads it each poll and exits when it sees null.
+    static volatile Thread SfxThread;
 
     public static AudioDevices Devices;
 
@@ -110,7 +112,15 @@ public static class GameAudio
     // called from GameBase.Dispose()
     public static void Destroy()
     {
+        AudioEngineGood = false;
+
+        // Stop and join the SFX consumer BEFORE disposing the fields it reads (Config/AudioEngine),
+        // so it can't deref torn-down audio state mid-batch. It breaks on SfxThread==null at its
+        // next poll and its body is non-blocking, so this returns well within the timeout.
+        Thread sfxThread = SfxThread;
         SfxThread = null;
+        sfxThread?.Join(1000);
+
         if (AsyncSfxQueue != null)
         {
             lock (SfxQueueLock)
@@ -275,20 +285,27 @@ public static class GameAudio
             Thread.Sleep(1); // suspend for 1-15ms
             if (SfxThread == null)
                 break;
-            if (AsyncSfxQueue.IsEmpty)
+            // Snapshot: Destroy()/Initialize() can null the queue concurrently during a re-init.
+            Array<AsyncSfx> queue = AsyncSfxQueue;
+            if (queue == null || queue.IsEmpty)
                 continue;
 
             AsyncSfx[] items;
             lock (SfxQueueLock)
             {
+                if (AsyncSfxQueue == null) // re-check under the lock
+                    continue;
                 items = AsyncSfxQueue.ToArray();
                 AsyncSfxQueue.Clear();
             }
 
+            AudioConfig config = Config;
+            if (config == null)
+                continue; // audio torn down (re-init); drop this batch
             for (int i = 0; i < items.Length; ++i)
             {
                 ref AsyncSfx sfx = ref items[i];
-                SoundEffect effect = Config.GetSoundEffect(sfx.EffectId);
+                SoundEffect effect = config.GetSoundEffect(sfx.EffectId);
                 IAudioInstance instance = PlayEffect(effect, sfx.Emitter);
                 if (instance != null)
                 {
@@ -319,7 +336,10 @@ public static class GameAudio
             Log.Warning($"Could not find SFX file: {sfxFile} for SoundEffect: {effect.Id}");
             return null;
         }
-        return AudioEngine.Play(effect.Category, emitter, file.FullName, volume);
+        NAudioPlaybackEngine engine = AudioEngine;
+        if (engine == null)
+            return null; // engine torn down concurrently (re-init)
+        return engine.Play(effect.Category, emitter, file.FullName, volume);
     }
 
     static IAudioInstance PlayFromFile(AudioCategory category, string audioFile)
@@ -344,7 +364,9 @@ public static class GameAudio
             return;
         lock (SfxQueueLock)
         {
-            AsyncSfxQueue.Add(new()
+            // Null-safe under the lock: Destroy()/Initialize() can null the queue concurrently
+            // (under this same lock) during an audio re-init; dropping the SFX is correct then.
+            AsyncSfxQueue?.Add(new()
             {
                 EffectId = effectId,
                 Emitter = emitter,
@@ -356,7 +378,8 @@ public static class GameAudio
     {
         lock (SfxQueueLock)
         {
-            AsyncSfxQueue.Add(new()
+            // See note above: queue may be nulled mid re-init under this same lock.
+            AsyncSfxQueue?.Add(new()
             {
                 EffectId = effectId,
                 Emitter = emitter,

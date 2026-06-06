@@ -464,12 +464,19 @@ public static class GravityWellRouter
     // coverage are handled correctly:
     //   - own planets:   never block (no self-inhibit)
     //   - enemy planets: ALWAYS block (inhibits even inside friendly projector range)
-    //   - neutral/ally:  blocks unless the well itself sits inside our projector coverage
+    //   - star (system center) NOT in our influence: the whole system is hostile transit
+    //     space. A ship crossing it won't be in friendly projector range, so EVERY well
+    //     inhibits — a single planet that merely clips the fringe of our influence must not
+    //     exempt itself (the Romandal case: one planet sat partly in our influence while the
+    //     system did not, so the router waved the scout straight through the well).
+    //   - star in our influence: friendly system — block only wells outside our coverage.
     static bool IsBlockingFor(Planet p, Ship ship)
     {
         Empire owner = p.Owner;
         if (owner == ship.Loyalty) return false;
         if (owner != null && owner.WillInhibit(ship.Loyalty)) return true;
+        if (!ship.Universe.Influence.IsInInfluenceOf(ship.Loyalty, p.ParentSystem.Position))
+            return true;
         return !ship.Universe.Influence.IsInInfluenceOf(ship.Loyalty, p.Position);
     }
 

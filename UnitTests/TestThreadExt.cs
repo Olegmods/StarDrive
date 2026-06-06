@@ -86,6 +86,58 @@ namespace UnitTests
             });
         }
 
+        // Reproduces the Sentry crash where the OS refused to create a worker thread under
+        // memory pressure (OutOfMemoryException from Thread.Start in ParallelTask). The engine
+        // must degrade gracefully: run the queued task synchronously on the calling thread
+        // instead of letting the OOM crash the sim. TestForceThreadStartFailure simulates the
+        // thread-creation failure deterministically.
+        [TestMethod]
+        public void TestInlineFallbackWhenThreadStartFails()
+        {
+            Parallel.ClearPool(); // cold pool: freshly spawned tasks have an unstarted thread, so
+                                  // TriggerTaskStart hits the (simulated) start-failure path.
+            int baseline = Parallel.InlineFallbackCount;
+            int callerThreadId = Thread.CurrentThread.ManagedThreadId;
+            Parallel.TestForceThreadStartFailure = true;
+            try
+            {
+                // VoidTask path: Parallel.Run always dispatches through the pool/thread-start,
+                // regardless of core count, so it deterministically exercises the fallback.
+                bool ranVoid = false;
+                int voidThreadId = -1;
+                Parallel.Run(() => { ranVoid = true; voidThreadId = Thread.CurrentThread.ManagedThreadId; }).Wait();
+                Assert.IsTrue(ranVoid, "Run(Action) body must still execute when the worker thread can't start");
+                AssertEqual(callerThreadId, voidThreadId, "Fallback must run the task inline on the calling thread");
+
+                // Fire-and-forget: a Run whose result is never waited on must STILL execute, because
+                // the fallback runs inline at scheduling time (after lock (Pool) is released) - not
+                // deferred to a Wait() that may never come. Regression guard for the unlocked drain.
+                bool ranForget = false;
+                int forgetThreadId = -1;
+                Parallel.Run(() => { ranForget = true; forgetThreadId = Thread.CurrentThread.ManagedThreadId; });
+                Assert.IsTrue(ranForget, "Fire-and-forget Run(Action) must execute inline even without Wait()");
+                AssertEqual(callerThreadId, forgetThreadId, "Deferred fallback must run on the scheduling thread");
+
+                // ResultTask path: the computed value must come back through the inline fallback.
+                var typed = Parallel.Run(() => 6 * 7);
+                typed.Wait();
+                AssertEqual(42, typed.Result, "Run(Func) must return the result computed inline");
+
+                // Exceptions from the body must still surface (not be swallowed by the fallback).
+                var faulted = Parallel.Run((Action)(() => throw new ArgumentException("boom")));
+                var ex = Assert.ThrowsExactly<ParallelTaskException>(() => faulted.Wait());
+                AssertEqual("boom", ex.InnerException?.Message);
+
+                Assert.IsTrue(Parallel.InlineFallbackCount > baseline,
+                    "Inline fallback counter should increment while thread-start is forced to fail");
+            }
+            finally
+            {
+                Parallel.TestForceThreadStartFailure = false;
+                Parallel.ClearPool(); // discard tasks left thread-less by the fallback
+            }
+        }
+
         [TestMethod]
         public void TestPForExceptions()
         {

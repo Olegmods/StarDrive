@@ -196,7 +196,71 @@ namespace Ship_Game
                 EvtNewTask.Set();
                 Thread ??= new Thread(Run) { Name = Name };
                 if (!Thread.IsAlive)
-                    Thread.Start();
+                {
+                    try
+                    {
+                        if (Parallel.TestForceThreadStartFailure)
+                            throw new OutOfMemoryException("simulated thread-start failure (test)");
+                        Thread.Start();
+                    }
+                    catch (Exception ex) when (ex is OutOfMemoryException or ThreadStartException)
+                    {
+                        // The OS refused to create a worker thread (typically low memory).
+                        // Degrade gracefully: discard the dead thread, consume the pending signal,
+                        // and DEFER the queued task to run synchronously on the calling thread once
+                        // the scheduler has released lock (Pool). We must NOT run it here: schedulers
+                        // call Start() while holding lock (Pool), so running an arbitrary task body
+                        // under that global lock would (a) serialize all other scheduling for the
+                        // body's duration and (b) order every lock the body takes under Pool, risking
+                        // a lock-ordering deadlock with any `lock(X){ Parallel.For(...) }` elsewhere.
+                        // Log only the first occurrence to avoid flooding the log under sustained
+                        // pressure - the volume is tracked by Parallel.InlineFallbackCount.
+                        Thread = null;
+                        EvtNewTask.Reset();
+                        if (Interlocked.Increment(ref Parallel.InlineFallbackCount) == 1)
+                            Log.Warning($"{Name} thread start failed ({ex.GetType().Name}); running task inline. " +
+                                        "Further occurrences suppressed; see Parallel.InlineFallbackCount");
+                        Parallel.DeferInline(this);
+                    }
+                }
+            }
+        }
+        // Synchronous fallback for TriggerTaskStart when no worker thread is available.
+        // Mirrors the Run() execute/catch/clear path, on the calling thread. Called by
+        // Parallel.RunDeferredInline AFTER the scheduler has released lock (Pool).
+        internal void RunQueuedTaskInline()
+        {
+            try
+            {
+                if (RangeTask != null)
+                {
+                    RangeTask.Invoke(LoopStart, LoopEnd);
+                    SetResult(null, null);
+                }
+                else if (VoidTask != null)
+                {
+                    VoidTask.Invoke();
+                    SetResult(null, null);
+                }
+                else if (ResultTask != null)
+                {
+                    object value = ResultTask.Invoke();
+                    SetResult(value, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                var currentThread = Thread.CurrentThread;
+                ex.Data["Thread"] = currentThread.Name;
+                ex.Data["ThreadId"] = currentThread.ManagedThreadId;
+                Log.Warning($"{Name} inline task caught unhandled exception: {ex}");
+                SetResult(null, ex);
+            }
+            finally
+            {
+                RangeTask  = null;
+                VoidTask   = null;
+                ResultTask = null;
             }
         }
         public void Start(int start, int end, Action<int,int> taskBody, ITaskResult result)
@@ -333,7 +397,53 @@ namespace Ship_Game
 
         static readonly Array<ParallelTask> Pool = new Array<ParallelTask>(32);
         public static readonly int NumPhysicalCores = InitThreadPool();
-        
+
+        // Number of times a worker thread could not be started (e.g. low memory) and the
+        // task was instead run synchronously on the calling thread. A non-zero/growing value
+        // signals the process is under memory pressure and the sim has degraded to inline.
+        public static int InlineFallbackCount;
+
+        // Test-only hook: when set, TriggerTaskStart simulates a thread-creation failure so the
+        // graceful inline fallback can be exercised deterministically. See TestThreadExt.
+        internal static volatile bool TestForceThreadStartFailure;
+
+        // Tasks whose worker thread could not be started (OOM) and must instead run synchronously
+        // on THIS thread. Per-thread so a scheduling thread only runs its own deferred tasks, and
+        // drained AFTER the scheduler releases lock (Pool) - see TriggerTaskStart's OOM path.
+        [ThreadStatic] static Array<ParallelTask> DeferredInline;
+        [ThreadStatic] static bool DrainingInline;
+
+        // Queue a task to run inline once lock (Pool) is released. Adds to the calling thread's list.
+        internal static void DeferInline(ParallelTask task)
+        {
+            (DeferredInline ??= new Array<ParallelTask>()).Add(task);
+        }
+
+        // Run any tasks deferred by DeferInline on the calling thread. MUST be called right after a
+        // scheduling lock (Pool) block, with no lock held, so the task bodies run unlocked. Loops
+        // until the list drains - a body may itself defer more work under sustained memory pressure -
+        // and is re-entrancy safe: a nested call no-ops and lets the outer loop pick up new items.
+        static void RunDeferredInline()
+        {
+            Array<ParallelTask> list = DeferredInline;
+            if (DrainingInline || list == null || list.Count == 0)
+                return;
+
+            DrainingInline = true;
+            try
+            {
+                while (list.Count > 0)
+                {
+                    ParallelTask task = list.PopLast();
+                    task.RunQueuedTaskInline();
+                }
+            }
+            finally
+            {
+                DrainingInline = false;
+            }
+        }
+
         [DllImport("SDNative.dll")]
         static extern int GetPhysicalCPUCoreCount();
 
@@ -442,6 +552,7 @@ namespace Ship_Game
                     results[i] = StartRangeTask(ref poolIndex, start, end, body);
                 }
             }
+            RunDeferredInline(); // run any OOM-deferred task bodies now that lock (Pool) is released
 
             Exception ex = null; // only store a single exception
             for (int i = 0; i < results.Length; ++i)
@@ -536,6 +647,7 @@ namespace Ship_Game
                 ParallelTask task = FindOrSpawnTask(ref poolIndex);
                 task.Start(action, result);
             }
+            RunDeferredInline(); // run inline now (unlocked) if the worker thread couldn't start
             return result;
         }
 
@@ -574,6 +686,7 @@ namespace Ship_Game
                 ParallelTask task = FindOrSpawnTask(ref poolIndex);
                 task.Start(AsyncFunc, result);
             }
+            RunDeferredInline(); // run inline now (unlocked) if the worker thread couldn't start
             return result;
         }
     }

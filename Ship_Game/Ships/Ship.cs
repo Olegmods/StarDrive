@@ -41,6 +41,13 @@ namespace Ship_Game.Ships
         // Unrotated fleet offset from [0,0]
         [StarData] public Vector2 RelativeFleetOffset;
 
+        // TRUE while this ship is a freshly-joined reinforcement that hasn't yet
+        // reached its fleet formation slot. While set, the ship is excluded from the
+        // fleet's "majority assembled" speed/warp throttling, so a wave of new ships
+        // joining mid-transit can't drag the established fleet down - they catch up at
+        // full speed on their own. Transient: Fleet.Update clears it once in formation.
+        public bool CatchingUpToFleet;
+
         // This is the current cluster that our ship
         // belongs to in ThreatMatrix's clusters
         [StarData] public ThreatCluster CurrentCluster;
