@@ -75,6 +75,15 @@ namespace Ship_Game.AI.ShipMovement.CombatManeuvers
 
         protected ChaseState ChaseStates;
 
+        /// <summary>
+        /// Whether this stance uses the anti-chase Disengage maneuver (turn-and-burn sideways).
+        /// Stances that hold a fixed facing to the target while reverse-thrusting (Artillery)
+        /// must NOT disengage: the per-frame attack/disengage thrash leaves the ship pointed at
+        /// the target while the disengage applies FORWARD thrust, driving it straight into the
+        /// enemy. Such stances override this to false and simply approach/hold/retrograde.
+        /// </summary>
+        protected virtual bool AllowDisengage => true;
+
         protected CombatMovement(ShipAI ai) : base(ai)
         {
             DesiredCombatRange = ai.Owner.DesiredCombatRange;
@@ -98,20 +107,20 @@ namespace Ship_Game.AI.ShipMovement.CombatManeuvers
         /// </summary>
         public override void Execute(FixedSimTime timeStep, ShipAI.ShipGoal goal)
         {
-            // Bail on invalid combat situations. 
-            if (Owner.IsPlatformOrStation || OwnerTarget == null || (Owner.AI.HasPriorityOrder && !Owner.AI.HasPriorityTarget) 
-                || Owner.engineState == Ship.MoveState.Warp) 
+            // Bail on invalid combat situations.
+            if (Owner.IsPlatformOrStation || OwnerTarget == null || (Owner.AI.HasPriorityOrder && !Owner.AI.HasPriorityTarget)
+                || Owner.engineState == Ship.MoveState.Warp)
                 return;
 
             Initialize(DesiredCombatRange);
             OverrideCombatValues(timeStep);
 
-            if (MoveState != CombatMoveState.Disengage && ShouldDisengage())
+            if (AllowDisengage && MoveState != CombatMoveState.Disengage && ShouldDisengage())
             {
                 DisengageType = RandomDisengageType(DirectionToTarget);
                 ExecuteAntiChaseDisengage(timeStep);
             }
-            else if (DisengageType != DisengageTypes.None)
+            else if (AllowDisengage && DisengageType != DisengageTypes.None)
             {
                 ExecuteAntiChaseDisengage(timeStep);
             }

@@ -17,6 +17,11 @@ namespace Ship_Game.AI.CombatTactics
         {
         }
 
+        // Artillery holds a fixed facing to the target and reverse-thrusts to keep range; the
+        // anti-chase Disengage (turn-and-burn) would thrash against that face-the-target logic
+        // and drive the ship forward into the enemy. So Artillery never disengages.
+        protected override bool AllowDisengage => false;
+
         protected override void OverrideCombatValues(FixedSimTime timeStep)
         {
             Ship target = OwnerTarget;
@@ -49,14 +54,29 @@ namespace Ship_Game.AI.CombatTactics
                 // maybe (Owner.Velocity - Target.Velocity).Length * 2.0f; to make it adaptable to ship speeds.
                 const float interceptBuffer = 1500f;
 
-                if (DistanceToTarget > maxDistance + interceptBuffer) 
+                // Start decelerating EARLY so we coast to a stop AT the standoff range instead of
+                // carrying our full approach momentum straight through it to point-blank (the
+                // artillery "overshoot" that makes long-range ships fight up close). Once the
+                // standoff range is within our reverse-thrust stopping distance (plus a 1.2 margin),
+                // start reverse-thrusting now while staying faced on the target so we can keep firing.
+                // Driving the thrust directly avoids the late-braking we'd get from
+                // SubLightMoveTowardsPosition, which skips its speed cap on any frame it's rotating.
+                float distToStandoff = DistanceToTarget - maxDistance;
+                float brakingDistance = Owner.GetMinDecelerationDistance(Owner.CurrentVelocity) * 1.2f;
+
+                if (distToStandoff <= brakingDistance)
+                {
+                    AI.RotateTowardsPosition(Owner.PredictImpact(target), timeStep, 0.05f);
+                    Owner.SubLightAccelerate(stlSpeedLimit: 0f, Thrust.Reverse);
+                    return CombatMoveState.Approach;
+                }
+
+                if (DistanceToTarget > maxDistance + interceptBuffer)
                 {
                     // This move will keep the ship aligned with the intercept point (for fastest closing of distance).
-                    // You won't notice when charging head to head / chasing directly behind, but there are cases 
-                    // where this is quite bad for weapons alignment. That is the reason for the buffer.                    
                     AI.SubLightMoveTowardsPosition(target.Position, timeStep);
                 }
-                else 
+                else
                 {
                     // spend the last bit of the firing gap on a shot impact course, for optimal alignment.
                     AI.SubLightMoveTowardsPosition(Owner.PredictImpact(target), timeStep);
