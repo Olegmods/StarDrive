@@ -36,11 +36,19 @@ namespace Ship_Game.Commands.Goals
 
         public override bool IsRaid => true;
 
+        // Stand down the moment the victim pays protection or is defeated - on every step, not
+        // just the first - unless we've already taken the target (let that capture conclude).
+        protected override GoalStep? PreEvaluate()
+        {
+            if ((Pirates.PaidBy(TargetEmpire) || Pirates.VictimIsDefeated(TargetEmpire))
+                && TargetShip?.Loyalty != Pirates.Owner)
+                return GoalStep.GoalFailed;
+
+            return null;
+        }
+
         GoalStep DetectAndSpawnRaidForce()
         {
-            if (Pirates.PaidBy(TargetEmpire) || Pirates.VictimIsDefeated(TargetEmpire))
-                return GoalStep.GoalFailed; // They paid or dead
-
             StarDateAdded = Owner.Universe.StarDate;
             var orbitalType = GetOrbital();
             // orbitalType = Pirates.TargetType.Projector; // TODO for testing
