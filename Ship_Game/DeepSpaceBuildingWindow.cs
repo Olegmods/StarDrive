@@ -168,7 +168,7 @@ namespace Ship_Game
                     if (TargetPlanet != null)
                         Player.AI.AddGoalAndEvaluate(new BuildConstructionShip(worldPos, ShipToBuild.Name, Player, TargetPlanet, TetherOffset));
                     else
-                        Player.AI.AddGoalAndEvaluate(new BuildConstructionShip(worldPos, ShipToBuild.Name, Player));
+                        Player.AI.AddGoalAndEvaluate(new BuildConstructionShip(worldPos, ShipToBuild.Name, Player, manualPlacement: true));
                 }
 
                 GameAudio.EchoAffirmative();
