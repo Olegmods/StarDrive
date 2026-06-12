@@ -177,8 +177,6 @@ namespace Ship_Game
             {
                 GameAudio.NegativeClick();
             }
-
-            Screen.UpdateClickableItems();
         }
 
         bool OkToBuild(Planet targetPlanet, SolarSystem targetSystem)
