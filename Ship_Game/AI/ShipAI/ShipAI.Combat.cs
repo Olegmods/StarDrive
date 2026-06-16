@@ -5,6 +5,7 @@ using SDGraphics;
 using SDUtils;
 using Ship_Game.Data.Serialization;
 using Ship_Game.Empires;
+using Ship_Game.Fleets;
 using Ship_Game.Spatial;
 using Vector2 = SDGraphics.Vector2;
 using Vector3 = SDGraphics.Vector3;
@@ -391,6 +392,8 @@ namespace Ship_Game.AI
             return target != null && target.Active && !target.Dying;
         }
 
+        Fleet.FleetFocus FocusClump;
+
         public Ship GetHighestPriorityTarget()
         {
             if (Owner.Weapons.Count == 0 && !Owner.Carrier.HasActiveHangars)
@@ -398,6 +401,8 @@ namespace Ship_Game.AI
 
             if (PotentialTargets.Length > 0)
             {
+                Fleet governing = Owner.Fleet ?? (Owner.IsHangarShip ? Owner.Mothership?.Fleet : null);
+                FocusClump = governing?.Focus;
                 return PotentialTargets.FindMax(GetTargetPriority);
             }
             return null;
@@ -405,6 +410,9 @@ namespace Ship_Game.AI
 
         // Set this to get debug output of GetTargetPriority() weights
         public static bool EnableTargetPriorityDebug;
+
+        const float FocusClumpBias = 3f;
+        const float WarpToCloseRange = 15_000f;
 
         float GetTargetPriority(Ship tgt)
         {
@@ -446,6 +454,12 @@ namespace Ship_Game.AI
                 value *= 2.0f;
             if (tgt.Resupplying) // lower priority to enemies that are retreating
                 value *= 0.5f;
+            if (distance > WarpToCloseRange.LowerBound(Owner.DesiredCombatRange))
+            {
+                value *= 0.5f;
+                if (Owner.Inhibited)
+                    value *= 0.2f;
+            }
 
             // Prefer closer targets: gently (linear) inside weapon range so the
             // ship commits to the single nearest in-range target, steeply (cubed)
@@ -454,8 +468,7 @@ namespace Ship_Game.AI
             value /= distanceNorm <= 1f ? distanceNorm : distanceNorm * distanceNorm * distanceNorm;
             if (debug) Debug($"dn={distanceNorm.String(2),-4}");
 
-            // prefer targets near our own size; the size multiplier is floored at
-            // 0.05 so nothing is ever fully ignored on size alone.
+            // prefer targets near our own size; floored low so a lone small ship is still pickable
             float relSize = (float)tgt.SurfaceArea / Owner.SurfaceArea;
             if (relSize < 1f)
             {
@@ -463,7 +476,7 @@ namespace Ship_Game.AI
                 if (Owner.ShipData.HangarDesignation == HangarOptions.Interceptor)
                     value *= (1 / relSize);
                 else
-                    value *= (relSize * relSize).LowerBound(0.05f);
+                    value *= (relSize * relSize).LowerBound(0.005f);
             }
             else if (relSize > 1f)
             {
@@ -479,6 +492,10 @@ namespace Ship_Game.AI
                 else
                     value *= (relSize <= 2f ? relSize : 4f / relSize).LowerBound(0.05f);
             }
+
+            // fleet focus-fire: boost targets inside the fleet's committed clump
+            if (FocusClump != null && tgt.Position.InRadius(FocusClump.Center, FocusClump.Radius))
+                value *= FocusClumpBias;
 
             // keep reserach and mining stations as very low priority targets
             if (tgt.IsResearchStation || tgt.IsMiningStation)

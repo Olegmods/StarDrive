@@ -10,6 +10,7 @@ using Ship_Game.Fleets.FleetTactics;
 using Ship_Game.AI;
 using Ship_Game.Commands.Goals;
 using Ship_Game.Data.Serialization;
+using Ship_Game.Empires;
 using Vector2 = SDGraphics.Vector2;
 using Ship_Game.Universe;
 using Microsoft.Xna.Framework;
@@ -32,6 +33,13 @@ namespace Ship_Game.Fleets
         [StarData] public string Name = "";
         public ShipAI.TargetParameterTotals TotalFleetAttributes;
         public ShipAI.TargetParameterTotals AverageFleetAttributes;
+
+        // immutable focus-fire snapshot; swapped atomically on the sim thread, read lock-free by ship-update threads
+        public FleetFocus Focus { get; private set; }
+        float FocusClumpTimer;
+        const float MinFocusSearchRadius = 50_000f;
+
+        public sealed record FleetFocus(Vector2 Center, float Radius);
 
         [StarData] readonly Array<Ship> CenterShips  = new();
         [StarData] readonly Array<Ship> LeftShips    = new();
@@ -2756,6 +2764,40 @@ namespace Ship_Game.Fleets
                            && readyWarpSurface >= totalWarpSurface * WarpReadySurfaceRatio;
             TotalFleetAttributes = fleetTotals;
             AverageFleetAttributes = TotalFleetAttributes.GetAveragedValues();
+
+            UpdateFocusClump(timeStep);
+        }
+
+        void UpdateFocusClump(FixedSimTime timeStep)
+        {
+            FocusClumpTimer -= timeStep.FixedTime;
+            if (FocusClumpTimer > 0f)
+                return;
+            FocusClumpTimer += EmpireConstants.TargetSelectionInterval;
+
+            Vector2 pos = AveragePosition();
+            float searchRadius = AverageFleetAttributes.MaxSensorRange.LowerBound(MinFocusSearchRadius);
+            ThreatCluster[] clusters = Owner.AI.ThreatMatrix.FindHostileClustersByDist(pos, searchRadius);
+            if (clusters.Length == 0)
+            {
+                Focus = null;
+                return;
+            }
+
+            // closest killable: clusters are distance-sorted, take the nearest we can favourably engage
+            float killable = GetStrength() * (Owner.PersonalityModifiers?.CanWeTakeThisFightMultiplier ?? 1f);
+            ThreatCluster chosen = null;
+            for (int i = 0; i < clusters.Length; i++)
+            {
+                if (clusters[i].Strength <= killable)
+                {
+                    chosen = clusters[i];
+                    break;
+                }
+            }
+            chosen ??= clusters[0]; // nothing killable -> still commit to the closest
+
+            Focus = new FleetFocus(chosen.Position, chosen.Radius);
         }
 
         public void OffensiveTactic()
