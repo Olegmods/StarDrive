@@ -10,6 +10,7 @@ using Ship_Game.Fleets.FleetTactics;
 using Ship_Game.AI;
 using Ship_Game.Commands.Goals;
 using Ship_Game.Data.Serialization;
+using Ship_Game.Empires;
 using Vector2 = SDGraphics.Vector2;
 using Ship_Game.Universe;
 using Microsoft.Xna.Framework;
@@ -32,6 +33,15 @@ namespace Ship_Game.Fleets
         [StarData] public string Name = "";
         public ShipAI.TargetParameterTotals TotalFleetAttributes;
         public ShipAI.TargetParameterTotals AverageFleetAttributes;
+
+        // immutable focus-fire snapshot; written on the sim or input thread (Fleet.Update),
+        // swapped via a single atomic reference assignment so the parallel ship-update phase
+        // reads it lock-free and always sees a complete old-or-new snapshot
+        public FleetFocus Focus { get; private set; }
+        float FocusClumpTimer;
+        const float MinFocusSearchRadius = 50_000f;
+
+        public sealed record FleetFocus(Vector2 Center, float Radius);
 
         [StarData] readonly Array<Ship> CenterShips  = new();
         [StarData] readonly Array<Ship> LeftShips    = new();
@@ -841,6 +851,9 @@ namespace Ship_Game.Fleets
 
         bool ShouldGatherAtRallyFirst(MilitaryTask task)
         {
+            if (task.RallyPlanet?.System == null)
+                return false;
+
             Vector2 enemySystemPos = task.TargetSystem?.Position ?? task.TargetPlanet.System.Position;
             Vector2 rallySystemPos = task.RallyPlanet.System.Position;
             Vector2 fleetPos       = AveragePosition(force: true);
@@ -2756,6 +2769,42 @@ namespace Ship_Game.Fleets
                            && readyWarpSurface >= totalWarpSurface * WarpReadySurfaceRatio;
             TotalFleetAttributes = fleetTotals;
             AverageFleetAttributes = TotalFleetAttributes.GetAveragedValues();
+
+            UpdateFocusClump(timeStep);
+        }
+
+        void UpdateFocusClump(FixedSimTime timeStep)
+        {
+            FocusClumpTimer -= timeStep.FixedTime;
+            if (FocusClumpTimer > 0f)
+                return;
+            FocusClumpTimer += EmpireConstants.TargetSelectionInterval;
+
+            Vector2 pos = AveragePosition();
+            float searchRadius = AverageFleetAttributes.MaxSensorRange.LowerBound(MinFocusSearchRadius);
+            ThreatCluster[] clusters = Owner.AI.ThreatMatrix.FindHostileClustersByDist(pos, searchRadius);
+            if (clusters.Length == 0)
+            {
+                Focus = null;
+                return;
+            }
+
+            // closest killable: clusters are distance-sorted, take the nearest we can favourably engage.
+            // Weight enemy strength by the per-empire fleet multiplier (Remnants/difficulty scaling),
+            // matching CanTakeThisFight and the cluster-distribution code above.
+            float killable = GetStrength() * (Owner.PersonalityModifiers?.CanWeTakeThisFightMultiplier ?? 1f);
+            ThreatCluster chosen = null;
+            for (int i = 0; i < clusters.Length; i++)
+            {
+                if (clusters[i].Strength * Owner.GetFleetStrEmpireMultiplier(clusters[i].Loyalty) <= killable)
+                {
+                    chosen = clusters[i];
+                    break;
+                }
+            }
+            chosen ??= clusters[0]; // nothing killable -> still commit to the closest
+
+            Focus = new FleetFocus(chosen.Position, chosen.Radius);
         }
 
         public void OffensiveTactic()
