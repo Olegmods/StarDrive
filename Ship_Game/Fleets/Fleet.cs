@@ -2789,12 +2789,14 @@ namespace Ship_Game.Fleets
                 return;
             }
 
-            // closest killable: clusters are distance-sorted, take the nearest we can favourably engage
+            // closest killable: clusters are distance-sorted, take the nearest we can favourably engage.
+            // Weight enemy strength by the per-empire fleet multiplier (Remnants/difficulty scaling),
+            // matching CanTakeThisFight and the cluster-distribution code above.
             float killable = GetStrength() * (Owner.PersonalityModifiers?.CanWeTakeThisFightMultiplier ?? 1f);
             ThreatCluster chosen = null;
             for (int i = 0; i < clusters.Length; i++)
             {
-                if (clusters[i].Strength <= killable)
+                if (clusters[i].Strength * Owner.GetFleetStrEmpireMultiplier(clusters[i].Loyalty) <= killable)
                 {
                     chosen = clusters[i];
                     break;
