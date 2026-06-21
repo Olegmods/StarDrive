@@ -34,7 +34,9 @@ namespace Ship_Game.Fleets
         public ShipAI.TargetParameterTotals TotalFleetAttributes;
         public ShipAI.TargetParameterTotals AverageFleetAttributes;
 
-        // immutable focus-fire snapshot; swapped atomically on the sim thread, read lock-free by ship-update threads
+        // immutable focus-fire snapshot; written on the sim or input thread (Fleet.Update),
+        // swapped via a single atomic reference assignment so the parallel ship-update phase
+        // reads it lock-free and always sees a complete old-or-new snapshot
         public FleetFocus Focus { get; private set; }
         float FocusClumpTimer;
         const float MinFocusSearchRadius = 50_000f;
