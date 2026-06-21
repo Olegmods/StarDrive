@@ -849,6 +849,9 @@ namespace Ship_Game.Fleets
 
         bool ShouldGatherAtRallyFirst(MilitaryTask task)
         {
+            if (task.RallyPlanet?.System == null)
+                return false;
+
             Vector2 enemySystemPos = task.TargetSystem?.Position ?? task.TargetPlanet.System.Position;
             Vector2 rallySystemPos = task.RallyPlanet.System.Position;
             Vector2 fleetPos       = AveragePosition(force: true);
