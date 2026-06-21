@@ -392,6 +392,8 @@ namespace Ship_Game.Ships
             Vector2 point, Troop troop, LaunchPlan launchPlan, float rotationDeg = -1f)
         {
             Ship ship = CreateShipAtPoint(us, shipName, owner, point);
+            if (ship == null)
+                return null;
             ship.VanityName = troop.DisplayName;
             troop.LandOnShip(ship);
             ship.InitLaunch(launchPlan, rotationDeg);

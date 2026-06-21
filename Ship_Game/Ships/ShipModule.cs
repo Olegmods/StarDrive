@@ -1106,8 +1106,10 @@ namespace Ship_Game.Ships
             if (HangarTimer <= 0f && HangarShip == null) // launch the troopship
             {
                 string assaultShuttle = Parent.Loyalty.GetAssaultShuttleName();
-                ship = Ship.CreateTroopShipAtPoint(Parent.Universe, assaultShuttle, Parent.Loyalty, 
+                ship = Ship.CreateTroopShipAtPoint(Parent.Universe, assaultShuttle, Parent.Loyalty,
                     Position, troop, LaunchPlan.Hangar, rotationDeg: ActualRotationDegrees);
+                if (ship == null)
+                    return false;
 
                 Parent.OnShipLaunched(ship, this);
                 HangarShip.DoEscort(Parent);
